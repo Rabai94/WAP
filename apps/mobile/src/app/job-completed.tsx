@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import AppButton from "../components/AppButton";
+import AppCard from "../components/AppCard";
 
 export default function JobCompletedScreen() {
   const router = useRouter();
@@ -16,30 +17,26 @@ export default function JobCompletedScreen() {
         procesate.
       </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Rezumat final</Text>
-
+      <AppCard title="Rezumat final">
         <Text style={styles.item}>✓ Job publicat</Text>
         <Text style={styles.item}>✓ Lucrător acceptat</Text>
         <Text style={styles.item}>✓ Contract generat și trimis</Text>
         <Text style={styles.item}>✓ Check-in și check-out făcute</Text>
         <Text style={styles.item}>✓ Plata confirmată</Text>
         <Text style={styles.successItem}>✓ Rating finalizat</Text>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>WAP MVP status</Text>
-
+      <AppCard title="WAP MVP status">
         <Text style={styles.item}>Fluxul principal funcționează.</Text>
         <Text style={styles.item}>Următorul pas real: salvare date și backend.</Text>
-      </View>
+      </AppCard>
 
       <AppButton
-  title="Înapoi la început"
-  onPress={() => {
-    router.replace("/" as any);
-  }}
-/>
+        title="Înapoi la început"
+        onPress={() => {
+          router.replace("/" as any);
+        }}
+      />
 
       <Pressable
         style={styles.backButton}
@@ -81,22 +78,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 24,
     lineHeight: 22,
-  },
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E6D8BC",
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 16,
-  },
-
-  sectionTitle: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#000000",
-    marginBottom: 12,
   },
 
   item: {
