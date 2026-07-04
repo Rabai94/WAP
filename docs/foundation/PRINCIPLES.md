@@ -131,3 +131,35 @@ Complexitatea aparține sistemului.
 Simplitatea aparține utilizatorului.
 
 WAP trebuie să rezolve probleme complexe prin procese inteligente, oferind utilizatorilor o experiență cât mai simplă, clară și eficientă.
+# Principiul 12 – Complexitate inteligentă
+
+WAP trebuie să fie extrem de complex în interior și extrem de simplu la suprafață.
+
+Complexitatea aparține sistemului.
+
+Simplitatea aparține utilizatorului.
+
+Utilizatorii și companiile nu trebuie să învețe cum funcționează WAP.
+
+WAP trebuie să învețe cum funcționează utilizatorii și companiile.
+
+Orice problemă complexă trebuie transformată într-o experiență simplă, clară și eficientă.
+
+Succesul WAP nu este măsurat prin complexitatea tehnologiei folosite, ci prin cât de ușor își ating utilizatorii obiectivele.
+
+
+# 13. Principiul simplității inteligente
+
+WAP trebuie să rezolve probleme complexe prin experiențe simple.
+
+Complexitatea ecosistemului trebuie să existe în interiorul sistemului, nu în experiența utilizatorului.
+
+Fiecare funcționalitate trebuie proiectată astfel încât utilizatorul să își poată atinge obiectivul cu cât mai puțini pași și fără a fi nevoit să înțeleagă procesele complexe din spatele deciziilor.
+
+Wapy trebuie să analizeze, să compare și să ia în considerare toate informațiile relevante înainte de a propune o soluție.
+
+Utilizatorul trebuie să vadă doar rezultatul final: o experiență simplă, clară și intuitivă.
+
+Succesul WAP este atins atunci când utilizatorii spun:
+
+„Nu mă așteptam să fie atât de simplu.” 

@@ -691,7 +691,6 @@ Un AI util nu este un AI care face orice, ci un AI care știe unde trebuie să s
 
 Wapy trebuie să ajute, să recomande, să explice și să anticipeze, dar nu trebuie să manipuleze, să ascundă informații sau să ia decizii importante fără reguli clare.
 
----
 
 ## 7.1 Ce are voie Wapy să facă
 
@@ -852,3 +851,4 @@ Wapy nu trebuie să inventeze siguranță acolo unde există incertitudine.
 - când este nevoie de verificare umană.
 
 Wapy trebuie să fie inteligent, dar și responsabil.
+ 
