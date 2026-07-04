@@ -34,15 +34,15 @@ export default function RatingScreen() {
                 <Text style={styles.item}>✓ Contract respectat</Text>
             </View>
 
-      <Pressable
-  style={styles.button}
-  onPress={() => {
-    console.log("JOB FINALIZAT COMPLET");
-    router.replace("/job-completed" as any);
-  }}
->
-  <Text style={styles.buttonText}>Finalizează jobul</Text>
-</Pressable>
+            <Pressable
+                style={styles.button}
+                onPress={() => {
+                    console.log("JOB FINALIZAT COMPLET");
+                    router.replace("/job-completed" as any);
+                }}
+            >
+                <Text style={styles.buttonText}>Finalizează jobul</Text>
+            </Pressable>
 
             <Pressable
                 style={styles.backButton}
