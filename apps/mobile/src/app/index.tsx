@@ -1,17 +1,33 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.logo}>WAP</Text>
-      <Text style={styles.title}>WorkAlfa Platform</Text>
-      <Text style={styles.subtitle}>
-        O singură platformă pentru muncă, servicii și afaceri.
-      </Text>
+      <Text style={styles.title}>WAP</Text>
 
-      <View style={styles.button}>
-        <Text style={styles.buttonText}>Începe</Text>
+      <Text style={styles.subtitle}>Your Career Starts Here</Text>
+
+      <View style={styles.card}>
+        <Text style={styles.item}>✓ Jobs</Text>
+        <Text style={styles.item}>✓ Career</Text>
+        <Text style={styles.item}>✓ Services</Text>
+        <Text style={styles.item}>✓ Business</Text>
+        <Text style={styles.item}>✓ Wapy AI</Text>
       </View>
+
+      <Pressable
+        style={styles.button}
+        onPress={() => {
+          console.log("BUTON APASAT");
+          console.log("MERGEM LA ROLE");
+          router.replace("/role" as any);
+        }}
+      >
+        <Text style={styles.buttonText}>Începe</Text>
+      </Pressable>
     </View>
   );
 }
@@ -19,41 +35,51 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFFFFF",
     padding: 24,
+    justifyContent: "center",
   },
-  logo: {
-    fontSize: 64,
-    fontWeight: '900',
-    color: '#D62828',
-    letterSpacing: 4,
-  },
+
   title: {
-    marginTop: 12,
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111111',
-    textAlign: 'center',
+    fontSize: 36,
+    fontWeight: "800",
+    color: "#000000",
+    marginBottom: 12,
   },
+
   subtitle: {
-    marginTop: 16,
     fontSize: 18,
-    color: '#444444',
-    textAlign: 'center',
-    maxWidth: 420,
+    fontWeight: "600",
+    color: "#111111",
+    marginBottom: 24,
   },
+
+  card: {
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+
+  item: {
+    fontSize: 16,
+    color: "#000000",
+    marginBottom: 6,
+  },
+
   button: {
-    marginTop: 32,
-    backgroundColor: '#D62828',
+    backgroundColor: "#8B5A24",
     paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderRadius: 14,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
+
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });
