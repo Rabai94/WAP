@@ -91,3 +91,77 @@ Exemple:
 - modificări importante pe piața muncii.
 
 Recommendation Engine trebuie să evite recomandările excesive care pot reduce încrederea și atenția participanților.
+
+# 7. Recomandări bazate pe potențial
+
+WAP nu trebuie să recomande doar oportunitățile pentru care participantul este deja calificat.
+
+Motorul de recomandări trebuie să identifice și oportunitățile pentru care participantul poate deveni eligibil prin dezvoltarea competențelor și calificărilor sale.
+
+Recomandările trebuie împărțite în două categorii:
+
+## Recomandări imediate
+
+Oportunități pentru care participantul îndeplinește deja cerințele necesare și poate aplica imediat.
+
+## Recomandări de dezvoltare
+
+Oportunități pentru care participantul nu îndeplinește încă toate cerințele necesare.
+
+În aceste situații, Wapy trebuie să explice clar participantului:
+
+- ce competențe îi lipsesc;
+- ce calificări sau certificări sunt necesare;
+- ce cursuri sunt recomandate;
+- dacă există programe gratuite sau finanțate;
+- timpul estimat necesar pentru pregătire;
+- costurile estimative, atunci când sunt disponibile;
+- pașii recomandați pentru atingerea obiectivului profesional.
+
+Participantul nu trebuie descurajat atunci când nu este eligibil pentru o oportunitate.
+
+Scopul WAP este să transforme fiecare oportunitate într-un plan clar de dezvoltare profesională.
+
+WAP nu trebuie să răspundă doar la întrebarea:
+
+„Pentru ce pot aplica astăzi?”
+
+WAP trebuie să răspundă și la întrebarea:
+
+„Ce trebuie să fac pentru a putea aplica mâine?”
+# 8. Diversitatea recomandărilor
+
+Recommendation Engine nu trebuie să recomande permanent același tip de oportunități.
+
+Recomandările trebuie să ofere participantului o perspectivă completă asupra posibilităților de dezvoltare.
+
+În funcție de profilul și obiectivele participantului, Wapy poate recomanda:
+
+- locuri de muncă;
+- oportunități de promovare;
+- cursuri și calificări;
+- certificări;
+- proiecte finanțate;
+- programe gratuite;
+- mentori;
+- evenimente profesionale;
+- companii relevante;
+- oportunități antreprenoriale;
+- alte recomandări utile.
+
+Scopul Recommendation Engine este să descopere cea mai bună oportunitate pentru participant, nu doar cea mai apropiată.
+# 9. Echilibrul recomandărilor
+
+Recommendation Engine trebuie să păstreze un echilibru între recomandările pe termen scurt și cele pe termen lung.
+
+Participantul trebuie să primească atât oportunități pe care le poate valorifica imediat, cât și recomandări care îl ajută să își atingă obiectivele viitoare.
+
+Exemple:
+
+- un loc de muncă disponibil astăzi;
+- un curs care poate crește salariul în viitor;
+- o certificare necesară pentru promovare;
+- un program de recalificare;
+- o oportunitate antreprenorială.
+
+Scopul este ca Recommendation Engine să sprijine atât nevoile imediate, cât și dezvoltarea profesională pe termen lung.
