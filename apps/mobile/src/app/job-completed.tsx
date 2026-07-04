@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import AppButton from "../components/AppButton";
 
 export default function JobCompletedScreen() {
   const router = useRouter();
@@ -33,14 +34,12 @@ export default function JobCompletedScreen() {
         <Text style={styles.item}>Următorul pas real: salvare date și backend.</Text>
       </View>
 
-      <Pressable
-        style={styles.button}
-        onPress={() => {
-          router.replace("/" as any);
-        }}
-      >
-        <Text style={styles.buttonText}>Înapoi la început</Text>
-      </Pressable>
+      <AppButton
+  title="Înapoi la început"
+  onPress={() => {
+    router.replace("/" as any);
+  }}
+/>
 
       <Pressable
         style={styles.backButton}
@@ -111,19 +110,6 @@ const styles = StyleSheet.create({
     color: "#2E7D32",
     fontWeight: "800",
     marginBottom: 8,
-  },
-
-  button: {
-    backgroundColor: "#8B5A24",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "800",
   },
 
   backButton: {
