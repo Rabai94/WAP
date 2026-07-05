@@ -344,7 +344,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "explore.docs": "Expo-Dokumentation",
     "explore.routing": "Dateibasierte Navigation",
     "explore.routingText1":
-      "Diese App hat zwei Beispielseiten: src/app/index.tsx und src/app/explore.tsx.",
+      "Diese App nutzt die WAP-Startseite als Einstiegspunkt.",
     "explore.routingText2":
       "Die Layout-Datei in src/app/_layout.tsx richtet den Navigator ein.",
     "explore.learnMore": "Mehr erfahren",
@@ -693,7 +693,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "explore.docs": "Expo documentation",
     "explore.routing": "File-based routing",
     "explore.routingText1":
-      "This app has two example screens: src/app/index.tsx and src/app/explore.tsx.",
+      "This app uses the WAP start screen as its entry point.",
     "explore.routingText2":
       "The layout file in src/app/_layout.tsx sets up the navigator.",
     "explore.learnMore": "Learn more",
@@ -1042,7 +1042,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "explore.docs": "Documentație Expo",
     "explore.routing": "Rutare pe bază de fișiere",
     "explore.routingText1":
-      "Această aplicație are două ecrane exemplu: src/app/index.tsx și src/app/explore.tsx.",
+      "Această aplicație folosește ecranul de start WAP ca punct de intrare.",
     "explore.routingText2":
       "Fișierul de layout din src/app/_layout.tsx configurează navigatorul.",
     "explore.learnMore": "Află mai mult",
