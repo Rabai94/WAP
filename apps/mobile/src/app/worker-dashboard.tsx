@@ -1,130 +1,69 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
+import { Button, Card, Header, Screen } from "../components/ui";
+import { useLanguage } from "../i18n/LanguageProvider";
+import { Colors, Spacing, Typography } from "@/theme";
 
 export default function WorkerDashboardScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Dashboard lucrător</Text>
+    <Screen>
+      <Header
+        title={t("workerDashboard.title")}
+        subtitle={t("workerDashboard.subtitle")}
+      />
 
-      <Text style={styles.subtitle}>
-        Profilul tău a fost creat. Aici vei vedea joburi disponibile.
-      </Text>
+      <Card title={t("common.nextSteps")}>
+        <Text style={styles.item}>✓ {t("workerDashboard.item1")}</Text>
+        <Text style={styles.item}>✓ {t("workerDashboard.item2")}</Text>
+        <Text style={styles.item}>✓ {t("workerDashboard.item3")}</Text>
+        <Text style={styles.item}>✓ {t("workerDashboard.item4")}</Text>
+      </Card>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Următorii pași</Text>
+      <Card title={t("workerDashboard.jobsTitle")}>
+        <Text style={styles.emptyText}>{t("workerDashboard.empty")}</Text>
+      </Card>
 
-        <Text style={styles.item}>✓ Verificare identitate</Text>
-        <Text style={styles.item}>✓ Alegere tipuri de muncă</Text>
-        <Text style={styles.item}>✓ Setare disponibilitate</Text>
-        <Text style={styles.item}>✓ Primire oferte de job</Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Joburi recomandate</Text>
-
-        <Text style={styles.emptyText}>
-          Ai joburi demo disponibile. Intră în lista de joburi pentru a aplica.
-        </Text>
-      </View>
-
-      <Pressable
-        style={styles.button}
+      <Button
+        title={t("workerDashboard.viewJobs")}
         onPress={() => {
           console.log("MERGEM LA JOBURI");
-          router.replace("/jobs" as any);
+          router.push("/jobs" as any);
         }}
-      >
-        <Text style={styles.buttonText}>Vezi joburi</Text>
-      </Pressable>
+      />
 
-      <Pressable
+      <Button
+        title={t("common.backToForm")}
+        variant="ghost"
         style={styles.backButton}
         onPress={() => {
-          router.replace("/worker-form" as any);
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.push("/worker-form" as any);
+          }
         }}
-      >
-        <Text style={styles.backText}>Înapoi la formular</Text>
-      </Pressable>
-    </View>
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFF3D8",
-    padding: 24,
-    justifyContent: "center",
-  },
-
-  title: {
-    fontSize: 34,
-    fontWeight: "800",
-    color: "#000000",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-
-  subtitle: {
-    fontSize: 16,
-    color: "#444444",
-    textAlign: "center",
-    marginBottom: 24,
-  },
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E6D8BC",
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 16,
-  },
-
-  sectionTitle: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#000000",
-    marginBottom: 12,
-  },
-
   item: {
-    fontSize: 16,
-    color: "#333333",
-    marginBottom: 8,
+    fontSize: Typography.body,
+    color: Colors.textBody,
+    marginBottom: Spacing.md,
   },
 
   emptyText: {
-    fontSize: 16,
-    color: "#666666",
-    lineHeight: 22,
-  },
-
-  button: {
-    backgroundColor: "#8B5A24",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 4,
-  },
-
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "800",
+    fontSize: Typography.body,
+    color: Colors.textMuted,
+    lineHeight: Typography.lineHeight.subtitle,
   },
 
   backButton: {
-    marginTop: 14,
-    alignItems: "center",
-    padding: 12,
-  },
-
-  backText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#8B5A24",
+    marginTop: Spacing.xxl,
   },
 });

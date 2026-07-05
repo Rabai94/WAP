@@ -1,116 +1,55 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { Button, Card, Header, Screen } from "../components/ui";
+import { useLanguage } from "../i18n/LanguageProvider";
+import { Colors, Spacing, Typography } from "@/theme";
 
 export default function WorkerScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Profil lucrător</Text>
+    <Screen>
+      <Header title={t("worker.title")} subtitle={t("worker.subtitle")} />
 
-      <Text style={styles.subtitle}>
-        Aici începe contul pentru persoana care caută muncă.
-      </Text>
+      <Card title={t("worker.card.title")}>
+        <Text style={styles.item}>✓ {t("worker.card.item1")}</Text>
+        <Text style={styles.item}>✓ {t("worker.card.item2")}</Text>
+        <Text style={styles.item}>✓ {t("worker.card.item3")}</Text>
+        <Text style={styles.item}>✓ {t("worker.card.item4")}</Text>
+      </Card>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Ce va avea lucrătorul?</Text>
-
-        <Text style={styles.item}>✓ Identitate verificată</Text>
-        <Text style={styles.item}>✓ Joburi pe ore sau pe contract</Text>
-        <Text style={styles.item}>✓ Plată sigură prin aplicație</Text>
-        <Text style={styles.item}>✓ Rating de seriozitate</Text>
-        <Text style={styles.item}>✓ Istoric de muncă legală</Text>
-      </View>
-
-     <Pressable
-     style={styles.button}
-       onPress={() => {
-       console.log("MERGEM LA FORMULAR LUCRATOR");
-      router.replace("/worker-form" as any);
-      }}
->
-  <Text style={styles.buttonText}>Continuă</Text>
-</Pressable>
-
-      <Pressable
-        style={styles.backButton}
+      <Button
+        title={t("worker.continue")}
         onPress={() => {
-          router.replace("/role" as any);
+          router.push("/worker-form" as any);
         }}
-      >
-        <Text style={styles.backText}>Înapoi</Text>
-      </Pressable>
-    </View>
+      />
+
+      <View style={styles.backButton}>
+        <Button
+          title={t("common.back")}
+          variant="secondary"
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.push("/role" as any);
+            }
+          }}
+        />
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFF3D8",
-    padding: 24,
-    justifyContent: "center",
-  },
-
-  title: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: "#000000",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-
-  subtitle: {
-    fontSize: 17,
-    color: "#444444",
-    textAlign: "center",
-    marginBottom: 28,
-  },
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E6D8BC",
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 22,
-  },
-
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#000000",
-    marginBottom: 14,
-  },
-
   item: {
-    fontSize: 16,
-    color: "#333333",
-    marginBottom: 8,
+    fontSize: Typography.body,
+    color: Colors.textBody,
+    marginBottom: Spacing.md,
   },
-
-  button: {
-    backgroundColor: "#8B5A24",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "800",
-  },
-
   backButton: {
-    marginTop: 14,
-    alignItems: "center",
-    padding: 12,
-  },
-
-  backText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#8B5A24",
+    marginTop: Spacing.xl,
   },
 });

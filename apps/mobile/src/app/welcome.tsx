@@ -4,26 +4,28 @@ import Button from "@/components/Button";
 import AppText from "@/components/AppText";
 
 import { Colors, Spacing } from "@/theme";
+import { useLanguage } from "@/i18n/LanguageProvider";
 
 export default function WelcomeScreen() {
+  const { t } = useLanguage();
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
 
         <AppText variant="h1">
-          WAP
+          {t("welcome.title")}
         </AppText>
 
         <AppText variant="title">
-          Build your future.
+          {t("welcome.subtitle")}
         </AppText>
 
         <AppText variant="body">
-          One ecosystem for careers, services,
-          companies and opportunities.
+          {t("welcome.description")}
         </AppText>
 
-        <Button title="Get Started" />
+        <Button title={t("welcome.start")} />
 
       </View>
     </SafeAreaView>

@@ -1,204 +1,138 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { Button, Card, Header, Screen } from "../components/ui";
+import { useLanguage } from "../i18n/LanguageProvider";
+import { Colors, Spacing, Typography } from "@/theme";
 
 export default function PaymentScreen() {
     const router = useRouter();
+    const { t } = useLanguage();
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.icon}>💶</Text>
+        <Screen>
+            <Header
+                icon="💶"
+                title={t("payment.title")}
+                subtitle={t("payment.subtitle")}
+            />
 
-            <Text style={styles.title}>Plată pregătită</Text>
-
-            <Text style={styles.subtitle}>
-                Orele au fost calculate. Plata este pregătită pentru procesare.
-            </Text>
-
-            <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Calcul plată</Text>
-
+            <Card title={t("payment.calculation")}>
                 <View style={styles.row}>
-                    <Text style={styles.label}>Ore lucrate</Text>
-                    <Text style={styles.value}>8</Text>
+                    <Text style={styles.label}>{t("checkOut.hours")}</Text>
+                    <Text style={styles.value}>{t("demo.hours.eight")}</Text>
                 </View>
 
                 <View style={styles.row}>
-                    <Text style={styles.label}>Plată/oră</Text>
-                    <Text style={styles.value}>15 €</Text>
+                    <Text style={styles.label}>{t("common.payPerHour")}</Text>
+                    <Text style={styles.value}>{t("demo.amount.pay15")}</Text>
                 </View>
 
                 <View style={styles.row}>
-                    <Text style={styles.label}>Total brut</Text>
-                    <Text style={styles.value}>120 €</Text>
+                    <Text style={styles.label}>{t("payment.grossTotal")}</Text>
+                    <Text style={styles.value}>{t("demo.amount.grossTotal")}</Text>
                 </View>
 
                 <View style={styles.divider} />
 
                 <View style={styles.row}>
-                    <Text style={styles.label}>Taxă WAP lucrător</Text>
-                    <Text style={styles.value}>4 €</Text>
+                    <Text style={styles.label}>{t("payment.workerFee")}</Text>
+                    <Text style={styles.value}>{t("demo.amount.businessFee")}</Text>
                 </View>
 
                 <View style={styles.row}>
-                    <Text style={styles.label}>Taxă WAP firmă</Text>
-                    <Text style={styles.value}>4 €</Text>
+                    <Text style={styles.label}>{t("payment.businessFee")}</Text>
+                    <Text style={styles.value}>{t("demo.amount.businessFee")}</Text>
                 </View>
 
                 <View style={styles.divider} />
 
                 <View style={styles.row}>
-                    <Text style={styles.totalLabel}>Total estimat lucrător</Text>
-                    <Text style={styles.totalValue}>116 €</Text>
+                    <Text style={styles.totalLabel}>{t("payment.workerTotal")}</Text>
+                    <Text style={styles.totalValue}>{t("demo.amount.workerTotal")}</Text>
                 </View>
-            </View>
+            </Card>
 
-            <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Status plată</Text>
+            <Card title={t("payment.statusTitle")}>
+                <Text style={styles.item}>✓ {t("payment.item1")}</Text>
+                <Text style={styles.item}>✓ {t("payment.item2")}</Text>
+                <Text style={styles.item}>✓ {t("payment.item3")}</Text>
+                <Text style={styles.pendingItem}>⏳ {t("payment.pending")}</Text>
+            </Card>
 
-                <Text style={styles.item}>✓ Ore calculate</Text>
-                <Text style={styles.item}>✓ Taxe WAP calculate</Text>
-                <Text style={styles.item}>✓ Plata pregătită</Text>
-                <Text style={styles.pendingItem}>⏳ Așteaptă confirmarea firmei</Text>
-            </View>
-
-            <Pressable
-                style={styles.button}
+            <Button
+                title={t("payment.confirm")}
                 onPress={() => {
                     console.log("PLATA CONFIRMATA");
-                    router.replace("/payment-confirmed" as any);
+                    router.push("/payment-confirmed" as any);
                 }}
-            >
-                <Text style={styles.buttonText}>Confirmă plata</Text>
-            </Pressable>
+            />
 
-            <Pressable
+            <Button
+                title={t("common.backToCheckOut")}
+                variant="ghost"
                 style={styles.backButton}
                 onPress={() => {
-                    router.replace("/check-out" as any);
+                    if (router.canGoBack()) {
+                        router.back();
+                    } else {
+                        router.push("/check-out" as any);
+                    }
                 }}
-            >
-                <Text style={styles.backText}>Înapoi la check-out</Text>
-            </Pressable>
-        </View>
+            />
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#FFF3D8",
-        padding: 24,
-        justifyContent: "center",
-    },
-
-    icon: {
-        fontSize: 54,
-        textAlign: "center",
-        marginBottom: 12,
-    },
-
-    title: {
-        fontSize: 34,
-        fontWeight: "800",
-        color: "#000000",
-        textAlign: "center",
-        marginBottom: 8,
-    },
-
-    subtitle: {
-        fontSize: 16,
-        color: "#444444",
-        textAlign: "center",
-        marginBottom: 24,
-        lineHeight: 22,
-    },
-
-    card: {
-        backgroundColor: "#FFFFFF",
-        borderWidth: 1,
-        borderColor: "#E6D8BC",
-        borderRadius: 18,
-        padding: 18,
-        marginBottom: 16,
-    },
-
-    sectionTitle: {
-        fontSize: 21,
-        fontWeight: "800",
-        color: "#000000",
-        marginBottom: 12,
-    },
-
     row: {
         flexDirection: "row",
         justifyContent: "space-between",
-        marginBottom: 10,
+        marginBottom: Spacing.lg,
     },
 
     label: {
-        fontSize: 16,
-        color: "#333333",
+        fontSize: Typography.body,
+        color: Colors.textBody,
     },
 
     value: {
-        fontSize: 16,
-        color: "#000000",
-        fontWeight: "700",
+        fontSize: Typography.body,
+        color: Colors.text,
+        fontWeight: Typography.fontWeight.bold,
     },
 
     divider: {
         height: 1,
-        backgroundColor: "#E6D8BC",
-        marginVertical: 8,
+        backgroundColor: Colors.border,
+        marginVertical: Spacing.md,
     },
 
     totalLabel: {
-        fontSize: 17,
-        color: "#000000",
-        fontWeight: "800",
+        fontSize: Typography.button,
+        color: Colors.text,
+        fontWeight: Typography.fontWeight.extraBold,
     },
 
     totalValue: {
-        fontSize: 18,
-        color: "#2E7D32",
-        fontWeight: "800",
+        fontSize: Typography.total,
+        color: Colors.success,
+        fontWeight: Typography.fontWeight.extraBold,
     },
 
     item: {
-        fontSize: 16,
-        color: "#333333",
-        marginBottom: 8,
+        fontSize: Typography.body,
+        color: Colors.textBody,
+        marginBottom: Spacing.md,
     },
 
     pendingItem: {
-        fontSize: 16,
-        color: "#8B5A24",
-        fontWeight: "800",
-        marginBottom: 8,
-    },
-
-    button: {
-        backgroundColor: "#8B5A24",
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: "center",
-    },
-
-    buttonText: {
-        color: "#FFFFFF",
-        fontSize: 17,
-        fontWeight: "800",
+        fontSize: Typography.body,
+        color: Colors.brand,
+        fontWeight: Typography.fontWeight.extraBold,
+        marginBottom: Spacing.md,
     },
 
     backButton: {
-        marginTop: 14,
-        alignItems: "center",
-        padding: 12,
-    },
-
-    backText: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#8B5A24",
+        marginTop: Spacing.xxl,
     },
 });

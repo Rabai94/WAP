@@ -2,6 +2,7 @@ import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { Colors as AppColors, Typography } from '@/theme';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
@@ -32,42 +33,42 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 
 const styles = StyleSheet.create({
   small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
+    fontSize: Typography.caption,
+    lineHeight: Typography.lineHeight.compact,
+    fontWeight: Typography.fontWeight.medium,
   },
   smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
+    fontSize: Typography.caption,
+    lineHeight: Typography.lineHeight.compact,
+    fontWeight: Typography.fontWeight.bold,
   },
   default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
+    fontSize: Typography.body,
+    lineHeight: Typography.lineHeight.default,
+    fontWeight: Typography.fontWeight.medium,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontSize: Typography.display,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.display,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+    fontSize: Typography.title,
+    lineHeight: Typography.lineHeight.subtitleLarge,
+    fontWeight: Typography.fontWeight.semibold,
   },
   link: {
-    lineHeight: 30,
-    fontSize: 14,
+    lineHeight: Typography.lineHeight.link,
+    fontSize: Typography.caption,
   },
   linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
+    lineHeight: Typography.lineHeight.link,
+    fontSize: Typography.caption,
+    color: AppColors.link,
   },
   code: {
     fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
-    fontSize: 12,
+    fontWeight: Platform.select({ android: Typography.fontWeight.bold }) ?? Typography.fontWeight.medium,
+    fontSize: Typography.small,
   },
 });

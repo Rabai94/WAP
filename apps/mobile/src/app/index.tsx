@@ -1,15 +1,16 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import AppButton from "../components/AppButton";
+import { Button, Card, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { languages } from "../i18n/translations";
+import { Colors, Radius, Spacing, Typography } from "@/theme";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { t, language, setLanguage } = useLanguage();
 
   return (
-    <View style={styles.container}>
+    <Screen>
       <View style={styles.languageRow}>
         {languages.map((item) => (
           <Pressable
@@ -41,103 +42,94 @@ export default function HomeScreen() {
       <Text style={styles.subtitle}>{t("home.description")}</Text>
 
       <View style={styles.grid}>
-        <View style={styles.card}>
+        <Card style={styles.homeCard}>
           <Text style={styles.cardText}>{t("home.card.jobs")}</Text>
-        </View>
+        </Card>
 
-        <View style={styles.card}>
+        <Card style={styles.homeCard}>
           <Text style={styles.cardText}>{t("home.card.career")}</Text>
-        </View>
+        </Card>
 
-        <View style={styles.card}>
+        <Card style={styles.homeCard}>
           <Text style={styles.cardText}>{t("home.card.services")}</Text>
-        </View>
+        </Card>
 
-        <View style={styles.card}>
+        <Card style={styles.homeCard}>
           <Text style={styles.cardText}>{t("home.card.business")}</Text>
-        </View>
+        </Card>
 
-        <View style={styles.card}>
+        <Card style={styles.homeCard}>
           <Text style={styles.cardText}>{t("home.card.ai")}</Text>
-        </View>
+        </Card>
       </View>
 
-      <AppButton
+      <Button
         title={t("home.start")}
         onPress={() => {
           router.push("/role" as any);
         }}
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFF3D8",
-    padding: 24,
-    justifyContent: "center",
-  },
   languageRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 8,
-    marginBottom: 24,
+    gap: Spacing.md,
+    marginBottom: Spacing.screen,
   },
   languageButton: {
     borderWidth: 1,
-    borderColor: "#8B5A24",
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.brand,
+    borderRadius: Radius.round,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xxl,
+    backgroundColor: Colors.white,
   },
   activeLanguageButton: {
-    backgroundColor: "#8B5A24",
+    backgroundColor: Colors.brand,
   },
   languageText: {
-    color: "#8B5A24",
-    fontWeight: "800",
+    color: Colors.brand,
+    fontWeight: Typography.fontWeight.extraBold,
   },
   activeLanguageText: {
-    color: "#FFFFFF",
+    color: Colors.white,
   },
   logo: {
-    fontSize: 42,
-    fontWeight: "900",
-    color: "#8B5A24",
+    fontSize: Typography.logo,
+    fontWeight: Typography.fontWeight.black,
+    color: Colors.brand,
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#000000",
+    fontSize: Typography.headline,
+    fontWeight: Typography.fontWeight.extraBold,
+    color: Colors.text,
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: Spacing.lg,
   },
   subtitle: {
-    fontSize: 16,
-    color: "#444444",
+    fontSize: Typography.body,
+    color: Colors.textSecondary,
     textAlign: "center",
-    marginBottom: 28,
-    lineHeight: 22,
+    marginBottom: Spacing.seven,
+    lineHeight: Typography.lineHeight.subtitle,
   },
   grid: {
-    marginBottom: 28,
+    marginBottom: Spacing.seven,
   },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E6D8BC",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+  homeCard: {
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+    marginBottom: Spacing.xl,
   },
   cardText: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#000000",
+    fontSize: Typography.total,
+    fontWeight: Typography.fontWeight.extraBold,
+    color: Colors.text,
   },
 });

@@ -1,149 +1,79 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
+import { Button, Card, Header, Screen } from "../components/ui";
+import { useLanguage } from "../i18n/LanguageProvider";
+import { Colors, Spacing, Typography } from "@/theme";
 
 export default function PaymentConfirmedScreen() {
     const router = useRouter();
+    const { t } = useLanguage();
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.icon}>✅</Text>
+        <Screen>
+            <Header
+                icon="✅"
+                title={t("paymentConfirmed.title")}
+                subtitle={t("paymentConfirmed.subtitle")}
+            />
 
-            <Text style={styles.title}>Plată confirmată</Text>
+            <Card title={t("paymentConfirmed.summary")}>
+                <Text style={styles.item}>{t("common.worker")}: {t("demo.worker.ion")}</Text>
+                <Text style={styles.item}>{t("common.company")}: {t("demo.company.wapLogistics")}</Text>
+                <Text style={styles.item}>{t("common.job")}: {t("jobs.warehouseTitle")}</Text>
+                <Text style={styles.item}>{t("checkOut.hours")}: {t("demo.hours.eight")}</Text>
+                <Text style={styles.item}>{t("payment.grossTotal")}: {t("demo.amount.grossTotal")}</Text>
+                <Text style={styles.total}>{t("paymentConfirmed.workerPay")}: {t("demo.amount.workerTotal")}</Text>
+            </Card>
 
-            <Text style={styles.subtitle}>
-                Firma a confirmat orele și plata. Lucrătorul va primi banii.
-            </Text>
+            <Card title={t("paymentConfirmed.statusTitle")}>
+                <Text style={styles.item}>✓ {t("paymentConfirmed.item1")}</Text>
+                <Text style={styles.item}>✓ {t("paymentConfirmed.item2")}</Text>
+                <Text style={styles.item}>✓ {t("paymentConfirmed.item3")}</Text>
+                <Text style={styles.successItem}>✓ {t("paymentConfirmed.success")}</Text>
+            </Card>
 
-            <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Rezumat final</Text>
-
-                <Text style={styles.item}>Lucrător: Ion Popescu</Text>
-                <Text style={styles.item}>Firmă: WAP Logistics GmbH</Text>
-                <Text style={styles.item}>Job: Lucrător depozit</Text>
-                <Text style={styles.item}>Ore lucrate: 8</Text>
-                <Text style={styles.item}>Total brut: 120 €</Text>
-                <Text style={styles.total}>Plată lucrător: 116 €</Text>
-            </View>
-
-            <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Status</Text>
-
-                <Text style={styles.item}>✓ Munca a fost finalizată</Text>
-                <Text style={styles.item}>✓ Orele au fost confirmate</Text>
-                <Text style={styles.item}>✓ Plata a fost confirmată</Text>
-                <Text style={styles.successItem}>✓ Job finalizat cu succes</Text>
-            </View>
-
-            <Pressable
-                style={styles.button}
+            <Button
+                title={t("paymentConfirmed.continueRating")}
                 onPress={() => {
                     console.log("MERGEM LA RATING");
-                    router.replace("/rating" as any);
+                    router.push("/rating" as any);
                 }}
-            >
-                <Text style={styles.buttonText}>Continuă spre rating</Text>
-            </Pressable>
+            />
 
-            <Pressable
+            <Button
+                title={t("common.backToBusinessDashboard")}
+                variant="ghost"
                 style={styles.backButton}
                 onPress={() => {
-                    router.replace("/business-dashboard" as any);
+                    router.push("/business-dashboard" as any);
                 }}
-            >
-                <Text style={styles.backText}>Înapoi la dashboard firmă</Text>
-            </Pressable>
-        </View>
+            />
+        </Screen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#FFF3D8",
-        padding: 24,
-        justifyContent: "center",
-    },
-
-    icon: {
-        fontSize: 54,
-        textAlign: "center",
-        marginBottom: 12,
-    },
-
-    title: {
-        fontSize: 34,
-        fontWeight: "800",
-        color: "#000000",
-        textAlign: "center",
-        marginBottom: 8,
-    },
-
-    subtitle: {
-        fontSize: 16,
-        color: "#444444",
-        textAlign: "center",
-        marginBottom: 24,
-        lineHeight: 22,
-    },
-
-    card: {
-        backgroundColor: "#FFFFFF",
-        borderWidth: 1,
-        borderColor: "#E6D8BC",
-        borderRadius: 18,
-        padding: 18,
-        marginBottom: 16,
-    },
-
-    sectionTitle: {
-        fontSize: 21,
-        fontWeight: "800",
-        color: "#000000",
-        marginBottom: 12,
-    },
-
     item: {
-        fontSize: 16,
-        color: "#333333",
-        marginBottom: 8,
+        fontSize: Typography.body,
+        color: Colors.textBody,
+        marginBottom: Spacing.md,
     },
 
     total: {
-        fontSize: 18,
-        color: "#2E7D32",
-        fontWeight: "800",
-        marginTop: 6,
+        fontSize: Typography.total,
+        color: Colors.success,
+        fontWeight: Typography.fontWeight.extraBold,
+        marginTop: Spacing.sm,
     },
 
     successItem: {
-        fontSize: 16,
-        color: "#2E7D32",
-        fontWeight: "800",
-        marginBottom: 8,
-    },
-
-    button: {
-        backgroundColor: "#8B5A24",
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: "center",
-    },
-
-    buttonText: {
-        color: "#FFFFFF",
-        fontSize: 17,
-        fontWeight: "800",
+        fontSize: Typography.body,
+        color: Colors.success,
+        fontWeight: Typography.fontWeight.extraBold,
+        marginBottom: Spacing.md,
     },
 
     backButton: {
-        marginTop: 14,
-        alignItems: "center",
-        padding: 12,
-    },
-
-    backText: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#8B5A24",
+        marginTop: Spacing.xxl,
     },
 });
