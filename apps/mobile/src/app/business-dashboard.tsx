@@ -44,6 +44,12 @@ export default function BusinessDashboardScreen() {
         </Text>
       </Card>
 
+      <Card title={t("businessDashboard.jobStatusTitle")}>
+        <Text style={styles.item}>✓ {t("businessDashboard.jobStatusPublished")}</Text>
+        <Text style={styles.item}>✓ {t("businessDashboard.jobStatusApplicants")}</Text>
+        <Text style={styles.item}>✓ {t("businessDashboard.jobStatusNext")}</Text>
+      </Card>
+
       <Card title={t("common.nextSteps")}>
         <Text style={styles.item}>✓ {t("businessDashboard.item1")}</Text>
         <Text style={styles.item}>✓ {t("businessDashboard.item2")}</Text>

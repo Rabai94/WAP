@@ -21,26 +21,12 @@ export default function ApplicationSentScreen() {
         <Text style={styles.item}>✓ {t("applicationSent.item1")}</Text>
         <Text style={styles.item}>✓ {t("applicationSent.item2")}</Text>
         <Text style={styles.item}>✓ {t("applicationSent.item3")}</Text>
-        <Text style={styles.item}>✓ {t("applicationSent.item4")}</Text>
       </Card>
 
       <Button
-        title={t("common.backToJobs")}
+        title={t("common.ok")}
         onPress={() => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.push("/jobs" as any);
-          }
-        }}
-      />
-
-      <Button
-        title={t("common.dashboardWorker")}
-        variant="ghost"
-        style={styles.backButton}
-        onPress={() => {
-          router.push("/worker-dashboard" as any);
+          router.replace("/worker-dashboard" as any);
         }}
       />
     </Screen>
@@ -52,9 +38,5 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     color: Colors.textBody,
     marginBottom: Spacing.md,
-  },
-
-  backButton: {
-    marginTop: Spacing.xxl,
   },
 });

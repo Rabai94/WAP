@@ -17,30 +17,16 @@ export default function JobPublishedScreen() {
         hero
       />
 
-      <Card title={t("common.nextSteps")}>
+      <Card title={t("jobPublished.cardTitle")}>
         <Text style={styles.item}>✓ {t("jobPublished.item1")}</Text>
         <Text style={styles.item}>✓ {t("jobPublished.item2")}</Text>
         <Text style={styles.item}>✓ {t("jobPublished.item3")}</Text>
-        <Text style={styles.item}>✓ {t("jobPublished.item4")}</Text>
       </Card>
 
       <Button
-        title={t("common.backToDashboard")}
+        title={t("common.ok")}
         onPress={() => {
-          router.push("/business-dashboard" as any);
-        }}
-      />
-
-      <Button
-        title={t("common.backToJob")}
-        variant="ghost"
-        style={styles.backButton}
-        onPress={() => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.push("/create-job" as any);
-          }
+          router.replace("/business-dashboard" as any);
         }}
       />
     </Screen>
@@ -52,9 +38,5 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     color: Colors.textBody,
     marginBottom: Spacing.md,
-  },
-
-  backButton: {
-    marginTop: Spacing.xxl,
   },
 });

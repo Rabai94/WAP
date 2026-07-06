@@ -43,6 +43,18 @@ export default function WorkerDashboardScreen() {
         </Text>
       </Card>
 
+      <Card title={t("workerDashboard.applicationStatusTitle")}>
+        <Text style={styles.item}>
+          ✓ {t("workerDashboard.applicationStatusSent")}
+        </Text>
+        <Text style={styles.item}>
+          ✓ {t("workerDashboard.applicationStatusReview")}
+        </Text>
+        <Text style={styles.item}>
+          ✓ {t("workerDashboard.applicationStatusNext")}
+        </Text>
+      </Card>
+
       <Card title={t("common.nextSteps")}>
         <Text style={styles.item}>✓ {t("workerDashboard.item1")}</Text>
         <Text style={styles.item}>✓ {t("workerDashboard.item2")}</Text>
