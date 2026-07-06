@@ -2,11 +2,15 @@ import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button, Header, Input, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { mockWorkerProfile } from "@/domain/profile";
 import { Spacing } from "@/theme";
 
 export default function WorkerFormScreen() {
   const router = useRouter();
   const { t } = useLanguage();
+  const profile = mockWorkerProfile;
+  const profileName = `${profile.firstName} ${profile.lastName}`;
+  const workPreferences = profile.workPreferences.map(t).join(", ");
 
   return (
     <Screen>
@@ -17,21 +21,25 @@ export default function WorkerFormScreen() {
 
       <Input
         label={t("workerForm.name")}
+        defaultValue={profileName}
         placeholder={t("workerForm.namePlaceholder")}
       />
 
       <Input
         label={t("workerForm.city")}
+        defaultValue={profile.location}
         placeholder={t("workerForm.cityPlaceholder")}
       />
 
       <Input
         label={t("workerForm.workType")}
+        defaultValue={workPreferences}
         placeholder={t("workerForm.workTypePlaceholder")}
       />
 
       <Input
         label={t("workerForm.availability")}
+        defaultValue={t(profile.availability.label)}
         placeholder={t("workerForm.availabilityPlaceholder")}
       />
 
