@@ -8,6 +8,8 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
+import { getLanguageNationalIdentity } from "@/domain/nationality/nationalities";
 import { Button, Card, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { languages } from "../i18n/translations";
@@ -172,6 +174,9 @@ export default function HomeScreen() {
               variant="ghost"
               style={styles.loginButton}
               textStyle={styles.loginButtonText}
+              onPress={() => {
+                router.push("/login" as any);
+              }}
             />
             <Button
               title={t("home.auth.signup")}
@@ -196,14 +201,11 @@ export default function HomeScreen() {
                 setLanguage(item.code);
               }}
             >
-              <Text
-                style={[
-                  styles.languageText,
-                  language === item.code && styles.activeLanguageText,
-                ]}
-              >
-                {item.code.toUpperCase()}
-              </Text>
+              <NationalInsigniaBadge
+                identity={getLanguageNationalIdentity(item.code)}
+                showCode
+                size="sm"
+              />
             </Pressable>
           ))}
         </View>

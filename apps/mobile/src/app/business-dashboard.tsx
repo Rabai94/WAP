@@ -1,12 +1,15 @@
 import { StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
+import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { mockBusinessProfile } from "@/domain/profile";
+import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Spacing, Typography } from "@/theme";
 
 export default function BusinessDashboardScreen() {
   const router = useRouter();
+  const { signOut } = useAuth();
   const { t } = useLanguage();
   const profile = mockBusinessProfile;
   const hiringNeeds = profile.hiringNeeds.roles.map(t).join(", ");
@@ -18,8 +21,14 @@ export default function BusinessDashboardScreen() {
       ? t("profile.next.businessJob")
       : t("profile.next.businessVerification");
 
+  async function handleLogout() {
+    await signOut();
+    router.replace("/login" as any);
+  }
+
   return (
-    <Screen>
+    <RequireAuth requiredRole="business">
+      <Screen>
       <Header
         title={t("businessDashboard.title")}
         subtitle={t("businessDashboard.subtitle")}
@@ -87,7 +96,15 @@ export default function BusinessDashboardScreen() {
           router.push("/business-form" as any);
         }}
       />
-    </Screen>
+
+        <Button
+          title="Log out"
+          variant="ghost"
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        />
+      </Screen>
+    </RequireAuth>
   );
 }
 
@@ -117,5 +134,9 @@ const styles = StyleSheet.create({
 
   editButton: {
     marginTop: Spacing.xxl,
+  },
+
+  logoutButton: {
+    marginTop: Spacing.xl,
   },
 });

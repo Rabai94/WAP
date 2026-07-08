@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -11,13 +11,18 @@ import {
   ViewStyle,
 } from "react-native";
 import { useRouter } from "expo-router";
-import CountryFlagBadge from "@/components/CountryFlagBadge";
+import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
+import {
+  getDefaultNationalIdentity,
+  getNationalIdentityByCode,
+} from "@/domain/nationality/nationalities";
 import { detectEuropeanCountryFromLocale } from "@/domain/phone/detectCountry";
 import {
   EuropeanCountry,
   europeanCountries,
 } from "@/domain/phone/europeanCountries";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 
 const palette = {
@@ -47,8 +52,10 @@ type FormErrors = Partial<
     | "firstName"
     | "lastName"
     | "email"
+    | "password"
     | "phone"
     | "verificationMethod"
+    | "verificationAction"
     | "verificationCode",
     string
   >
@@ -73,13 +80,19 @@ const verificationMethods: VerificationMethod[] = [
   "whatsapp",
 ];
 
+function getCountryIdentity(country: EuropeanCountry) {
+  return getNationalIdentityByCode(country.identityCode) ?? getDefaultNationalIdentity();
+}
+
 export default function WorkerFormScreen() {
   const router = useRouter();
+  const { sendEmailOtp, verifyEmailOtp } = useAuth();
   const { t } = useLanguage();
   const [step, setStep] = useState<1 | 2>(1);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [selectedCountry, setSelectedCountry] = useState<EuropeanCountry>(() =>
     detectEuropeanCountryFromLocale(europeanCountries)
   );
@@ -87,22 +100,24 @@ export default function WorkerFormScreen() {
   const [phone, setPhone] = useState("");
   const [verificationMethod, setVerificationMethod] =
     useState<VerificationMethod | null>(null);
-  const [codeSent, setCodeSent] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
-
-  const selectedMethodLabel = useMemo(() => {
-    if (!verificationMethod) {
-      return "";
-    }
-
-    return t(`workerForm.verify.method.${verificationMethod}`);
-  }, [verificationMethod, t]);
+  const [authError, setAuthError] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpMessage, setOtpMessage] = useState("");
+  const [showLoginLink, setShowLoginLink] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   function handleBack() {
-    if (step === 2 && !codeSent) {
+    if (step === 2) {
       setStep(1);
       setErrors({});
+      setAuthError("");
+      setOtpCode("");
+      setOtpSent(false);
+      setOtpMessage("");
+      setShowLoginLink(false);
       return;
     }
 
@@ -125,10 +140,15 @@ export default function WorkerFormScreen() {
     }
 
     setErrors({});
+    setAuthError("");
+    setOtpCode("");
+    setOtpSent(false);
+    setOtpMessage("");
+    setShowLoginLink(false);
     setStep(2);
   }
 
-  function handleSendCode() {
+  function handleVerificationAction() {
     if (!verificationMethod) {
       setErrors({
         verificationMethod: t("workerForm.error.verificationMethod"),
@@ -136,20 +156,89 @@ export default function WorkerFormScreen() {
       return;
     }
 
-    setErrors({});
-    setCodeSent(true);
+    if (verificationMethod !== "email") {
+      setErrors({
+        verificationAction:
+          "Verificarea prin SMS/WhatsApp va fi disponibilă în curând. Folosește email pentru moment.",
+      });
+      return;
+    }
+
+    void handleSendEmailOtp();
   }
 
-  function handleVerifyAndContinue() {
-    if (!/^\d{4,6}$/.test(verificationCode.trim())) {
+  async function handleSendEmailOtp() {
+    if (isSendingOtp) {
+      return;
+    }
+
+    setErrors({});
+    setAuthError("");
+    setOtpMessage("");
+    setShowLoginLink(false);
+    setIsSendingOtp(true);
+
+    try {
+      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+      const fullPhone = `${selectedCountry.dialCode}${phone.trim()}`;
+
+      await sendEmailOtp(email.trim(), {
+        shouldCreateUser: true,
+        role: "worker",
+        fullName,
+        phone: fullPhone,
+      });
+      setOtpSent(true);
+      setOtpMessage(
+        "Ți-am trimis un cod pe email. Introdu codul pentru verificare."
+      );
+    } catch (nextError) {
+      setAuthError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Nu am putut trimite codul pe email. Încearcă din nou."
+      );
+    } finally {
+      setIsSendingOtp(false);
+    }
+  }
+
+  async function handleVerifyEmailOtp() {
+    if (isVerifyingOtp) {
+      return;
+    }
+
+    if (!otpCode.trim()) {
       setErrors({
-        verificationCode: t("workerForm.error.verificationCode"),
+        verificationCode: "Introdu codul primit pe email.",
       });
       return;
     }
 
     setErrors({});
-    router.replace("/worker-dashboard" as any);
+    setAuthError("");
+    setShowLoginLink(false);
+    setIsVerifyingOtp(true);
+
+    try {
+      const result = await verifyEmailOtp(email.trim(), otpCode.trim());
+
+      if (result.session) {
+        router.replace("/engine" as any);
+        return;
+      }
+
+      setOtpMessage("Email verificat. Mergi la login pentru a intra în RabAI.");
+      setShowLoginLink(true);
+    } catch (nextError) {
+      setAuthError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Codul nu a putut fi verificat. Încearcă din nou."
+      );
+    } finally {
+      setIsVerifyingOtp(false);
+    }
   }
 
   function validateBasicDetails() {
@@ -167,6 +256,10 @@ export default function WorkerFormScreen() {
       nextErrors.email = t("workerForm.error.emailRequired");
     } else if (!email.includes("@")) {
       nextErrors.email = t("workerForm.error.emailInvalid");
+    }
+
+    if (password.length < 6) {
+      nextErrors.password = "Password must be at least 6 characters.";
     }
 
     if (!phone.trim()) {
@@ -272,6 +365,15 @@ export default function WorkerFormScreen() {
                   value={email}
                 />
 
+                <InputField
+                  error={errors.password}
+                  label="Password"
+                  onChangeText={setPassword}
+                  placeholder="At least 6 characters"
+                  secureTextEntry
+                  value={password}
+                />
+
                 <View style={styles.phoneSection}>
                   <Text style={styles.fieldLabel}>
                     {t("workerForm.phoneNumber")}
@@ -283,15 +385,13 @@ export default function WorkerFormScreen() {
                         setIsCountryPickerOpen((current) => !current);
                       }}
                     >
-                      <CountryFlagBadge
-                        code={selectedCountry.code}
-                        colors={selectedCountry.flagColors}
-                        pattern={selectedCountry.flagPattern}
+                      <NationalInsigniaBadge
+                        identity={getCountryIdentity(selectedCountry)}
+                        showCode
+                        showDialCode
+                        size="sm"
+                        withChevron
                       />
-                      <Text style={styles.countrySelectDial}>
-                        {selectedCountry.dialCode}
-                      </Text>
-                      <Text style={styles.countrySelectArrow}>▼</Text>
                     </Pressable>
                     <TextInput
                       keyboardType="phone-pad"
@@ -318,29 +418,13 @@ export default function WorkerFormScreen() {
                             handleCountrySelect(country);
                           }}
                         >
-                          <CountryFlagBadge
-                            code={country.code}
-                            colors={country.flagColors}
-                            pattern={country.flagPattern}
+                          <NationalInsigniaBadge
+                            identity={getCountryIdentity(country)}
+                            showCode
+                            showDialCode
+                            showName
+                            size="sm"
                           />
-                          <Text
-                            style={[
-                              styles.countryPickerName,
-                              selectedCountry.code === country.code &&
-                                styles.countryPickerNameActive,
-                            ]}
-                          >
-                            {country.name}
-                          </Text>
-                          <Text
-                            style={[
-                              styles.countryPickerDial,
-                              selectedCountry.code === country.code &&
-                                styles.countryPickerDialActive,
-                            ]}
-                          >
-                            {country.dialCode}
-                          </Text>
                         </Pressable>
                       ))}
                     </View>
@@ -362,7 +446,8 @@ export default function WorkerFormScreen() {
                   {t("workerForm.verify.title")}
                 </Text>
                 <Text style={styles.formDescription}>
-                  {t("workerForm.verify.description")}
+                  Alege verificarea prin email pentru a primi un cod real în
+                  RabAI.
                 </Text>
 
                 <View style={styles.methodGrid}>
@@ -376,9 +461,12 @@ export default function WorkerFormScreen() {
                       ]}
                       onPress={() => {
                         setVerificationMethod(method);
-                        setCodeSent(false);
-                        setVerificationCode("");
                         setErrors({});
+                        setAuthError("");
+                        setOtpCode("");
+                        setOtpSent(false);
+                        setOtpMessage("");
+                        setShowLoginLink(false);
                       }}
                     >
                       <Text
@@ -391,46 +479,94 @@ export default function WorkerFormScreen() {
                         {t(`workerForm.verify.method.${method}`)}
                       </Text>
                       <Text style={styles.methodText}>
-                        {t(`workerForm.verify.method.${method}.text`)}
+                        {method === "email"
+                          ? "RabAI va trimite un cod real pe email."
+                          : "În curând"}
                       </Text>
                     </Pressable>
                   ))}
                 </View>
                 <ErrorMessage message={errors.verificationMethod} />
+                <ErrorMessage message={errors.verificationAction} />
 
-                {!codeSent ? (
-                  <Pressable style={styles.primaryButton} onPress={handleSendCode}>
-                    <Text style={styles.primaryButtonText}>
-                      {t("workerForm.verify.sendCode")}
+                {verificationMethod &&
+                verificationMethod !== "email" ? (
+                  <View style={styles.unavailablePanel}>
+                    <Text style={styles.unavailableText}>
+                      Verificarea prin SMS/WhatsApp va fi disponibilă în curând.
+                      Folosește email pentru moment.
                     </Text>
-                  </Pressable>
-                ) : (
-                  <View style={styles.codePanel}>
-                    <Text style={styles.sentText}>
-                      {t("workerForm.verify.codeSent").replace(
-                        "{method}",
-                        selectedMethodLabel
-                      )}
-                    </Text>
-                    <InputField
-                      error={errors.verificationCode}
-                      keyboardType="number-pad"
-                      label={t("workerForm.verify.codeLabel")}
-                      maxLength={6}
-                      onChangeText={setVerificationCode}
-                      placeholder={t("workerForm.verify.codePlaceholder")}
-                      value={verificationCode}
-                    />
                     <Pressable
-                      style={styles.primaryButton}
-                      onPress={handleVerifyAndContinue}
+                      style={styles.secondaryButton}
+                      onPress={() => {
+                        setVerificationMethod("email");
+                        setErrors({});
+                        setAuthError("");
+                      }}
                     >
-                      <Text style={styles.primaryButtonText}>
-                        {t("workerForm.verify.continue")}
+                      <Text style={styles.secondaryButtonText}>
+                        Folosește email
                       </Text>
                     </Pressable>
                   </View>
-                )}
+                ) : null}
+
+                {!otpSent &&
+                (!verificationMethod || verificationMethod === "email") ? (
+                  <Pressable
+                    style={styles.primaryButton}
+                    onPress={handleVerificationAction}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {isSendingOtp ? "Se trimite codul..." : "Trimite cod pe email"}
+                    </Text>
+                  </Pressable>
+                ) : null}
+
+                <ErrorMessage message={authError} />
+
+                {otpSent && verificationMethod === "email" ? (
+                  <View style={styles.successPanel}>
+                    <Text style={styles.successText}>{otpMessage}</Text>
+                    {!showLoginLink ? (
+                      <>
+                        <InputField
+                          autoCapitalize="none"
+                          error={errors.verificationCode}
+                          keyboardType="number-pad"
+                          label="Cod de verificare"
+                          onChangeText={setOtpCode}
+                          placeholder="Cod primit pe email"
+                          value={otpCode}
+                        />
+                        <Pressable
+                          style={styles.primaryButton}
+                          onPress={handleVerifyEmailOtp}
+                        >
+                          <Text style={styles.primaryButtonText}>
+                            {isVerifyingOtp
+                              ? "Se verifică..."
+                              : "Verifică emailul"}
+                          </Text>
+                        </Pressable>
+                      </>
+                    ) : null}
+                    {showLoginLink ? (
+                      <View style={styles.actionStack}>
+                        <Pressable
+                          style={styles.secondaryButton}
+                          onPress={() => {
+                            router.replace("/login" as any);
+                          }}
+                        >
+                          <Text style={styles.secondaryButtonText}>
+                            Mergi la login
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             )}
           </View>
@@ -906,20 +1042,59 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     lineHeight: Typography.lineHeight.default,
   },
-  codePanel: {
-    backgroundColor: palette.greenSoft,
+  successPanel: {
+    backgroundColor: palette.surface,
     borderColor: "#BDEEDB",
     borderRadius: Radius.xl,
     borderWidth: 1,
     marginTop: Spacing.three,
     padding: Spacing.three,
   },
-  sentText: {
+  successText: {
     color: palette.green,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
     lineHeight: Typography.lineHeight.default,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.xl,
+  },
+  resendText: {
+    color: palette.green,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.extraBold,
+    marginBottom: Spacing.xl,
+  },
+  unavailablePanel: {
+    backgroundColor: palette.blueSoft,
+    borderColor: palette.blue,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    marginTop: Spacing.three,
+    padding: Spacing.three,
+  },
+  unavailableText: {
+    color: palette.ink,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.extraBold,
+    lineHeight: Typography.lineHeight.default,
+    marginBottom: Spacing.xl,
+  },
+  actionStack: {
+    gap: Spacing.xl,
+  },
+  secondaryButton: {
+    alignItems: "center",
+    backgroundColor: palette.surfaceSoft,
+    borderColor: palette.green,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.xxl,
+  },
+  secondaryButtonText: {
+    color: palette.green,
+    fontSize: Typography.label,
+    fontWeight: Typography.fontWeight.black,
+    textAlign: "center",
   },
   mascotPanel: {
     backgroundColor: palette.surface,

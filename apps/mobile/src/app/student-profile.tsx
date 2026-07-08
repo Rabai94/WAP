@@ -9,6 +9,11 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
+import {
+  getLanguageNationalIdentity,
+  getNationalIdentityByCode,
+} from "@/domain/nationality/nationalities";
 import { mockStudentProfile } from "@/domain/profile";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { languages } from "@/i18n/translations";
@@ -96,6 +101,7 @@ export default function StudentProfileScreen() {
   const { t, language, setLanguage } = useLanguage();
   const profile = mockStudentProfile;
   const profileName = `${profile.firstName} ${profile.lastName}`;
+  const nationalityIdentity = getNationalIdentityByCode("RO");
   const badges = [
     "studentProfile.badge.student",
     profile.availability.seekingInternship
@@ -184,14 +190,11 @@ export default function StudentProfileScreen() {
                         setLanguage(item.code);
                       }}
                     >
-                      <Text
-                        style={[
-                          styles.languageText,
-                          language === item.code && styles.languageTextActive,
-                        ]}
-                      >
-                        {item.code.toUpperCase()}
-                      </Text>
+                      <NationalInsigniaBadge
+                        identity={getLanguageNationalIdentity(item.code)}
+                        showCode
+                        size="sm"
+                      />
                     </Pressable>
                   ))}
                 </View>
@@ -243,6 +246,17 @@ export default function StudentProfileScreen() {
                       label={t("studentProfile.hero.phone")}
                       value={profile.phone}
                     />
+                    {nationalityIdentity ? (
+                      <View style={styles.nationalityPill}>
+                        <Text style={styles.infoLabel}>Naționalitate</Text>
+                        <NationalInsigniaBadge
+                          identity={nationalityIdentity}
+                          showCode={false}
+                          showName
+                          size="sm"
+                        />
+                      </View>
+                    ) : null}
                   </View>
                   <View style={styles.badgesRow}>
                     {badges.map((badge) => (
@@ -860,6 +874,14 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     minWidth: 160,
+    padding: Spacing.xl,
+  },
+  nationalityPill: {
+    backgroundColor: palette.surfaceSoft,
+    borderColor: palette.line,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    minWidth: 180,
     padding: Spacing.xl,
   },
   infoLabel: {

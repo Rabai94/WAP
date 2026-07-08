@@ -1,5 +1,6 @@
 import { StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
+import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Colors, Spacing, Typography } from "@/theme";
@@ -9,7 +10,8 @@ export default function PaymentConfirmedScreen() {
     const { t } = useLanguage();
 
     return (
-        <Screen>
+        <RequireAuth>
+            <Screen>
             <Header
                 icon="✅"
                 title={t("paymentConfirmed.title")}
@@ -48,7 +50,8 @@ export default function PaymentConfirmedScreen() {
                     router.push("/business-dashboard" as any);
                 }}
             />
-        </Screen>
+            </Screen>
+        </RequireAuth>
     );
 }
 

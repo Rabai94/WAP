@@ -253,7 +253,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerForm.continueToVerification": "Weiter zur Verifizierung",
     "workerForm.verify.title": "Wähle, wie du dein Konto verifizieren möchtest",
     "workerForm.verify.description":
-      "Dies ist nur ein Mock-Schritt. Es wird kein echter Code gesendet.",
+      "RabAI erstellt dein Konto und sendet eine echte E-Mail zur Bestätigung.",
     "workerForm.verify.method.email": "E-Mail",
     "workerForm.verify.method.email.text": "Du erhältst den Code per E-Mail.",
     "workerForm.verify.method.sms": "SMS",
@@ -261,11 +261,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerForm.verify.method.whatsapp": "WhatsApp",
     "workerForm.verify.method.whatsapp.text":
       "Du erhältst den Code über WhatsApp.",
-    "workerForm.verify.sendCode": "Code senden",
-    "workerForm.verify.codeSent":
-      "Wir haben einen Verifizierungscode über {method} gesendet.",
-    "workerForm.verify.codeLabel": "Verifizierungscode",
-    "workerForm.verify.codePlaceholder": "4-6 Ziffern",
     "workerForm.verify.continue": "Verifizieren und fortfahren",
     "workerForm.mascot": "RabAI-Maskottchen hier",
     "workerForm.workerTrust":
@@ -282,8 +277,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerForm.error.phone": "Telefonnummer ist erforderlich.",
     "workerForm.error.verificationMethod":
       "Wähle eine Verifizierungsmethode.",
-    "workerForm.error.verificationCode":
-      "Gib einen Code mit 4 bis 6 Ziffern ein.",
     "phone.country.ro": "Rumänien",
     "phone.country.de": "Deutschland",
     "phone.country.at": "Österreich",
@@ -955,7 +948,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerForm.continueToVerification": "Continue to verification",
     "workerForm.verify.title": "Choose how you want to verify your account",
     "workerForm.verify.description":
-      "This is only a mock step. No real code is sent.",
+      "RabAI creates your account and sends a real confirmation email.",
     "workerForm.verify.method.email": "Email",
     "workerForm.verify.method.email.text": "You receive the code by email.",
     "workerForm.verify.method.sms": "SMS",
@@ -963,11 +956,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerForm.verify.method.whatsapp": "WhatsApp",
     "workerForm.verify.method.whatsapp.text":
       "You receive the code on WhatsApp.",
-    "workerForm.verify.sendCode": "Send code",
-    "workerForm.verify.codeSent":
-      "We sent a verification code through {method}.",
-    "workerForm.verify.codeLabel": "Verification code",
-    "workerForm.verify.codePlaceholder": "4-6 digits",
     "workerForm.verify.continue": "Verify and continue",
     "workerForm.mascot": "RabAI mascot here",
     "workerForm.workerTrust": "Over 50,000 workers trust RabAI",
@@ -982,8 +970,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerForm.error.emailInvalid": "Email must include @.",
     "workerForm.error.phone": "Phone number is required.",
     "workerForm.error.verificationMethod": "Choose a verification method.",
-    "workerForm.error.verificationCode":
-      "Enter a code with 4 to 6 digits.",
     "phone.country.ro": "Romania",
     "phone.country.de": "Germany",
     "phone.country.at": "Austria",
@@ -1654,7 +1640,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerForm.continueToVerification": "Continuă spre verificare",
     "workerForm.verify.title": "Alege cum vrei să verifici contul",
     "workerForm.verify.description":
-      "Acesta este doar un pas mock. Nu se trimite un cod real.",
+      "RabAI creează contul și trimite un email real de confirmare.",
     "workerForm.verify.method.email": "Email",
     "workerForm.verify.method.email.text": "Primești codul pe email.",
     "workerForm.verify.method.sms": "SMS",
@@ -1662,11 +1648,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerForm.verify.method.whatsapp": "WhatsApp",
     "workerForm.verify.method.whatsapp.text":
       "Primești codul pe WhatsApp.",
-    "workerForm.verify.sendCode": "Trimite cod",
-    "workerForm.verify.codeSent":
-      "Am trimis un cod de verificare prin {method}.",
-    "workerForm.verify.codeLabel": "Cod verificare",
-    "workerForm.verify.codePlaceholder": "4-6 cifre",
     "workerForm.verify.continue": "Verifică și continuă",
     "workerForm.mascot": "Mascotă RabAI aici",
     "workerForm.workerTrust":
@@ -1683,8 +1664,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerForm.error.phone": "Numărul de telefon este obligatoriu.",
     "workerForm.error.verificationMethod":
       "Alege o metodă de verificare.",
-    "workerForm.error.verificationCode":
-      "Introdu un cod cu 4 până la 6 cifre.",
     "phone.country.ro": "România",
     "phone.country.de": "Germania",
     "phone.country.at": "Austria",

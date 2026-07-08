@@ -1,6 +1,7 @@
 import { StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Input, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Spacing } from "@/theme";
@@ -16,7 +17,8 @@ export default function CreateJobScreen() {
     const [description, setDescription] = useState("");
 
     return (
-        <Screen>
+        <RequireAuth>
+            <Screen>
             <Header title={t("createJob.title")} subtitle={t("createJob.subtitle")} />
 
             <Card>
@@ -86,7 +88,8 @@ export default function CreateJobScreen() {
                     }
                 }}
             />
-        </Screen>
+            </Screen>
+        </RequireAuth>
     );
 }
 

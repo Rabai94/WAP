@@ -1,12 +1,15 @@
 import { StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
+import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { mockWorkerProfile } from "@/domain/profile";
+import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Spacing, Typography } from "@/theme";
 
 export default function WorkerDashboardScreen() {
   const router = useRouter();
+  const { signOut } = useAuth();
   const { t } = useLanguage();
   const profile = mockWorkerProfile;
   const profileName = `${profile.firstName} ${profile.lastName}`;
@@ -17,8 +20,14 @@ export default function WorkerDashboardScreen() {
       ? t("profile.next.workerDocuments")
       : t("profile.next.workerJobs");
 
+  async function handleLogout() {
+    await signOut();
+    router.replace("/login" as any);
+  }
+
   return (
-    <Screen>
+    <RequireAuth requiredRole="worker">
+      <Screen>
       <Header
         title={t("workerDashboard.title")}
         subtitle={t("workerDashboard.subtitle")}
@@ -82,7 +91,15 @@ export default function WorkerDashboardScreen() {
           router.push("/worker-form" as any);
         }}
       />
-    </Screen>
+
+        <Button
+          title="Log out"
+          variant="ghost"
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        />
+      </Screen>
+    </RequireAuth>
   );
 }
 
@@ -108,6 +125,10 @@ const styles = StyleSheet.create({
 
   editButton: {
     marginTop: Spacing.xxl,
+  },
+
+  logoutButton: {
+    marginTop: Spacing.xl,
   },
 });
 

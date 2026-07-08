@@ -1,7 +1,10 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button, Card, Screen } from "../components/ui";
+import type { AuthRole } from "@/domain/auth/auth.types";
+import { isTrustedAdmin } from "@/domain/auth/roleAccess";
 import { useLanguage } from "../i18n/LanguageProvider";
+import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 
 const palette = {
@@ -26,6 +29,7 @@ const roleCards = [
     audience: "role.student.audience",
     description: "role.student.description",
     cta: "role.student.cta",
+    role: "student",
     route: "/student-profile",
     accent: palette.violet,
     soft: palette.violetSoft,
@@ -36,6 +40,7 @@ const roleCards = [
     audience: "role.career.audience",
     description: "role.career.description",
     cta: "role.career.cta",
+    role: "worker",
     route: "/worker-form",
     accent: palette.blue,
     soft: palette.blueSoft,
@@ -46,6 +51,7 @@ const roleCards = [
     audience: "role.business.audience",
     description: "role.business.description",
     cta: "role.business.cta",
+    role: "business",
     route: "/business",
     accent: palette.red,
     soft: palette.redSoft,
@@ -56,15 +62,33 @@ const roleCards = [
     audience: "role.freelancer.audience",
     description: "role.freelancer.description",
     cta: "role.freelancer.ctaSoon",
+    role: "freelancer",
     route: null,
     accent: palette.violet,
     soft: palette.violetSoft,
   },
 ] as const;
 
+const adminRoleRoutes: Partial<Record<AuthRole, string | null>> = {
+  student: "/student-profile",
+  worker: "/worker-dashboard",
+  business: "/business-dashboard",
+  freelancer: null,
+};
+
 export default function RoleScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { t } = useLanguage();
+  const adminUser = isTrustedAdmin(user);
+
+  function getCardRoute(card: (typeof roleCards)[number]) {
+    if (adminUser) {
+      return adminRoleRoutes[card.role] ?? null;
+    }
+
+    return card.route;
+  }
 
   function handleBack() {
     if (router.canGoBack()) {
@@ -101,43 +125,52 @@ export default function RoleScreen() {
         </View>
 
         <View style={styles.cardsGrid}>
-          {roleCards.map((card) => (
-            <Card key={card.title} style={styles.roleCard}>
-              <View style={[styles.mascotBox, { backgroundColor: card.soft }]}>
+          {roleCards.map((card) => {
+            const route = getCardRoute(card);
+
+            return (
+              <Card key={card.title} style={styles.roleCard}>
                 <View
-                  style={[
-                    styles.mascotSignal,
-                    { backgroundColor: card.accent },
-                  ]}
-                />
-                <Text style={[styles.mascotText, { color: card.accent }]}>
-                  {t("role.mascot")}
-                </Text>
-              </View>
-
-              <Text style={[styles.eyebrow, { color: card.accent }]}>
-                {t(card.eyebrow)}
-              </Text>
-              <Text style={styles.cardTitle}>{t(card.title)}</Text>
-              <Text style={styles.audience}>{t(card.audience)}</Text>
-              <Text style={styles.description}>{t(card.description)}</Text>
-
-              {card.route ? (
-                <Button
-                  title={t(card.cta)}
-                  style={[styles.cardButton, { backgroundColor: card.accent }]}
-                  textStyle={styles.cardButtonText}
-                  onPress={() => {
-                    router.push(card.route as any);
-                  }}
-                />
-              ) : (
-                <View style={styles.disabledButton}>
-                  <Text style={styles.disabledButtonText}>{t(card.cta)}</Text>
+                  style={[styles.mascotBox, { backgroundColor: card.soft }]}
+                >
+                  <View
+                    style={[
+                      styles.mascotSignal,
+                      { backgroundColor: card.accent },
+                    ]}
+                  />
+                  <Text style={[styles.mascotText, { color: card.accent }]}>
+                    {t("role.mascot")}
+                  </Text>
                 </View>
-              )}
-            </Card>
-          ))}
+
+                <Text style={[styles.eyebrow, { color: card.accent }]}>
+                  {t(card.eyebrow)}
+                </Text>
+                <Text style={styles.cardTitle}>{t(card.title)}</Text>
+                <Text style={styles.audience}>{t(card.audience)}</Text>
+                <Text style={styles.description}>{t(card.description)}</Text>
+
+                {route ? (
+                  <Button
+                    title={t(card.cta)}
+                    style={[
+                      styles.cardButton,
+                      { backgroundColor: card.accent },
+                    ]}
+                    textStyle={styles.cardButtonText}
+                    onPress={() => {
+                      router.push(route as any);
+                    }}
+                  />
+                ) : (
+                  <View style={styles.disabledButton}>
+                    <Text style={styles.disabledButtonText}>{t(card.cta)}</Text>
+                  </View>
+                )}
+              </Card>
+            );
+          })}
         </View>
       </ScrollView>
     </Screen>

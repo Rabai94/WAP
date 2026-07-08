@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { Colors, Spacing, Typography } from "@/theme";
@@ -9,7 +10,8 @@ export default function ApplicationsScreen() {
   const { t } = useLanguage();
 
   return (
-    <Screen>
+    <RequireAuth>
+      <Screen>
       <Header title={t("applications.title")} subtitle={t("applications.subtitle")} />
 
       <Card>
@@ -100,7 +102,8 @@ export default function ApplicationsScreen() {
           }
         }}
       />
-    </Screen>
+      </Screen>
+    </RequireAuth>
   );
 }
 
