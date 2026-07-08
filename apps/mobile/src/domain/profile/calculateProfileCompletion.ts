@@ -1,18 +1,28 @@
-import type { BusinessProfile, WorkerProfile } from "./types";
+import type { BusinessProfile, StudentProfile, WorkerProfile } from "./types";
 
 type CompletionProfile =
   | (Omit<WorkerProfile, "profileCompletion"> & { profileCompletion?: number })
-  | (Omit<BusinessProfile, "profileCompletion"> & { profileCompletion?: number });
+  | (Omit<BusinessProfile, "profileCompletion"> & { profileCompletion?: number })
+  | (Omit<StudentProfile, "profileCompletion"> & { profileCompletion?: number });
 
 export function calculateProfileCompletion(profile: CompletionProfile) {
-  const checks =
-    profile.role === "worker"
-      ? getWorkerCompletionChecks(profile)
-      : getBusinessCompletionChecks(profile);
+  const checks = getCompletionChecks(profile);
 
   const completedFields = checks.filter(Boolean).length;
 
   return Math.round((completedFields / checks.length) * 100);
+}
+
+function getCompletionChecks(profile: CompletionProfile) {
+  if (profile.role === "worker") {
+    return getWorkerCompletionChecks(profile);
+  }
+
+  if (profile.role === "business") {
+    return getBusinessCompletionChecks(profile);
+  }
+
+  return getStudentCompletionChecks(profile);
 }
 
 function getWorkerCompletionChecks(
@@ -46,6 +56,41 @@ function getBusinessCompletionChecks(
     isCompleteContact(profile.contactPerson),
     isCompleteHiringNeeds(profile.hiringNeeds),
     profile.verificationStatus === "verified",
+  ];
+}
+
+function getStudentCompletionChecks(
+  profile: Omit<StudentProfile, "profileCompletion"> & {
+    profileCompletion?: number;
+  }
+) {
+  return [
+    isFilled(profile.firstName),
+    isFilled(profile.lastName),
+    isFilled(profile.location),
+    isFilled(profile.email),
+    isFilled(profile.phone),
+    isFilled(profile.studentId),
+    isCompleteStudentEducation(profile.education),
+    isFilled(profile.studyField),
+    isFilled(profile.university),
+    profile.skills.length >= 6,
+    profile.courses.length >= 3,
+    profile.courses.every((course) => course.progress >= 80),
+    isFilled(profile.projects),
+    profile.goals.length >= 3,
+    profile.goals.every((goal) => goal.progress >= 80),
+    isCompleteInternshipPreferences(profile.internshipPreferences),
+    areStudentDocumentsReady(profile.documentsStatus),
+    profile.availability.seekingInternship,
+    profile.availability.partTime,
+    profile.availability.openToRelocate,
+    profile.availability.weeklyHours > 0,
+    isFilled(profile.careerIntent.summary),
+    profile.upgradeOptions.includes("worker"),
+    profile.upgradeOptions.includes("freelancer"),
+    profile.upgradeOptions.includes("business"),
+    isFilled(profile.careerIntent.preferredIndustries),
   ];
 }
 
@@ -95,5 +140,40 @@ function isCompleteHiringNeeds(
     hiringNeeds.estimatedWorkers > 0 &&
     isFilled(hiringNeeds.startDate) &&
     isFilled(hiringNeeds.employmentType)
+  );
+}
+
+function isCompleteStudentEducation(
+  education: Omit<StudentProfile, "profileCompletion">["education"]
+) {
+  return (
+    isFilled(education.institution) &&
+    isFilled(education.faculty) &&
+    isFilled(education.period) &&
+    isFilled(education.yearLevel) &&
+    isFilled(education.gradeAverage) &&
+    isFilled(education.attendanceType)
+  );
+}
+
+function areStudentDocumentsReady(
+  documentsStatus: Omit<StudentProfile, "profileCompletion">["documentsStatus"]
+) {
+  const readyStates = ["updated", "valid", "verified"];
+
+  return (
+    documentsStatus.length > 0 &&
+    documentsStatus.every((document) => readyStates.includes(document.state))
+  );
+}
+
+function isCompleteInternshipPreferences(
+  preferences: Omit<StudentProfile, "profileCompletion">["internshipPreferences"]
+) {
+  return (
+    isFilled(preferences.roles) &&
+    isFilled(preferences.industries) &&
+    isFilled(preferences.locationPreference) &&
+    isFilled(preferences.workMode)
   );
 }

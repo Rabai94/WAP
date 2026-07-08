@@ -21,14 +21,24 @@ const palette = {
 
 const roleCards = [
   {
+    eyebrow: "role.student.eyebrow",
+    title: "role.student.title",
+    audience: "role.student.audience",
+    description: "role.student.description",
+    cta: "role.student.cta",
+    route: "/student-profile",
+    accent: palette.violet,
+    soft: palette.violetSoft,
+  },
+  {
     eyebrow: "role.career.eyebrow",
     title: "role.career.title",
     audience: "role.career.audience",
     description: "role.career.description",
     cta: "role.career.cta",
-    route: "/worker",
-    accent: palette.violet,
-    soft: palette.violetSoft,
+    route: "/worker-form",
+    accent: palette.blue,
+    soft: palette.blueSoft,
   },
   {
     eyebrow: "role.business.eyebrow",
@@ -37,8 +47,8 @@ const roleCards = [
     description: "role.business.description",
     cta: "role.business.cta",
     route: "/business",
-    accent: palette.blue,
-    soft: palette.blueSoft,
+    accent: palette.red,
+    soft: palette.redSoft,
   },
   {
     eyebrow: "role.freelancer.eyebrow",
@@ -47,8 +57,8 @@ const roleCards = [
     description: "role.freelancer.description",
     cta: "role.freelancer.ctaSoon",
     route: null,
-    accent: palette.red,
-    soft: palette.redSoft,
+    accent: palette.violet,
+    soft: palette.violetSoft,
   },
 ] as const;
 
@@ -140,7 +150,7 @@ const styles = StyleSheet.create({
   },
   content: {
     alignSelf: "center",
-    maxWidth: 1120,
+    maxWidth: 1280,
     paddingBottom: Spacing.eight,
     width: "100%",
   },
@@ -225,7 +235,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xxl,
     flex: 1,
     marginBottom: Spacing.none,
-    minWidth: 280,
+    minWidth: 260,
     padding: Spacing.five,
     shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 14 },

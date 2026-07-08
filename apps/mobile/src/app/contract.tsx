@@ -18,7 +18,7 @@ export default function ContractScreen() {
 
             <Card title={t("contract.details")}>
                 <Text style={styles.item}>{t("common.worker")}: {t("demo.worker.ion")}</Text>
-                <Text style={styles.item}>{t("common.company")}: {t("demo.company.wapLogistics")}</Text>
+                <Text style={styles.item}>{t("common.company")}: {t("demo.company.rabaiLogistics")}</Text>
                 <Text style={styles.item}>{t("common.job")}: {t("jobs.warehouseTitle")}</Text>
                 <Text style={styles.item}>{t("common.city")}: {t("demo.city.augsburg")}</Text>
                 <Text style={styles.item}>{t("common.pay")}: {t("demo.pay15PerHour")}</Text>

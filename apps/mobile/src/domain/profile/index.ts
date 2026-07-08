@@ -1,5 +1,9 @@
 export { calculateProfileCompletion } from "./calculateProfileCompletion";
-export { mockBusinessProfile, mockWorkerProfile } from "./mockProfiles";
+export {
+  mockBusinessProfile,
+  mockStudentProfile,
+  mockWorkerProfile,
+} from "./mockProfiles";
 export type {
   BusinessContactPerson,
   BusinessHiringNeeds,
@@ -8,6 +12,17 @@ export type {
   Profile,
   ProfileRole,
   ProfileStatus,
+  StudentAvailability,
+  StudentCareerIntent,
+  StudentCourse,
+  StudentDocumentState,
+  StudentDocumentStatus,
+  StudentEducation,
+  StudentGoal,
+  StudentInternshipPreferences,
+  StudentProfile,
+  StudentProject,
+  StudentUpgradeOption,
   WorkerAvailability,
   WorkerDocumentsStatus,
   WorkerExperience,
