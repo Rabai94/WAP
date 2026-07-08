@@ -149,7 +149,7 @@ export default function WorkerFormScreen() {
     }
 
     setErrors({});
-    router.push("/worker-dashboard" as any);
+    router.replace("/worker-dashboard" as any);
   }
 
   function validateBasicDetails() {

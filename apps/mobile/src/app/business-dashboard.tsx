@@ -80,15 +80,11 @@ export default function BusinessDashboardScreen() {
       />
 
       <Button
-        title={t("common.backToForm")}
-        variant="ghost"
-        style={styles.backButton}
+        title={t("businessDashboard.editCompanyProfile")}
+        variant="secondary"
+        style={styles.editButton}
         onPress={() => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.push("/business-form" as any);
-          }
+          router.push("/business-form" as any);
         }}
       />
     </Screen>
@@ -119,7 +115,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
 
-  backButton: {
+  editButton: {
     marginTop: Spacing.xxl,
   },
 });

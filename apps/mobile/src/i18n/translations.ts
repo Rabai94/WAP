@@ -22,7 +22,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.backToCheckOut": "Zurück zum Check-out",
     "common.backToContract": "Zurück zum Vertrag",
     "common.backToDashboard": "Zurück zum Dashboard",
-    "common.backToForm": "Zurück zum Formular",
     "common.backToJob": "Zurück zum Job",
     "common.backToJobs": "Zurück zu Jobs",
     "common.backToPayment": "Zurück zur Zahlung",
@@ -337,6 +336,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerDashboard.empty":
       "Demo-Jobs sind verfügbar. Öffne die Jobliste, um dich zu bewerben.",
     "workerDashboard.viewJobs": "Jobs ansehen",
+    "workerDashboard.editCareerProgress": "Karrierefortschritt bearbeiten",
     "workerDashboard.applicationStatusTitle": "Letzte Bewerbung",
     "workerDashboard.applicationStatusSent": "Bewerbung erfolgreich gesendet.",
     "workerDashboard.applicationStatusReview": "Die Firma prüft dein Profil.",
@@ -355,6 +355,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "Die Firma hat noch keine echten Jobs gespeichert. Es gibt nur einen Demo-Flow für das MVP.",
     "businessDashboard.createJob": "Job erstellen",
     "businessDashboard.viewApplications": "Bewerbungen ansehen",
+    "businessDashboard.editCompanyProfile": "Firmenprofil bearbeiten",
     "businessDashboard.jobStatusTitle": "Letzter veröffentlichter Job",
     "businessDashboard.jobStatusPublished": "Job erfolgreich veröffentlicht.",
     "businessDashboard.jobStatusApplicants":
@@ -723,7 +724,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.backToCheckOut": "Back to check-out",
     "common.backToContract": "Back to contract",
     "common.backToDashboard": "Back to dashboard",
-    "common.backToForm": "Back to form",
     "common.backToJob": "Back to job",
     "common.backToJobs": "Back to jobs",
     "common.backToPayment": "Back to payment",
@@ -1036,6 +1036,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerDashboard.empty":
       "Demo jobs are available. Open the job list to apply.",
     "workerDashboard.viewJobs": "View jobs",
+    "workerDashboard.editCareerProgress": "Edit career progress",
     "workerDashboard.applicationStatusTitle": "Latest application",
     "workerDashboard.applicationStatusSent": "Application sent successfully.",
     "workerDashboard.applicationStatusReview":
@@ -1055,6 +1056,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "The company has no real saved jobs yet. There is only a demo flow for the MVP.",
     "businessDashboard.createJob": "Create job",
     "businessDashboard.viewApplications": "View applications",
+    "businessDashboard.editCompanyProfile": "Edit company profile",
     "businessDashboard.jobStatusTitle": "Latest published job",
     "businessDashboard.jobStatusPublished": "Job published successfully.",
     "businessDashboard.jobStatusApplicants":
@@ -1421,7 +1423,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "common.backToCheckOut": "Înapoi la check-out",
     "common.backToContract": "Înapoi la contract",
     "common.backToDashboard": "Înapoi la dashboard",
-    "common.backToForm": "Înapoi la formular",
     "common.backToJob": "Înapoi la job",
     "common.backToJobs": "Înapoi la joburi",
     "common.backToPayment": "Înapoi la plată",
@@ -1736,6 +1737,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     "workerDashboard.empty":
       "Ai joburi demo disponibile. Intră în lista de joburi pentru a aplica.",
     "workerDashboard.viewJobs": "Vezi joburi",
+    "workerDashboard.editCareerProgress": "Editează progresul profesional",
     "workerDashboard.applicationStatusTitle": "Ultima aplicare",
     "workerDashboard.applicationStatusSent": "Aplicare trimisă cu succes.",
     "workerDashboard.applicationStatusReview":
@@ -1755,6 +1757,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
       "Momentan firma nu are joburi salvate real. Avem doar flow demo pentru MVP.",
     "businessDashboard.createJob": "Creează job",
     "businessDashboard.viewApplications": "Vezi aplicări",
+    "businessDashboard.editCompanyProfile": "Editează profilul firmei",
     "businessDashboard.jobStatusTitle": "Ultimul job publicat",
     "businessDashboard.jobStatusPublished": "Job publicat cu succes.",
     "businessDashboard.jobStatusApplicants":

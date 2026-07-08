@@ -75,15 +75,11 @@ export default function WorkerDashboardScreen() {
       />
 
       <Button
-        title={t("common.backToForm")}
-        variant="ghost"
-        style={styles.backButton}
+        title={t("workerDashboard.editCareerProgress")}
+        variant="secondary"
+        style={styles.editButton}
         onPress={() => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.push("/worker-form" as any);
-          }
+          router.push("/worker-form" as any);
         }}
       />
     </Screen>
@@ -110,7 +106,7 @@ const styles = StyleSheet.create({
     lineHeight: Typography.lineHeight.subtitle,
   },
 
-  backButton: {
+  editButton: {
     marginTop: Spacing.xxl,
   },
 });

@@ -46,7 +46,7 @@ export default function BusinessFormScreen() {
       <Button
         title={t("businessForm.save")}
         onPress={() => {
-          router.push("/business-dashboard" as any);
+          router.replace("/business-dashboard" as any);
         }}
       />
 
