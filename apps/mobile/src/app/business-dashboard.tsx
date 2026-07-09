@@ -89,12 +89,10 @@ export default function BusinessDashboardScreen() {
       />
 
       <Button
-        title={t("businessDashboard.editCompanyProfile")}
+        title={`${t("businessDashboard.editCompanyProfile")} - Coming soon`}
         variant="secondary"
+        disabled
         style={styles.editButton}
-        onPress={() => {
-          router.push("/business-form" as any);
-        }}
       />
 
         <Button

@@ -45,18 +45,13 @@ const palette = {
   shadow: "#172033",
 } as const;
 
-type VerificationMethod = "email" | "sms" | "whatsapp";
-
 type FormErrors = Partial<
   Record<
     | "firstName"
     | "lastName"
     | "email"
     | "password"
-    | "phone"
-    | "verificationMethod"
-    | "verificationAction"
-    | "verificationCode",
+    | "phone",
     string
   >
 >;
@@ -74,19 +69,13 @@ const trustCards = [
   "workerForm.trust.support",
 ] as const;
 
-const verificationMethods: VerificationMethod[] = [
-  "email",
-  "sms",
-  "whatsapp",
-];
-
 function getCountryIdentity(country: EuropeanCountry) {
   return getNationalIdentityByCode(country.identityCode) ?? getDefaultNationalIdentity();
 }
 
 export default function WorkerFormScreen() {
   const router = useRouter();
-  const { sendEmailOtp, verifyEmailOtp } = useAuth();
+  const { signUp } = useAuth();
   const { t } = useLanguage();
   const [step, setStep] = useState<1 | 2>(1);
   const [firstName, setFirstName] = useState("");
@@ -98,26 +87,17 @@ export default function WorkerFormScreen() {
   );
   const [isCountryPickerOpen, setIsCountryPickerOpen] = useState(false);
   const [phone, setPhone] = useState("");
-  const [verificationMethod, setVerificationMethod] =
-    useState<VerificationMethod | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [authError, setAuthError] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpMessage, setOtpMessage] = useState("");
-  const [showLoginLink, setShowLoginLink] = useState(false);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function handleBack() {
     if (step === 2) {
       setStep(1);
       setErrors({});
       setAuthError("");
-      setOtpCode("");
-      setOtpSent(false);
-      setOtpMessage("");
-      setShowLoginLink(false);
+      setSuccessMessage("");
       return;
     }
 
@@ -134,110 +114,49 @@ export default function WorkerFormScreen() {
     setIsCountryPickerOpen(false);
   }
 
-  function handleContinueToVerification() {
+  async function handleContinueToVerification() {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!validateBasicDetails()) {
       return;
     }
 
     setErrors({});
     setAuthError("");
-    setOtpCode("");
-    setOtpSent(false);
-    setOtpMessage("");
-    setShowLoginLink(false);
-    setStep(2);
-  }
-
-  function handleVerificationAction() {
-    if (!verificationMethod) {
-      setErrors({
-        verificationMethod: t("workerForm.error.verificationMethod"),
-      });
-      return;
-    }
-
-    if (verificationMethod !== "email") {
-      setErrors({
-        verificationAction:
-          "Verificarea prin SMS/WhatsApp va fi disponibilă în curând. Folosește email pentru moment.",
-      });
-      return;
-    }
-
-    void handleSendEmailOtp();
-  }
-
-  async function handleSendEmailOtp() {
-    if (isSendingOtp) {
-      return;
-    }
-
-    setErrors({});
-    setAuthError("");
-    setOtpMessage("");
-    setShowLoginLink(false);
-    setIsSendingOtp(true);
+    setSuccessMessage("");
+    setIsSubmitting(true);
 
     try {
       const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
       const fullPhone = `${selectedCountry.dialCode}${phone.trim()}`;
 
-      await sendEmailOtp(email.trim(), {
-        shouldCreateUser: true,
+      const result = await signUp({
+        email: email.trim(),
+        password,
         role: "worker",
         fullName,
         phone: fullPhone,
       });
-      setOtpSent(true);
-      setOtpMessage(
-        "Ți-am trimis un cod pe email. Introdu codul pentru verificare."
-      );
-    } catch (nextError) {
-      setAuthError(
-        nextError instanceof Error
-          ? nextError.message
-          : "Nu am putut trimite codul pe email. Încearcă din nou."
-      );
-    } finally {
-      setIsSendingOtp(false);
-    }
-  }
-
-  async function handleVerifyEmailOtp() {
-    if (isVerifyingOtp) {
-      return;
-    }
-
-    if (!otpCode.trim()) {
-      setErrors({
-        verificationCode: "Introdu codul primit pe email.",
-      });
-      return;
-    }
-
-    setErrors({});
-    setAuthError("");
-    setShowLoginLink(false);
-    setIsVerifyingOtp(true);
-
-    try {
-      const result = await verifyEmailOtp(email.trim(), otpCode.trim());
 
       if (result.session) {
         router.replace("/engine" as any);
         return;
       }
 
-      setOtpMessage("Email verificat. Mergi la login pentru a intra în RabAI.");
-      setShowLoginLink(true);
+      setStep(2);
+      setSuccessMessage(
+        "Account created. Please verify your email, then log in."
+      );
     } catch (nextError) {
       setAuthError(
         nextError instanceof Error
           ? nextError.message
-          : "Codul nu a putut fi verificat. Încearcă din nou."
+          : "RabAI account creation failed. Please try again."
       );
     } finally {
-      setIsVerifyingOtp(false);
+      setIsSubmitting(false);
     }
   }
 
@@ -436,135 +355,32 @@ export default function WorkerFormScreen() {
                   onPress={handleContinueToVerification}
                 >
                   <Text style={styles.primaryButtonText}>
-                    {t("workerForm.continueToVerification")}
+                    {isSubmitting
+                      ? "Creating account..."
+                      : t("workerForm.continueToVerification")}
                   </Text>
                 </Pressable>
               </View>
             ) : (
               <View>
-                <Text style={styles.formTitle}>
-                  {t("workerForm.verify.title")}
-                </Text>
+                <Text style={styles.formTitle}>Account created</Text>
                 <Text style={styles.formDescription}>
-                  Alege verificarea prin email pentru a primi un cod real în
-                  RabAI.
+                  Check your email to confirm your RabAI account, then log in.
                 </Text>
-
-                <View style={styles.methodGrid}>
-                  {verificationMethods.map((method) => (
-                    <Pressable
-                      key={method}
-                      style={[
-                        styles.methodCard,
-                        verificationMethod === method &&
-                          styles.methodCardActive,
-                      ]}
-                      onPress={() => {
-                        setVerificationMethod(method);
-                        setErrors({});
-                        setAuthError("");
-                        setOtpCode("");
-                        setOtpSent(false);
-                        setOtpMessage("");
-                        setShowLoginLink(false);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.methodTitle,
-                          verificationMethod === method &&
-                            styles.methodTitleActive,
-                        ]}
-                      >
-                        {t(`workerForm.verify.method.${method}`)}
-                      </Text>
-                      <Text style={styles.methodText}>
-                        {method === "email"
-                          ? "RabAI va trimite un cod real pe email."
-                          : "În curând"}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <ErrorMessage message={errors.verificationMethod} />
-                <ErrorMessage message={errors.verificationAction} />
-
-                {verificationMethod &&
-                verificationMethod !== "email" ? (
-                  <View style={styles.unavailablePanel}>
-                    <Text style={styles.unavailableText}>
-                      Verificarea prin SMS/WhatsApp va fi disponibilă în curând.
-                      Folosește email pentru moment.
-                    </Text>
-                    <Pressable
-                      style={styles.secondaryButton}
-                      onPress={() => {
-                        setVerificationMethod("email");
-                        setErrors({});
-                        setAuthError("");
-                      }}
-                    >
-                      <Text style={styles.secondaryButtonText}>
-                        Folosește email
-                      </Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-
-                {!otpSent &&
-                (!verificationMethod || verificationMethod === "email") ? (
-                  <Pressable
-                    style={styles.primaryButton}
-                    onPress={handleVerificationAction}
-                  >
-                    <Text style={styles.primaryButtonText}>
-                      {isSendingOtp ? "Se trimite codul..." : "Trimite cod pe email"}
-                    </Text>
-                  </Pressable>
-                ) : null}
-
                 <ErrorMessage message={authError} />
-
-                {otpSent && verificationMethod === "email" ? (
+                {successMessage ? (
                   <View style={styles.successPanel}>
-                    <Text style={styles.successText}>{otpMessage}</Text>
-                    {!showLoginLink ? (
-                      <>
-                        <InputField
-                          autoCapitalize="none"
-                          error={errors.verificationCode}
-                          keyboardType="number-pad"
-                          label="Cod de verificare"
-                          onChangeText={setOtpCode}
-                          placeholder="Cod primit pe email"
-                          value={otpCode}
-                        />
-                        <Pressable
-                          style={styles.primaryButton}
-                          onPress={handleVerifyEmailOtp}
-                        >
-                          <Text style={styles.primaryButtonText}>
-                            {isVerifyingOtp
-                              ? "Se verifică..."
-                              : "Verifică emailul"}
-                          </Text>
-                        </Pressable>
-                      </>
-                    ) : null}
-                    {showLoginLink ? (
-                      <View style={styles.actionStack}>
-                        <Pressable
-                          style={styles.secondaryButton}
-                          onPress={() => {
-                            router.replace("/login" as any);
-                          }}
-                        >
-                          <Text style={styles.secondaryButtonText}>
-                            Mergi la login
-                          </Text>
-                        </Pressable>
-                      </View>
-                    ) : null}
+                    <Text style={styles.successText}>{successMessage}</Text>
+                    <View style={styles.actionStack}>
+                      <Pressable
+                        style={styles.secondaryButton}
+                        onPress={() => {
+                          router.replace("/login" as any);
+                        }}
+                      >
+                        <Text style={styles.secondaryButtonText}>Go to login</Text>
+                      </Pressable>
+                    </View>
                   </View>
                 ) : null}
               </View>

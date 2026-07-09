@@ -7,15 +7,17 @@ export type AuthRole =
 
 export type PublicAuthRole = Exclude<AuthRole, "admin">;
 
-export type AuthUser = {
+export type AppUser = {
   id: string;
   email: string | null;
-  role?: AuthRole;
-  roles?: AuthRole[];
-  isAdmin?: boolean;
+  role: AuthRole;
+  roles: AuthRole[];
+  isAdmin: boolean;
   fullName?: string;
   phone?: string;
 };
+
+export type AuthUser = AppUser;
 
 export type AuthSession = {
   accessToken?: string;

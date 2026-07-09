@@ -1,8 +1,7 @@
+import { useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button, Card, Screen } from "../components/ui";
-import type { AuthRole } from "@/domain/auth/auth.types";
-import { isTrustedAdmin } from "@/domain/auth/roleAccess";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
@@ -30,7 +29,8 @@ const roleCards = [
     description: "role.student.description",
     cta: "role.student.cta",
     role: "student",
-    route: "/student-profile",
+    route: null,
+    disabledLabel: "Coming soon",
     accent: palette.violet,
     soft: palette.violetSoft,
   },
@@ -69,26 +69,16 @@ const roleCards = [
   },
 ] as const;
 
-const adminRoleRoutes: Partial<Record<AuthRole, string | null>> = {
-  student: "/student-profile",
-  worker: "/worker-dashboard",
-  business: "/business-dashboard",
-  freelancer: null,
-};
-
 export default function RoleScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { loading, session } = useAuth();
   const { t } = useLanguage();
-  const adminUser = isTrustedAdmin(user);
 
-  function getCardRoute(card: (typeof roleCards)[number]) {
-    if (adminUser) {
-      return adminRoleRoutes[card.role] ?? null;
+  useEffect(() => {
+    if (!loading && session) {
+      router.replace("/engine" as any);
     }
-
-    return card.route;
-  }
+  }, [loading, router, session]);
 
   function handleBack() {
     if (router.canGoBack()) {
@@ -126,7 +116,7 @@ export default function RoleScreen() {
 
         <View style={styles.cardsGrid}>
           {roleCards.map((card) => {
-            const route = getCardRoute(card);
+            const route = card.route;
 
             return (
               <Card key={card.title} style={styles.roleCard}>
@@ -165,7 +155,9 @@ export default function RoleScreen() {
                   />
                 ) : (
                   <View style={styles.disabledButton}>
-                    <Text style={styles.disabledButtonText}>{t(card.cta)}</Text>
+                    <Text style={styles.disabledButtonText}>
+                      {"disabledLabel" in card ? card.disabledLabel : t(card.cta)}
+                    </Text>
                   </View>
                 )}
               </Card>

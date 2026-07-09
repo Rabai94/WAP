@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -13,6 +13,7 @@ import { getLanguageNationalIdentity } from "@/domain/nationality/nationalities"
 import { Button, Card, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { languages } from "../i18n/translations";
+import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 
 const palette = {
@@ -136,8 +137,15 @@ const courses = [
 export default function HomeScreen() {
   const router = useRouter();
   const { t, language, setLanguage } = useLanguage();
+  const { loading: authLoading, session } = useAuth();
   const [activeTab, setActiveTab] =
     useState<(typeof searchTabs)[number]>(searchTabs[0]);
+
+  useEffect(() => {
+    if (!authLoading && session) {
+      router.replace("/engine" as any);
+    }
+  }, [authLoading, router, session]);
 
   return (
     <Screen centered={false} style={styles.screen}>

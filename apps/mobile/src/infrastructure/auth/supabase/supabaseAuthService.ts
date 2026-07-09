@@ -8,14 +8,6 @@ import type {
 import type { AuthService } from "@/services/auth/authService";
 import { supabase } from "./supabaseClient";
 
-const authRoles: AuthRole[] = [
-  "admin",
-  "student",
-  "worker",
-  "business",
-  "freelancer",
-];
-
 const publicAuthRoles: PublicAuthRole[] = [
   "student",
   "worker",
@@ -23,23 +15,20 @@ const publicAuthRoles: PublicAuthRole[] = [
   "freelancer",
 ];
 
-function mapRole(role: unknown): AuthRole | undefined {
-  return authRoles.includes(role as AuthRole) ? (role as AuthRole) : undefined;
-}
+const profileSelect = "id,email,full_name,phone,role" as const;
+
+type ProfileRow = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  phone: string | null;
+  role: PublicAuthRole;
+};
 
 function mapPublicRole(role: unknown): PublicAuthRole | undefined {
   return publicAuthRoles.includes(role as PublicAuthRole)
     ? (role as PublicAuthRole)
     : undefined;
-}
-
-function mapRoles(roles: unknown): AuthRole[] {
-  const values = Array.isArray(roles) ? roles : [roles];
-
-  return values.flatMap((role) => {
-    const mappedRole = mapRole(role);
-    return mappedRole ? [mappedRole] : [];
-  });
 }
 
 function mapPublicRoles(roles: unknown): PublicAuthRole[] {
@@ -55,39 +44,75 @@ function uniqueRoles(roles: AuthRole[]) {
   return [...new Set(roles)];
 }
 
-function mapSupabaseUser(user: User): AuthUser {
+function getMetadataString(
+  metadata: Record<string, unknown>,
+  key: string
+) {
+  const value = metadata[key];
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function getFallbackPublicRole(user: User) {
   const appMetadata = user.app_metadata ?? {};
   const userMetadata = user.user_metadata ?? {};
-  const trustedAppRoles = mapRoles(appMetadata.roles);
-  const trustedAdmin =
-    appMetadata.role === "admin" || trustedAppRoles.includes("admin");
 
-  // Admin access must only come from trusted server-side app_metadata.
-  // user_metadata is public/user-controlled and can only supply public roles.
-  const roles = uniqueRoles([
-    ...(trustedAdmin ? (["admin"] as const) : []),
+  return (
+    mapPublicRole(appMetadata.role) ??
+    mapPublicRoles(appMetadata.roles)[0] ??
+    mapPublicRole(userMetadata.role) ??
+    mapPublicRoles(userMetadata.roles)[0] ??
+    "worker"
+  );
+}
+
+function isAdminFromAppMetadata(appMetadata: Record<string, unknown>) {
+  const appMetadataRoles = Array.isArray(appMetadata.roles)
+    ? appMetadata.roles
+    : [];
+
+  return appMetadata.role === "admin" || appMetadataRoles.includes("admin");
+}
+
+function mapSupabaseUser(
+  user: User,
+  profile: ProfileRow | null = null
+): AuthUser {
+  const appMetadata = user.app_metadata ?? {};
+  const userMetadata = user.user_metadata ?? {};
+  const trustedAdmin = isAdminFromAppMetadata(appMetadata);
+  const profileRole = mapPublicRole(profile?.role);
+
+  const publicRoles = uniqueRoles([
+    ...(profileRole ? [profileRole] : []),
     ...mapPublicRoles(appMetadata.role),
     ...mapPublicRoles(appMetadata.roles),
     ...mapPublicRoles(userMetadata.role),
     ...mapPublicRoles(userMetadata.roles),
   ]);
 
+  const roles = uniqueRoles([
+    ...(trustedAdmin ? (["admin"] as const) : []),
+    ...publicRoles,
+    ...(!trustedAdmin && publicRoles.length === 0 ? (["worker"] as const) : []),
+  ]);
+  const role =
+    profileRole ?? publicRoles[0] ?? (trustedAdmin ? "admin" : "worker");
+
   return {
     id: user.id,
-    email: user.email ?? null,
-    role: roles[0],
-    roles: roles.length > 0 ? roles : undefined,
+    email: profile?.email ?? user.email ?? null,
+    role,
+    roles,
     isAdmin: trustedAdmin,
     fullName:
-      typeof userMetadata.full_name === "string"
-        ? userMetadata.full_name
-        : undefined,
-    phone:
-      typeof userMetadata.phone === "string" ? userMetadata.phone : undefined,
+      profile?.full_name ??
+      getMetadataString(userMetadata, "full_name") ??
+      undefined,
+    phone: profile?.phone ?? getMetadataString(userMetadata, "phone"),
   };
 }
 
-function mapSupabaseSession(session: Session | null): AuthSession | null {
+function mapSessionWithoutProfile(session: Session | null): AuthSession | null {
   if (!session) {
     return null;
   }
@@ -96,6 +121,78 @@ function mapSupabaseSession(session: Session | null): AuthSession | null {
     accessToken: session.access_token,
     refreshToken: session.refresh_token,
     user: mapSupabaseUser(session.user),
+  };
+}
+
+async function fetchProfile(userId: string) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(profileSelect)
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "RabAI profile load failed.");
+  }
+
+  return data as ProfileRow | null;
+}
+
+async function createMissingProfile(user: User) {
+  const userMetadata = user.user_metadata ?? {};
+
+  const profile = {
+    id: user.id,
+    email: user.email ?? null,
+    full_name: getMetadataString(userMetadata, "full_name") ?? null,
+    phone: getMetadataString(userMetadata, "phone") ?? null,
+    role: getFallbackPublicRole(user),
+  };
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .insert(profile)
+    .select(profileSelect)
+    .single();
+
+  if (!error) {
+    return data as ProfileRow;
+  }
+
+  if (error.code === "23505") {
+    const existingProfile = await fetchProfile(user.id);
+
+    if (existingProfile) {
+      return existingProfile;
+    }
+  }
+
+  throw new Error(error.message || "RabAI profile creation failed.");
+}
+
+async function getOrCreateProfile(user: User) {
+  const profile = await fetchProfile(user.id);
+
+  if (profile) {
+    return profile;
+  }
+
+  return createMissingProfile(user);
+}
+
+async function mapSupabaseSession(
+  session: Session | null
+): Promise<AuthSession | null> {
+  if (!session) {
+    return null;
+  }
+
+  const profile = await getOrCreateProfile(session.user);
+
+  return {
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    user: mapSupabaseUser(session.user, profile),
   };
 }
 
@@ -133,9 +230,11 @@ export const supabaseAuthService: AuthService = {
       throw new Error(error.message || "RabAI sign up failed.");
     }
 
+    const session = await mapSupabaseSession(data.session);
+
     return {
-      session: mapSupabaseSession(data.session),
-      user: data.user ? mapSupabaseUser(data.user) : null,
+      session,
+      user: session?.user ?? (data.user ? mapSupabaseUser(data.user) : null),
     };
   },
 
@@ -149,14 +248,15 @@ export const supabaseAuthService: AuthService = {
       throw new Error(error.message || "RabAI login failed.");
     }
 
+    const session = await mapSupabaseSession(data.session);
+
     return {
-      session: mapSupabaseSession(data.session),
-      user: data.user ? mapSupabaseUser(data.user) : null,
+      session,
+      user: session?.user ?? (data.user ? mapSupabaseUser(data.user) : null),
     };
   },
 
   async resendEmailConfirmation(email) {
-    // TODO: Supabase email sender must be configured in Supabase Dashboard using Custom SMTP and Email Templates.
     const { error } = await supabase.auth.resend({
       type: "signup",
       email,
@@ -182,7 +282,6 @@ export const supabaseAuthService: AuthService = {
       ...(options?.phone ? { phone: options.phone } : {}),
     };
 
-    // Supabase sends numeric codes only when the email template uses {{ .Token }}.
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -207,9 +306,11 @@ export const supabaseAuthService: AuthService = {
       throw new Error(error.message || "RabAI email OTP verification failed.");
     }
 
+    const session = await mapSupabaseSession(data.session);
+
     return {
-      session: mapSupabaseSession(data.session),
-      user: data.user ? mapSupabaseUser(data.user) : null,
+      session,
+      user: session?.user ?? (data.user ? mapSupabaseUser(data.user) : null),
     };
   },
 
@@ -225,7 +326,12 @@ export const supabaseAuthService: AuthService = {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      callback(mapSupabaseSession(session));
+      void mapSupabaseSession(session)
+        .then(callback)
+        .catch((error: unknown) => {
+          console.error("RabAI auth profile sync failed", error);
+          callback(mapSessionWithoutProfile(session));
+        });
     });
 
     return {

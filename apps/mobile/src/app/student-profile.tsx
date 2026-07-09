@@ -9,6 +9,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import RequireAuth from "@/components/RequireAuth";
 import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
 import {
   getLanguageNationalIdentity,
@@ -114,12 +115,13 @@ export default function StudentProfileScreen() {
   ].filter(Boolean) as string[];
 
   return (
-    <View style={styles.screen}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
-        <View style={styles.shell}>
+    <RequireAuth requiredRole="student">
+      <View style={styles.screen}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+        >
+          <View style={styles.shell}>
           <View style={styles.sidebar}>
             <View style={styles.sidebarBrand}>
               <Text style={styles.logo}>{t("studentProfile.header.logo")}</Text>
@@ -479,9 +481,10 @@ export default function StudentProfileScreen() {
               </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+          </View>
+        </ScrollView>
+      </View>
+    </RequireAuth>
   );
 }
 

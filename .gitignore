@@ -1,9 +1,14 @@
 node_modules
 .expo
+supabase/.temp/
+apps/mobile/supabase/
+apps/mobile/supabase/.temp/
 dist
 web-build
 .env
 .env.local
+apps/mobile/.env
+apps/mobile/.env.local
 .DS_Store
 npm-debug.log
 yarn-error.log

@@ -84,12 +84,10 @@ export default function WorkerDashboardScreen() {
       />
 
       <Button
-        title={t("workerDashboard.editCareerProgress")}
+        title={`${t("workerDashboard.editCareerProgress")} - Coming soon`}
         variant="secondary"
+        disabled
         style={styles.editButton}
-        onPress={() => {
-          router.push("/worker-form" as any);
-        }}
       />
 
         <Button

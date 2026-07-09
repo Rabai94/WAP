@@ -1,6 +1,17 @@
-import { Image, StyleSheet, Text, View } from "react-native";
-import { getInsigniaAsset } from "@/domain/nationality/insigniaAssets";
+import {
+  Image,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import type { ImageSourcePropType } from "react-native";
 import type { NationalIdentity } from "@/domain/nationality/nationalities";
+
+const insigniaAssets: Partial<Record<string, ImageSourcePropType>> = {
+  DE: require("../assets/insignias/de.png"),
+  EN: require("../assets/insignias/en.png"),
+  RO: require("../assets/insignias/ro.png"),
+};
 
 type NationalInsigniaBadgeProps = {
   identity: NationalIdentity;
@@ -55,6 +66,10 @@ export default function NationalInsigniaBadge({
       ) : null}
     </View>
   );
+}
+
+function getInsigniaAsset(code: string) {
+  return insigniaAssets[code.trim().toUpperCase()];
 }
 
 const styles = StyleSheet.create({
