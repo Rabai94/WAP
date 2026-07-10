@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Image,
   Pressable,
   ScrollView,
-  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
   View,
-  ViewStyle,
 } from "react-native";
 import { useRouter } from "expo-router";
 import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
@@ -335,14 +334,6 @@ const searchTabs: {
   { key: "freelancers", enabled: false },
 ];
 
-const nodeOrder: EcosystemNodeKey[] = [
-  "student",
-  "workers",
-  "courses",
-  "companies",
-  "freelancers",
-];
-
 const supportItems = [
   { key: "unified", tone: "blue", icon: "01" },
   { key: "trusted", tone: "violet", icon: "02" },
@@ -377,6 +368,8 @@ const layout = {
   headerMaxWidth: 1280,
   contentMaxWidth: 1200,
 } as const;
+
+const heroCoverImage = require("../assets/hero/rabai-hero-cover-it.png.png");
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -533,12 +526,12 @@ export default function HomeScreen() {
         </View>
 
         <View style={[styles.hero, isCompact && styles.heroCompact]}>
-          <View style={styles.heroGlowTop} />
-          <View style={styles.heroGlowBottom} />
-          <View style={styles.heroRingOuter} />
-          <View style={styles.heroRingInner} />
-          <View style={styles.heroRailBlue} />
-          <View style={styles.heroRailRose} />
+          <Image
+            resizeMode="cover"
+            source={heroCoverImage}
+            style={styles.heroCoverImage}
+          />
+          <View style={styles.heroCoverOverlay} />
 
           <View style={[styles.heroCenter, isCompact && styles.heroCenterCompact]}>
             <Text style={styles.heroEyebrow}>{copy.hero.ecosystem}</Text>
@@ -548,24 +541,6 @@ export default function HomeScreen() {
             <Text style={[styles.heroSubtitle, isPhone && styles.heroSubtitlePhone]}>
               {copy.hero.subtitle}
             </Text>
-
-            <View style={styles.infinityWrap}>
-              <View style={[styles.infinityLoop, styles.infinityLeft]} />
-              <View style={[styles.infinityLoop, styles.infinityRight]} />
-            </View>
-          </View>
-
-          <View style={isCompact ? styles.nodeGrid : styles.nodeLayer}>
-            {nodeOrder.map((key) => (
-              <EcosystemNode
-                compact={isCompact}
-                key={key}
-                label={copy.nodes[key].label}
-                nodeKey={key}
-                style={!isCompact ? nodePositionStyles[key] : undefined}
-                title={copy.nodes[key].title}
-              />
-            ))}
           </View>
         </View>
 
@@ -592,9 +567,6 @@ export default function HomeScreen() {
                     !tab.enabled && styles.tabDisabled,
                   ]}
                 >
-                  <Text style={[styles.tabIcon, active && styles.tabIconActive]}>
-                    {getTabIcon(tab.key)}
-                  </Text>
                   <Text style={[styles.tabText, active && styles.tabTextActive]}>
                     {copy.search.tabs[tab.key]}
                   </Text>
@@ -652,7 +624,6 @@ export default function HomeScreen() {
             actionDisabled={false}
             actionLabel={copy.sections.viewJobs}
             emptyText={copy.sections.jobsEmpty}
-            icon="J"
             onAction={() => {
               navigate("/jobs");
             }}
@@ -663,7 +634,6 @@ export default function HomeScreen() {
             actionLabel={copy.sections.viewCourses}
             disabledLabel={copy.auth.soon}
             emptyText={copy.sections.coursesEmpty}
-            icon="C"
             title={copy.sections.coursesTitle}
           />
         </View>
@@ -722,40 +692,11 @@ function SearchField({
   );
 }
 
-function EcosystemNode({
-  compact,
-  label,
-  nodeKey,
-  style,
-  title,
-}: {
-  compact: boolean;
-  label: string;
-  nodeKey: EcosystemNodeKey;
-  style?: StyleProp<ViewStyle>;
-  title: string;
-}) {
-  return (
-    <View style={[styles.ecosystemNode, compact && styles.ecosystemNodeCompact, style]}>
-      <View style={[styles.nodePlatform, nodeToneStyles[nodeKey]]}>
-        <View style={styles.nodeIconBase}>
-          <Text style={styles.nodeIcon}>{getNodeIcon(nodeKey)}</Text>
-        </View>
-      </View>
-      <View style={styles.nodeTextWrap}>
-        <Text style={styles.nodeTitle}>{title}</Text>
-        <Text style={styles.nodeLabel}>{label}</Text>
-      </View>
-    </View>
-  );
-}
-
 function PublicSectionCard({
   actionDisabled,
   actionLabel,
   disabledLabel,
   emptyText,
-  icon,
   onAction,
   title,
 }: {
@@ -763,7 +704,6 @@ function PublicSectionCard({
   actionLabel: string;
   disabledLabel?: string;
   emptyText: string;
-  icon: string;
   onAction?: () => void;
   title: string;
 }) {
@@ -771,9 +711,6 @@ function PublicSectionCard({
     <View style={styles.sectionCard}>
       <View style={styles.sectionCardHeader}>
         <View style={styles.sectionTitleWrap}>
-          <View style={styles.sectionIcon}>
-            <Text style={styles.sectionIconText}>{icon}</Text>
-          </View>
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
 
@@ -804,38 +741,6 @@ function PublicSectionCard({
       </View>
     </View>
   );
-}
-
-function getNodeIcon(key: EcosystemNodeKey) {
-  switch (key) {
-    case "student":
-      return "ST";
-    case "courses":
-      return "CR";
-    case "workers":
-      return "WK";
-    case "companies":
-      return "FM";
-    case "freelancers":
-      return "FR";
-    default:
-      return "RB";
-  }
-}
-
-function getTabIcon(key: SearchTabKey) {
-  switch (key) {
-    case "jobs":
-      return "J";
-    case "companies":
-      return "F";
-    case "courses":
-      return "C";
-    case "freelancers":
-      return "P";
-    default:
-      return "R";
-  }
 }
 
 const styles = StyleSheet.create({
@@ -1024,65 +929,22 @@ const styles = StyleSheet.create({
     minHeight: 0,
     paddingBottom: Spacing.five,
   },
-  heroGlowTop: {
-    backgroundColor: "rgba(64, 107, 255, 0.26)",
-    borderRadius: 300,
-    height: 430,
-    left: -110,
+  heroCoverImage: {
+    bottom: 0,
+    height: "100%",
+    left: 0,
     position: "absolute",
-    top: 10,
-    width: 430,
+    right: 0,
+    top: 0,
+    width: "100%",
   },
-  heroGlowBottom: {
-    backgroundColor: "rgba(136, 28, 255, 0.22)",
-    borderRadius: 360,
-    bottom: -180,
-    height: 480,
+  heroCoverOverlay: {
+    backgroundColor: "rgba(247, 250, 255, 0.2)",
+    bottom: 0,
+    left: 0,
     position: "absolute",
-    right: -100,
-    width: 500,
-  },
-  heroRingOuter: {
-    alignSelf: "center",
-    borderColor: "rgba(26, 111, 255, 0.42)",
-    borderRadius: 620,
-    borderWidth: 3,
-    height: 390,
-    position: "absolute",
-    top: 134,
-    transform: [{ rotate: "-7deg" }],
-    width: 1220,
-  },
-  heroRingInner: {
-    alignSelf: "center",
-    borderColor: "rgba(239, 19, 99, 0.34)",
-    borderRadius: 520,
-    borderWidth: 3,
-    height: 286,
-    position: "absolute",
-    top: 188,
-    transform: [{ rotate: "7deg" }],
-    width: 990,
-  },
-  heroRailBlue: {
-    alignSelf: "center",
-    backgroundColor: "rgba(24, 199, 223, 0.58)",
-    borderRadius: Radius.round,
-    height: 4,
-    position: "absolute",
-    top: 326,
-    transform: [{ rotate: "-10deg" }],
-    width: 920,
-  },
-  heroRailRose: {
-    alignSelf: "center",
-    backgroundColor: "rgba(239, 19, 99, 0.42)",
-    borderRadius: Radius.round,
-    height: 4,
-    position: "absolute",
-    top: 374,
-    transform: [{ rotate: "8deg" }],
-    width: 920,
+    right: 0,
+    top: 0,
   },
   heroCenter: {
     alignItems: "center",
@@ -1130,106 +992,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     lineHeight: Typography.lineHeight.default,
   },
-  infinityWrap: {
-    height: 88,
-    marginTop: Spacing.five,
-    position: "relative",
-    width: 182,
-  },
-  infinityLoop: {
-    borderRadius: 66,
-    borderWidth: 11,
-    height: 76,
-    position: "absolute",
-    top: 5,
-    transform: [{ rotate: "32deg" }],
-    width: 106,
-  },
-  infinityLeft: {
-    borderColor: "rgba(20, 92, 255, 0.38)",
-    left: 0,
-  },
-  infinityRight: {
-    borderColor: "rgba(240, 19, 99, 0.32)",
-    right: 0,
-    transform: [{ rotate: "-32deg" }],
-  },
-  nodeLayer: {
-    bottom: 0,
-    left: 0,
-    position: "absolute",
-    right: 0,
-    top: 0,
-    zIndex: 3,
-  },
-  nodeGrid: {
-    alignSelf: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.three,
-    justifyContent: "center",
-    marginTop: Spacing.three,
-    maxWidth: 760,
-    zIndex: 3,
-  },
-  ecosystemNode: {
-    alignItems: "center",
-    gap: Spacing.md,
-    position: "absolute",
-    width: 176,
-  },
-  ecosystemNodeCompact: {
-    position: "relative",
-  },
-  nodePlatform: {
-    alignItems: "center",
-    borderColor: "rgba(255, 255, 255, 0.78)",
-    borderRadius: Radius.round,
-    borderWidth: 2,
-    height: 108,
-    justifyContent: "center",
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.16,
-    shadowRadius: 28,
-    width: 154,
-    elevation: 4,
-  },
-  nodeIconBase: {
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.78)",
-    borderColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    height: 64,
-    justifyContent: "center",
-    width: 74,
-  },
-  nodeIcon: {
-    color: palette.ink,
-    fontSize: Typography.total,
-    fontWeight: Typography.fontWeight.black,
-    letterSpacing: 0,
-  },
-  nodeTextWrap: {
-    alignItems: "center",
-  },
-  nodeTitle: {
-    color: palette.ink,
-    fontSize: Typography.total,
-    fontWeight: Typography.fontWeight.black,
-    letterSpacing: 0,
-    textAlign: "center",
-  },
-  nodeLabel: {
-    color: palette.blueDeep,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
-    letterSpacing: 0,
-    marginTop: Spacing.xxs,
-    textAlign: "center",
-    textTransform: "uppercase",
-  },
   searchCard: {
     alignSelf: "center",
     backgroundColor: "rgba(255, 255, 255, 0.96)",
@@ -1275,15 +1037,6 @@ const styles = StyleSheet.create({
   },
   tabDisabled: {
     opacity: 0.68,
-  },
-  tabIcon: {
-    color: palette.muted,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
-    letterSpacing: 0,
-  },
-  tabIconActive: {
-    color: palette.blue,
   },
   tabText: {
     color: palette.text,
@@ -1396,20 +1149,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flex: 1,
     gap: Spacing.md,
-  },
-  sectionIcon: {
-    alignItems: "center",
-    backgroundColor: palette.blueSoft,
-    borderRadius: Radius.md,
-    height: 38,
-    justifyContent: "center",
-    width: 38,
-  },
-  sectionIconText: {
-    color: palette.blue,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
-    letterSpacing: 0,
   },
   sectionTitle: {
     color: palette.ink,
@@ -1528,50 +1267,3 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 });
-
-const nodePositionStyles: Record<EcosystemNodeKey, ViewStyle> = {
-  student: {
-    left: "16%",
-    top: 78,
-  },
-  workers: {
-    right: "15%",
-    top: 84,
-  },
-  courses: {
-    left: "10%",
-    top: 265,
-  },
-  companies: {
-    right: "10%",
-    top: 270,
-  },
-  freelancers: {
-    bottom: 78,
-    left: "50%",
-    marginLeft: -88,
-  },
-};
-
-const nodeToneStyles: Record<EcosystemNodeKey, ViewStyle> = {
-  student: {
-    backgroundColor: "rgba(20, 92, 255, 0.16)",
-    borderColor: "rgba(24, 199, 223, 0.58)",
-  },
-  courses: {
-    backgroundColor: "rgba(24, 199, 223, 0.16)",
-    borderColor: "rgba(20, 92, 255, 0.45)",
-  },
-  workers: {
-    backgroundColor: "rgba(110, 29, 255, 0.15)",
-    borderColor: "rgba(110, 29, 255, 0.44)",
-  },
-  companies: {
-    backgroundColor: "rgba(240, 19, 99, 0.14)",
-    borderColor: "rgba(240, 19, 99, 0.42)",
-  },
-  freelancers: {
-    backgroundColor: "rgba(255, 255, 255, 0.72)",
-    borderColor: "rgba(110, 29, 255, 0.36)",
-  },
-};
