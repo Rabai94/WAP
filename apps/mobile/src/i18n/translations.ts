@@ -9,7 +9,7 @@ export const languages: {
   { code: "ro", label: "Română" },
 ];
 
-export const defaultLanguage: LanguageCode = "de";
+export const defaultLanguage: LanguageCode = "ro";
 
 export const translations: Record<LanguageCode, Record<string, string>> = {
   de: {
