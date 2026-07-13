@@ -84,7 +84,7 @@ export default function CreateJobScreen() {
                     if (router.canGoBack()) {
                         router.back();
                     } else {
-                        router.push("/business-dashboard" as any);
+                        router.replace("/engine" as any);
                     }
                 }}
             />

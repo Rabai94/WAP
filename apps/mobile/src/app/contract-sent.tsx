@@ -40,11 +40,11 @@ export default function ContractSentScreen() {
       />
 
       <Button
-        title={t("common.backToBusinessDashboard")}
+        title="Înapoi la RabAI"
         variant="secondary"
         style={styles.secondaryButton}
         onPress={() => {
-          router.push("/business-dashboard" as any);
+          router.replace("/engine" as any);
         }}
       />
 

@@ -1,9 +1,9 @@
-import { StyleSheet, Text } from "react-native";
-import { useRouter } from "expo-router";
 import RequireAuth from "@/components/RequireAuth";
+import { Colors, Spacing, Typography } from "@/theme";
+import { useRouter } from "expo-router";
+import { StyleSheet, Text } from "react-native";
 import { Button, Card, Header, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
-import { Colors, Spacing, Typography } from "@/theme";
 
 export default function ApplicationSentScreen() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function ApplicationSentScreen() {
       <Button
         title={t("common.ok")}
         onPress={() => {
-          router.replace("/worker-dashboard" as any);
+          router.replace("/engine" as any);
         }}
       />
       </Screen>

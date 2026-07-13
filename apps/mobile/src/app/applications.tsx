@@ -91,15 +91,11 @@ export default function ApplicationsScreen() {
       </Card>
 
       <Button
-        title={t("common.backToBusinessDashboard")}
+        title="Înapoi la RabAI"
         variant="ghost"
         style={styles.backButton}
         onPress={() => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.push("/business-dashboard" as any);
-          }
+          router.replace("/engine" as any);
         }}
       />
       </Screen>

@@ -28,7 +28,7 @@ export default function JobPublishedScreen() {
       <Button
         title={t("common.ok")}
         onPress={() => {
-          router.replace("/business-dashboard" as any);
+          router.replace("/engine" as any);
         }}
       />
       </Screen>

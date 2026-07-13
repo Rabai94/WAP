@@ -1,11 +1,11 @@
-import { StyleSheet, Text } from "react-native";
-import { useRouter } from "expo-router";
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Screen } from "../components/ui";
-import { useLanguage } from "../i18n/LanguageProvider";
 import { mockBusinessProfile } from "@/domain/profile";
 import { useAuth } from "@/providers/AuthProvider";
-import { Colors, Spacing, Typography } from "@/theme";
+import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { useRouter } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Button, Card, Header, Screen } from "../components/ui";
+import { useLanguage } from "../i18n/LanguageProvider";
 
 export default function BusinessDashboardScreen() {
   const router = useRouter();
@@ -29,6 +29,11 @@ export default function BusinessDashboardScreen() {
   return (
     <RequireAuth requiredRole="business">
       <Screen>
+      <View style={styles.topBar}>
+        <Pressable accessibilityRole="button" onPress={() => router.replace("/engine" as any)} style={styles.homeButton}>
+          <Text style={styles.homeButtonText}>{t("common.home")}</Text>
+        </Pressable>
+      </View>
       <Header
         title={t("businessDashboard.title")}
         subtitle={t("businessDashboard.subtitle")}
@@ -89,14 +94,14 @@ export default function BusinessDashboardScreen() {
       />
 
       <Button
-        title={`${t("businessDashboard.editCompanyProfile")} - Coming soon`}
+        title={`${t("businessDashboard.editCompanyProfile")} · ${t("common.soon")}`}
         variant="secondary"
         disabled
         style={styles.editButton}
       />
 
         <Button
-          title="Log out"
+          title={t("common.logout")}
           variant="ghost"
           style={styles.logoutButton}
           onPress={handleLogout}
@@ -107,6 +112,21 @@ export default function BusinessDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  topBar: {
+    alignItems: "flex-start",
+    marginBottom: Spacing.md,
+  },
+  homeButton: {
+    backgroundColor: "#145CFF",
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  homeButtonText: {
+    color: Colors.white,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.bold,
+  },
   profileName: {
     fontSize: Typography.cardTitleLarge,
     fontWeight: Typography.fontWeight.extraBold,

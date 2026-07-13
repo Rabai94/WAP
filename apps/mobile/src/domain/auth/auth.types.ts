@@ -15,6 +15,15 @@ export type AppUser = {
   isAdmin: boolean;
   fullName?: string;
   phone?: string;
+  location?: string;
+  workCategory?: string;
+  skills?: string;
+  language?: string;
+  experience?: string;
+  availability?: string;
+  preferredWorkType?: string;
+  hourlyRate?: string;
+  emailVerified?: boolean;
 };
 
 export type AuthUser = AppUser;
@@ -31,6 +40,14 @@ export type SignUpInput = {
   role: PublicAuthRole;
   fullName: string;
   phone?: string;
+  location?: string;
+  workCategory?: string;
+  skills?: string;
+  language?: string;
+  experience?: string;
+  availability?: string;
+  preferredWorkType?: string;
+  hourlyRate?: string;
 };
 
 export type SignInInput = {

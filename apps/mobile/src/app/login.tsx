@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 
@@ -26,6 +27,7 @@ const palette = {
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { loading, session, signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +46,7 @@ export default function LoginScreen() {
     }
 
     if (!email.trim() || !password) {
-      setError("Introdu emailul și parola pentru a intra în RabAI.");
+      setError(t("login.missingCredentials"));
       return;
     }
 
@@ -58,7 +60,7 @@ export default function LoginScreen() {
       setError(
         nextError instanceof Error
           ? nextError.message
-          : "Autentificarea RabAI a eșuat. Încearcă din nou."
+          : t("login.fallbackError")
       );
     } finally {
       setIsSubmitting(false);
@@ -74,15 +76,15 @@ export default function LoginScreen() {
           </View>
           <View>
             <Text style={styles.logo}>RabAI</Text>
-            <Text style={styles.brandSubtitle}>Engine Access</Text>
+            <Text style={styles.brandSubtitle}>{t("login.brandSubtitle")}</Text>
           </View>
         </View>
 
-        <Text style={styles.title}>Intră în RabAI</Text>
-        <Text style={styles.subtitle}>Accesează motorul tău profesional.</Text>
+        <Text style={styles.title}>{t("login.title")}</Text>
+        <Text style={styles.subtitle}>{t("login.subtitle")}</Text>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t("common.email")}</Text>
           <TextInput
             autoCapitalize="none"
             keyboardType="email-address"
@@ -95,10 +97,10 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t("login.password")}</Text>
           <TextInput
             onChangeText={setPassword}
-            placeholder="Parola ta"
+            placeholder={t("login.passwordPlaceholder")}
             placeholderTextColor={palette.muted}
             secureTextEntry
             style={styles.input}
@@ -110,7 +112,7 @@ export default function LoginScreen() {
 
         <Pressable style={styles.primaryButton} onPress={handleLogin}>
           <Text style={styles.primaryButtonText}>
-            {isSubmitting ? "Se autentifică..." : "Login"}
+            {isSubmitting ? t("login.submitting") : t("login.submit")}
           </Text>
         </Pressable>
 
@@ -121,7 +123,7 @@ export default function LoginScreen() {
               router.push("/role" as any);
             }}
           >
-            <Text style={styles.linkButtonText}>Create account</Text>
+            <Text style={styles.linkButtonText}>{t("login.createAccount")}</Text>
           </Pressable>
 
           <Pressable
@@ -130,7 +132,7 @@ export default function LoginScreen() {
               router.replace("/" as any);
             }}
           >
-            <Text style={styles.linkButtonText}>Back</Text>
+            <Text style={styles.linkButtonText}>{t("login.back")}</Text>
           </Pressable>
         </View>
       </View>

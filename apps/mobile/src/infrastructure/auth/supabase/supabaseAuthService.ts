@@ -1,11 +1,11 @@
-import type { Session, User } from "@supabase/supabase-js";
 import type {
-  AuthRole,
-  AuthSession,
-  AuthUser,
-  PublicAuthRole,
+    AuthRole,
+    AuthSession,
+    AuthUser,
+    PublicAuthRole,
 } from "@/domain/auth/auth.types";
 import type { AuthService } from "@/services/auth/authService";
+import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 
 const publicAuthRoles: PublicAuthRole[] = [
@@ -44,12 +44,25 @@ function uniqueRoles(roles: AuthRole[]) {
   return [...new Set(roles)];
 }
 
-function getMetadataString(
-  metadata: Record<string, unknown>,
-  key: string
-) {
+function getMetadataString(metadata: Record<string, unknown>, key: string) {
   const value = metadata[key];
-  return typeof value === "string" && value.trim() ? value : undefined;
+
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    const joined = value
+      .filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0
+      )
+      .join(", ");
+
+    return joined || undefined;
+  }
+
+  return undefined;
 }
 
 function getFallbackPublicRole(user: User) {
@@ -106,9 +119,25 @@ function mapSupabaseUser(
     isAdmin: trustedAdmin,
     fullName:
       profile?.full_name ??
+      getMetadataString(userMetadata, "fullName") ??
       getMetadataString(userMetadata, "full_name") ??
       undefined,
-    phone: profile?.phone ?? getMetadataString(userMetadata, "phone"),
+    phone: profile?.phone ?? getMetadataString(userMetadata, "phone") ?? undefined,
+    location: getMetadataString(userMetadata, "location") ?? undefined,
+    workCategory:
+      getMetadataString(userMetadata, "workCategory") ??
+      getMetadataString(userMetadata, "category") ??
+      undefined,
+    skills: getMetadataString(userMetadata, "skills") ?? undefined,
+    language: getMetadataString(userMetadata, "language") ?? undefined,
+    experience: getMetadataString(userMetadata, "experience") ?? undefined,
+    availability: getMetadataString(userMetadata, "availability") ?? undefined,
+    preferredWorkType:
+      getMetadataString(userMetadata, "preferredWorkType") ??
+      getMetadataString(userMetadata, "workType") ??
+      undefined,
+    hourlyRate: getMetadataString(userMetadata, "hourlyRate") ?? undefined,
+    emailVerified: typeof user.email_confirmed_at === "string" && user.email_confirmed_at.length > 0,
   };
 }
 
@@ -221,7 +250,16 @@ export const supabaseAuthService: AuthService = {
         data: {
           role: publicRole,
           full_name: input.fullName,
+          fullName: input.fullName,
           phone: input.phone,
+          location: input.location,
+          workCategory: input.workCategory,
+          skills: input.skills,
+          language: input.language,
+          experience: input.experience,
+          availability: input.availability,
+          preferredWorkType: input.preferredWorkType,
+          hourlyRate: input.hourlyRate,
         },
       },
     });

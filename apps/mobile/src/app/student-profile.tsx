@@ -1,24 +1,25 @@
-import type { ReactNode } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  ViewStyle,
-} from "react-native";
-import RequireAuth from "@/components/RequireAuth";
 import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
+import RequireAuth from "@/components/RequireAuth";
 import {
-  getLanguageNationalIdentity,
-  getNationalIdentityByCode,
+    getLanguageNationalIdentity,
+    getNationalIdentityByCode,
 } from "@/domain/nationality/nationalities";
 import { mockStudentProfile } from "@/domain/profile";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { languages } from "@/i18n/translations";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { useRouter } from "expo-router";
+import type { ReactNode } from "react";
+import {
+    Pressable,
+    ScrollView,
+    StyleProp,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+    ViewStyle,
+} from "react-native";
 
 const palette = {
   page: "#F7F9FD",
@@ -99,6 +100,7 @@ const activities = [
 ] as const;
 
 export default function StudentProfileScreen() {
+  const router = useRouter();
   const { t, language, setLanguage } = useLanguage();
   const profile = mockStudentProfile;
   const profileName = `${profile.firstName} ${profile.lastName}`;
@@ -123,6 +125,9 @@ export default function StudentProfileScreen() {
         >
           <View style={styles.shell}>
           <View style={styles.sidebar}>
+            <Pressable accessibilityRole="button" onPress={() => router.replace("/engine" as any)} style={styles.homeButton}>
+              <Text style={styles.homeButtonText}>{t("common.home")}</Text>
+            </Pressable>
             <View style={styles.sidebarBrand}>
               <Text style={styles.logo}>{t("studentProfile.header.logo")}</Text>
               <Text style={styles.logoAccent}>
@@ -250,7 +255,7 @@ export default function StudentProfileScreen() {
                     />
                     {nationalityIdentity ? (
                       <View style={styles.nationalityPill}>
-                        <Text style={styles.infoLabel}>Naționalitate</Text>
+                        <Text style={styles.infoLabel}>{t("common.nationality")}</Text>
                         <NationalInsigniaBadge
                           identity={nationalityIdentity}
                           showCode={false}
@@ -584,6 +589,18 @@ const styles = StyleSheet.create({
   screen: {
     backgroundColor: palette.page,
     flex: 1,
+  },
+  homeButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#145CFF",
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  homeButtonText: {
+    color: Colors.white,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.bold,
   },
   content: {
     alignSelf: "center",

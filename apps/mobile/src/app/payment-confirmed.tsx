@@ -43,11 +43,11 @@ export default function PaymentConfirmedScreen() {
             />
 
             <Button
-                title={t("common.backToBusinessDashboard")}
+                title="Înapoi la RabAI"
                 variant="ghost"
                 style={styles.backButton}
                 onPress={() => {
-                    router.push("/business-dashboard" as any);
+                    router.replace("/engine" as any);
                 }}
             />
             </Screen>
