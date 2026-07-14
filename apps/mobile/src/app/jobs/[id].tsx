@@ -2,20 +2,36 @@ import { Button, Card, Header, Screen } from "@/components/ui";
 import { canAccessRole } from "@/domain/auth/roleAccess";
 import { useAuth } from "@/providers/AuthProvider";
 import {
+  DEFAULT_JOB_RETURN_PATH,
+  getJobReturnLabel,
+  sanitizeReturnPath,
+} from "@/services/jobs/jobNavigation";
+import {
   applyToJob,
   fetchJobDetails,
   type JobDetails,
 } from "@/services/worker/workerService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function JobDetailsScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string | string[] }>();
+  const { from, id } = useLocalSearchParams<{
+    from?: string | string[];
+    id?: string | string[];
+  }>();
   const { session, user } = useAuth();
   const jobId = Array.isArray(id) ? id[0] : id;
+  const returnPath = useMemo(
+    () => sanitizeReturnPath(from) ?? DEFAULT_JOB_RETURN_PATH,
+    [from]
+  );
+  const returnLabel = useMemo(
+    () => getJobReturnLabel(returnPath),
+    [returnPath]
+  );
   const [job, setJob] = useState<JobDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,8 +42,8 @@ export default function JobDetailsScreen() {
     let mounted = true;
 
     async function loadJob() {
-      if (!jobId) {
-        setError("Jobul nu a fost gasit.");
+      if (!jobId || !isUuid(jobId)) {
+        setError("Jobul nu mai este disponibil.");
         setLoading(false);
         return;
       }
@@ -45,11 +61,11 @@ export default function JobDetailsScreen() {
         setJob(nextJob);
 
         if (!nextJob) {
-          setError("Jobul nu este disponibil pentru aplicare.");
+          setError("Jobul nu mai este disponibil.");
         }
-      } catch (nextError) {
+      } catch {
         if (mounted) {
-          setError(readError(nextError));
+          setError("Jobul nu mai este disponibil.");
         }
       } finally {
         if (mounted) {
@@ -101,10 +117,10 @@ export default function JobDetailsScreen() {
         <View style={styles.topBar}>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.replace("/jobs" as any)}
+            onPress={() => router.replace(returnPath as any)}
             style={styles.backButton}
           >
-            <Text style={styles.backButtonText}>Inapoi la joburi</Text>
+            <Text style={styles.backButtonText}>{returnLabel}</Text>
           </Pressable>
         </View>
 
@@ -175,6 +191,12 @@ function InfoLine({ label, value }: { label: string; value: string }) {
       <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue}>{value}</Text>
     </View>
+  );
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
   );
 }
 

@@ -7,11 +7,14 @@ import { useLanguage } from "@/i18n/LanguageProvider";
 import type { LanguageCode } from "@/i18n/translations";
 import { useAuth } from "@/providers/AuthProvider";
 import {
+  fetchOwnJobForEdit,
   fetchCurrentUserCompany,
   fetchJobCategories,
   fetchOccupations,
   publishJob,
+  updateOwnJob,
   type CompanySummary,
+  type EditableJob,
   type JobCategory,
   type JobOccupation,
 } from "@/services/jobs/jobFlowService";
@@ -20,8 +23,8 @@ import {
   type LocationSuggestion,
 } from "@/services/search/heroAutocomplete";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -88,6 +91,9 @@ export default function CreateJobScreen() {
 
 function CreateJobContent() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ jobId?: string | string[] }>();
+  const editingJobId = readParam(params.jobId);
+  const isEditMode = Boolean(editingJobId);
   const { language, t } = useLanguage();
   const { user } = useAuth();
   const [company, setCompany] = useState<CompanySummary | null>(null);
@@ -138,6 +144,41 @@ function CreateJobContent() {
     (occupation) => occupation.id === selectedOccupationId
   );
 
+  const hydrateJob = useCallback(
+    (job: EditableJob) => {
+      setSelectedCategoryId(job.category_id);
+      setSelectedOccupationId(job.occupation_id);
+      setTitle(job.title);
+      setDescription(job.description);
+      setSalaryFrom(job.salary_from === null ? "" : String(job.salary_from));
+      setSalaryTo(job.salary_to === null ? "" : String(job.salary_to));
+      setSalaryType(job.salary_type);
+      setEmploymentType(job.employment_type);
+      setExperienceLevel(job.experience_level);
+      setWorkingHours(job.working_hours ?? "");
+      setJobLanguage(job.language);
+      setExpiresAt(formatDateForInput(job.expires_at));
+
+      if (job.location) {
+        const locationSuggestion: LocationSuggestion = {
+          city: job.location.city,
+          countryCode: job.location.country_code,
+          district: job.location.district,
+          id: job.location.id,
+          label: formatLocationLabel(job.location),
+          latitude: job.location.latitude,
+          longitude: job.location.longitude,
+          postalCode: job.location.postal_code,
+          state: job.location.state,
+        };
+
+        setSelectedLocation(locationSuggestion);
+        setLocationText(locationSuggestion.label);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     let mounted = true;
 
@@ -150,9 +191,10 @@ function CreateJobContent() {
       setLoadError("");
 
       try {
-        const [nextCompany, nextCategories] = await Promise.all([
+        const [nextCompany, nextCategories, editableJob] = await Promise.all([
           fetchCurrentUserCompany(user.id),
           fetchJobCategories(),
+          editingJobId ? fetchOwnJobForEdit(editingJobId) : Promise.resolve(null),
         ]);
 
         if (!mounted) {
@@ -161,6 +203,10 @@ function CreateJobContent() {
 
         setCompany(nextCompany);
         setCategories(nextCategories);
+
+        if (editableJob) {
+          hydrateJob(editableJob);
+        }
       } catch (error) {
         if (mounted) {
           setLoadError(readError(error));
@@ -177,7 +223,7 @@ function CreateJobContent() {
     return () => {
       mounted = false;
     };
-  }, [user?.id]);
+  }, [editingJobId, hydrateJob, user?.id]);
 
   useEffect(() => {
     let mounted = true;
@@ -314,7 +360,7 @@ function CreateJobContent() {
     setLoadError("");
 
     try {
-      const jobId = await publishJob({
+      const jobPayload = {
         categoryId: selectedCategoryId,
         description: description.trim(),
         employmentType,
@@ -328,9 +374,20 @@ function CreateJobContent() {
         salaryType,
         title: title.trim(),
         workingHours: workingHours.trim() || null,
-      });
+      };
+      const jobId =
+        isEditMode && editingJobId
+          ? await updateOwnJob({
+              ...jobPayload,
+              jobId: editingJobId,
+            })
+          : await publishJob(jobPayload);
 
-      router.replace(`/job-published?jobId=${encodeURIComponent(jobId)}` as any);
+      router.replace(
+        isEditMode
+          ? ("/business-dashboard" as any)
+          : (`/job-published?jobId=${encodeURIComponent(jobId)}` as any)
+      );
     } catch (error) {
       setLoadError(readError(error));
     } finally {
@@ -348,8 +405,12 @@ function CreateJobContent() {
         showsVerticalScrollIndicator={false}
       >
         <Header
-          title={t("createJob.title")}
-          subtitle={t("createJob.subtitle")}
+          title={isEditMode ? "Editeaza jobul" : t("createJob.title")}
+          subtitle={
+            isEditMode
+              ? "Actualizeaza detaliile jobului companiei tale."
+              : t("createJob.subtitle")
+          }
         />
 
         {loadingInitialData ? (
@@ -533,7 +594,15 @@ function CreateJobContent() {
         <Button
           disabled={formDisabled}
           onPress={handlePublish}
-          title={submitting ? "Se publica..." : t("createJob.publish")}
+          title={
+            submitting
+              ? isEditMode
+                ? "Se salveaza..."
+                : "Se publica..."
+              : isEditMode
+                ? "Salveaza modificarile"
+                : t("createJob.publish")
+          }
         />
 
         <Button
@@ -705,6 +774,37 @@ function normalizeDate(value: string) {
 
   const date = new Date(`${trimmed}T23:59:59.000Z`);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function readParam(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function formatDateForInput(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
+function formatLocationLabel(location: {
+  city: string;
+  district: string | null;
+  postal_code: string;
+  state: string;
+}) {
+  const cityLabel = location.district
+    ? `${location.city}-${location.district}`
+    : location.city;
+
+  return `${location.postal_code} ${cityLabel}, ${location.state}`;
 }
 
 function localizedName(

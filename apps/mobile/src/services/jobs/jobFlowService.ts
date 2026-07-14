@@ -41,6 +41,37 @@ export type PublishJobInput = {
   workingHours: string | null;
 };
 
+export type UpdateJobInput = PublishJobInput & {
+  jobId: string;
+};
+
+export type EditableJob = {
+  id: string;
+  title: string;
+  description: string;
+  category_id: string;
+  occupation_id: string;
+  location_id: string;
+  salary_from: number | null;
+  salary_to: number | null;
+  salary_type: string;
+  employment_type: string;
+  experience_level: string;
+  working_hours: string | null;
+  language: string;
+  expires_at: string | null;
+  location: {
+    id: string;
+    country_code: string;
+    postal_code: string;
+    city: string;
+    district: string | null;
+    state: string;
+    latitude: number | null;
+    longitude: number | null;
+  } | null;
+};
+
 export type SearchJobsInput = {
   employmentType?: string | null;
   experienceLevel?: string | null;
@@ -165,6 +196,73 @@ export async function publishJob(input: PublishJobInput) {
   return data as string;
 }
 
+export async function fetchOwnJobForEdit(jobId: string) {
+  const { data, error } = await supabase
+    .from("jobs")
+    .select(
+      [
+        "id",
+        "title",
+        "description",
+        "category_id",
+        "occupation_id",
+        "location_id",
+        "salary_from",
+        "salary_to",
+        "salary_type",
+        "employment_type",
+        "experience_level",
+        "working_hours",
+        "language",
+        "expires_at",
+        "location:locations(id, country_code, postal_code, city, district, state, latitude, longitude)",
+      ].join(", ")
+    )
+    .eq("id", jobId)
+    .maybeSingle()
+    .returns<EditableJob | null>();
+
+  if (error) {
+    throw new Error(error.message || "Job could not be loaded for editing.");
+  }
+
+  return data ?? null;
+}
+
+export async function updateOwnJob(input: UpdateJobInput) {
+  const { data, error } = await supabase
+    .from("jobs")
+    .update({
+      category_id: input.categoryId,
+      description: input.description,
+      employment_type: input.employmentType,
+      experience_level: input.experienceLevel,
+      expires_at: input.expiresAt,
+      language: input.language,
+      location_id: input.locationId,
+      occupation_id: input.occupationId,
+      salary_from: input.salaryFrom,
+      salary_to: input.salaryTo,
+      salary_type: input.salaryType,
+      title: input.title,
+      working_hours: input.workingHours,
+    })
+    .eq("id", input.jobId)
+    .select("id")
+    .maybeSingle()
+    .returns<{ id: string } | null>();
+
+  if (error) {
+    throw new Error(error.message || "Job could not be updated.");
+  }
+
+  if (!data?.id) {
+    throw new Error("Job could not be updated.");
+  }
+
+  return data.id;
+}
+
 export async function searchJobs(input: SearchJobsInput) {
   const { data, error } = await supabase
     .rpc("search_jobs", {
@@ -185,4 +283,13 @@ export async function searchJobs(input: SearchJobsInput) {
   }
 
   return (data ?? []) as SearchJobResult[];
+}
+
+export async function fetchLatestPublishedJobs(limit = 4) {
+  const safeLimit = Math.min(Math.max(limit, 1), 4);
+  const results = await searchJobs({
+    page: 1,
+  });
+
+  return results.slice(0, safeLimit);
 }

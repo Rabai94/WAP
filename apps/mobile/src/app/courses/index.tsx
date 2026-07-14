@@ -1,3 +1,4 @@
+import CourseSummaryCard from "@/components/courses/CourseSummaryCard";
 import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
@@ -5,14 +6,17 @@ import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
-  searchJobs,
-  type SearchJobResult,
-} from "@/services/jobs/jobFlowService";
+  buildCourseReturnPath,
+} from "@/services/courses/courseNavigation";
+import {
+  fetchCourseCategories,
+  searchCourses,
+  type CourseCategory,
+  type SearchCourseResult,
+} from "@/services/courses/courseService";
 import {
   searchLocationSuggestions,
-  searchOccupationSuggestions,
   type LocationSuggestion,
-  type OccupationSuggestion,
 } from "@/services/search/heroAutocomplete";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -26,49 +30,48 @@ import {
   View,
 } from "react-native";
 
-const employmentTypeOptions = [
+const deliveryModeOptions = [
   { label: "Toate", value: "" },
-  { label: "Full-time", value: "full_time" },
-  { label: "Part-time", value: "part_time" },
-  { label: "Mini job", value: "mini_job" },
-  { label: "Temporar", value: "temporary" },
-  { label: "Contract", value: "contract" },
-  { label: "Freelance", value: "freelance" },
+  { label: "Online", value: "online" },
+  { label: "La locatie", value: "onsite" },
+  { label: "Hibrid", value: "hybrid" },
 ];
 
-type OccupationFilterOption = HeroAutocompleteOption & {
-  suggestion: OccupationSuggestion;
-};
+const languageOptions = [
+  { label: "Toate", value: "" },
+  { label: "Romana", value: "ro" },
+  { label: "Germana", value: "de" },
+  { label: "Engleza", value: "en" },
+];
+
+const levelOptions = [
+  { label: "Toate", value: "" },
+  { label: "Incepator", value: "beginner" },
+  { label: "Intermediar", value: "intermediate" },
+  { label: "Avansat", value: "advanced" },
+  { label: "Toate nivelurile", value: "all_levels" },
+];
 
 type LocationFilterOption = HeroAutocompleteOption & {
   suggestion: LocationSuggestion;
 };
 
-type SelectedOccupationFilter = {
-  id: string;
-  label: string;
-  slug: string;
-};
-
 type SelectedLocationFilter = {
   id: string;
   label: string;
-  latitude: number | null;
-  longitude: number | null;
 };
 
-export default function JobsScreen() {
+export default function CoursesScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
-    employmentType?: string | string[];
-    lat?: string | string[];
-    lng?: string | string[];
+    categoryId?: string | string[];
+    deliveryMode?: string | string[];
+    languageCode?: string | string[];
+    level?: string | string[];
     location?: string | string[];
     locationId?: string | string[];
-    occupation?: string | string[];
-    occupationId?: string | string[];
+    maximumPrice?: string | string[];
     page?: string | string[];
-    salaryMin?: string | string[];
     search?: string | string[];
   }>();
   const { language, t } = useLanguage();
@@ -76,69 +79,48 @@ export default function JobsScreen() {
   const isAuthenticated = Boolean(session);
   const homeRoute = isAuthenticated ? "/engine" : "/";
   const page = Math.max(parseIntegerParam(params.page, 1), 1);
-  const initialOccupation = readParam(params.occupation) || readParam(params.search);
-  const initialLocation = readParam(params.location);
-  const initialEmploymentType = readParam(params.employmentType);
-  const initialSalaryMin = readParam(params.salaryMin);
-  const initialOccupationId = readParam(params.occupationId);
-  const initialLocationId = readParam(params.locationId);
-  const [occupation, setOccupation] = useState(initialOccupation);
-  const [location, setLocation] = useState(initialLocation);
-  const [employmentType, setEmploymentType] = useState(initialEmploymentType);
-  const [salaryMin, setSalaryMin] = useState(initialSalaryMin);
-  const [selectedOccupation, setSelectedOccupation] =
-    useState<SelectedOccupationFilter | null>(
-      initialOccupationId
-        ? {
-            id: initialOccupationId,
-            label: initialOccupation,
-            slug: normalizeSlugParam(initialOccupation) ?? initialOccupation,
-          }
-        : null
-    );
+  const coursesReturnPath = useMemo(
+    () => buildCourseReturnPath("/courses", params),
+    [params]
+  );
+  const [searchText, setSearchText] = useState(readParam(params.search));
+  const [categoryId, setCategoryId] = useState(readParam(params.categoryId));
+  const [location, setLocation] = useState(readParam(params.location));
+  const [deliveryMode, setDeliveryMode] = useState(
+    readParam(params.deliveryMode)
+  );
+  const [languageCode, setLanguageCode] = useState(
+    readParam(params.languageCode)
+  );
+  const [maximumPrice, setMaximumPrice] = useState(
+    readParam(params.maximumPrice)
+  );
+  const [level, setLevel] = useState(readParam(params.level));
   const [selectedLocation, setSelectedLocation] =
     useState<SelectedLocationFilter | null>(
-      initialLocationId
+      readParam(params.locationId)
         ? {
-            id: initialLocationId,
-            label: initialLocation,
-            latitude: parseOptionalNumber(readParam(params.lat)),
-            longitude: parseOptionalNumber(readParam(params.lng)),
+            id: readParam(params.locationId),
+            label: readParam(params.location),
           }
         : null
     );
-  const [occupationSuggestions, setOccupationSuggestions] = useState<
-    OccupationSuggestion[]
-  >([]);
+  const [categories, setCategories] = useState<CourseCategory[]>([]);
+  const [categoriesError, setCategoriesError] = useState("");
   const [locationSuggestions, setLocationSuggestions] = useState<
     LocationSuggestion[]
   >([]);
-  const [occupationLoading, setOccupationLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [occupationError, setOccupationError] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [occupationOpen, setOccupationOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
-  const [occupationActiveIndex, setOccupationActiveIndex] = useState(-1);
   const [locationActiveIndex, setLocationActiveIndex] = useState(-1);
-  const occupationRequestId = useRef(0);
   const locationRequestId = useRef(0);
-  const [jobs, setJobs] = useState<SearchJobResult[]>([]);
+  const [courses, setCourses] = useState<SearchCourseResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const totalCount = jobs[0]?.total_count ?? 0;
+  const totalCount = courses[0]?.total_count ?? 0;
   const hasNextPage = page * 20 < totalCount;
   const hasPreviousPage = page > 1;
-  const occupationOptions = useMemo<OccupationFilterOption[]>(
-    () =>
-      occupationSuggestions.map((suggestion) => ({
-        id: suggestion.id,
-        suggestion,
-        subtitle: suggestion.categoryLabel,
-        title: suggestion.label,
-      })),
-    [occupationSuggestions]
-  );
   const locationOptions = useMemo<LocationFilterOption[]>(
     () =>
       locationSuggestions.map((suggestion) => ({
@@ -151,29 +133,48 @@ export default function JobsScreen() {
 
   const searchInput = useMemo(
     () => ({
-      employmentType: readParam(params.employmentType) || null,
-      latitude: parseOptionalNumber(readParam(params.lat)),
+      categoryId: readParam(params.categoryId) || null,
+      deliveryMode: readParam(params.deliveryMode) || null,
+      languageCode: readParam(params.languageCode) || null,
+      level: readParam(params.level) || null,
       locationId: readParam(params.locationId) || null,
-      longitude: parseOptionalNumber(readParam(params.lng)),
-      occupationId: readParam(params.occupationId) || null,
-      occupationSlug: readParam(params.occupationId)
-        ? null
-        : normalizeSlugParam(readParam(params.occupation) || readParam(params.search)),
+      maximumPrice: parseOptionalNumber(readParam(params.maximumPrice)),
       page,
-      salaryMin: parseOptionalNumber(readParam(params.salaryMin)),
+      pageSize: 20,
+      searchText: readParam(params.search) || null,
     }),
     [
       page,
-      params.employmentType,
-      params.lat,
-      params.lng,
+      params.categoryId,
+      params.deliveryMode,
+      params.languageCode,
+      params.level,
       params.locationId,
-      params.occupation,
-      params.occupationId,
-      params.salaryMin,
+      params.maximumPrice,
       params.search,
     ]
   );
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetchCourseCategories()
+      .then((nextCategories) => {
+        if (mounted) {
+          setCategories(nextCategories);
+        }
+      })
+      .catch((nextError) => {
+        if (mounted) {
+          setCategories([]);
+          setCategoriesError(readError(nextError));
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -181,15 +182,15 @@ export default function JobsScreen() {
       setLoading(true);
       setError("");
 
-      searchJobs(searchInput)
+      searchCourses(searchInput)
         .then((results) => {
           if (mounted) {
-            setJobs(results);
+            setCourses(results);
           }
         })
         .catch((nextError) => {
           if (mounted) {
-            setJobs([]);
+            setCourses([]);
             setError(readError(nextError));
           }
         })
@@ -205,49 +206,6 @@ export default function JobsScreen() {
       clearTimeout(timeoutId);
     };
   }, [searchInput]);
-
-  useEffect(() => {
-    const trimmedOccupation = occupation.trim();
-    occupationRequestId.current += 1;
-    const requestId = occupationRequestId.current;
-
-    if (trimmedOccupation.length < 2) {
-      return;
-    }
-
-    const timeoutId = setTimeout(() => {
-      setOccupationLoading(true);
-      setOccupationError(null);
-
-      searchOccupationSuggestions(trimmedOccupation, language, 8)
-        .then((suggestions) => {
-          if (occupationRequestId.current !== requestId) {
-            return;
-          }
-
-          setOccupationSuggestions(suggestions);
-          setOccupationActiveIndex(suggestions.length > 0 ? 0 : -1);
-        })
-        .catch(() => {
-          if (occupationRequestId.current !== requestId) {
-            return;
-          }
-
-          setOccupationSuggestions([]);
-          setOccupationActiveIndex(-1);
-          setOccupationError("Nu am putut incarca ocupatiile.");
-        })
-        .finally(() => {
-          if (occupationRequestId.current === requestId) {
-            setOccupationLoading(false);
-          }
-        });
-    }, 300);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [language, occupation]);
 
   useEffect(() => {
     const trimmedLocation = location.trim();
@@ -292,39 +250,6 @@ export default function JobsScreen() {
     };
   }, [location]);
 
-  function handleOccupationTextChange(text: string) {
-    setOccupation(text);
-
-    if (
-      selectedOccupation &&
-      text !== selectedOccupation.label &&
-      text !== selectedOccupation.slug
-    ) {
-      setSelectedOccupation(null);
-    }
-
-    if (text.trim().length < 2) {
-      occupationRequestId.current += 1;
-      setOccupationSuggestions([]);
-      setOccupationActiveIndex(-1);
-      setOccupationError(null);
-      setOccupationLoading(false);
-    } else {
-      setOccupationOpen(true);
-    }
-  }
-
-  function handleOccupationSelect(option: OccupationFilterOption) {
-    setSelectedOccupation({
-      id: option.suggestion.id,
-      label: option.suggestion.label,
-      slug: option.suggestion.slug,
-    });
-    setOccupation(option.suggestion.label);
-    setOccupationOpen(false);
-    setOccupationActiveIndex(-1);
-  }
-
   function handleLocationTextChange(text: string) {
     setLocation(text);
 
@@ -347,8 +272,6 @@ export default function JobsScreen() {
     setSelectedLocation({
       id: option.suggestion.id,
       label: option.suggestion.label,
-      latitude: option.suggestion.latitude,
-      longitude: option.suggestion.longitude,
     });
     setLocation(option.suggestion.label);
     setLocationOpen(false);
@@ -357,63 +280,36 @@ export default function JobsScreen() {
 
   function submitFilters(nextPage = 1) {
     const query = new URLSearchParams();
-    const trimmedOccupation = occupation.trim();
     const trimmedLocation = location.trim();
-    const occupationMatchesSelection =
-      selectedOccupation &&
-      (trimmedOccupation === selectedOccupation.label ||
-        trimmedOccupation === selectedOccupation.slug);
     const locationMatchesSelection =
       selectedLocation && trimmedLocation === selectedLocation.label;
 
-    addQueryParam(
-      query,
-      "occupation",
-      occupationMatchesSelection
-        ? selectedOccupation.slug
-        : trimmedOccupation
-    );
-    addQueryParam(
-      query,
-      "occupationId",
-      occupationMatchesSelection ? selectedOccupation.id : ""
-    );
-    addQueryParam(query, "location", location.trim());
+    addQueryParam(query, "search", searchText.trim());
+    addQueryParam(query, "categoryId", categoryId);
+    addQueryParam(query, "location", trimmedLocation);
     addQueryParam(
       query,
       "locationId",
       locationMatchesSelection ? selectedLocation.id : ""
     );
-    addQueryParam(
-      query,
-      "lat",
-      locationMatchesSelection && selectedLocation.latitude !== null
-        ? String(selectedLocation.latitude)
-        : ""
-    );
-    addQueryParam(
-      query,
-      "lng",
-      locationMatchesSelection && selectedLocation.longitude !== null
-        ? String(selectedLocation.longitude)
-        : ""
-    );
-    addQueryParam(query, "employmentType", employmentType);
-    addQueryParam(query, "salaryMin", salaryMin.trim());
+    addQueryParam(query, "deliveryMode", deliveryMode);
+    addQueryParam(query, "languageCode", languageCode);
+    addQueryParam(query, "maximumPrice", maximumPrice.trim());
+    addQueryParam(query, "level", level);
     addQueryParam(query, "page", nextPage > 1 ? String(nextPage) : "");
 
     const queryString = query.toString();
-    router.replace(`/jobs${queryString ? `?${queryString}` : ""}` as any);
+    router.replace(`/courses${queryString ? `?${queryString}` : ""}` as any);
   }
 
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isAuthenticated ? (
-          <AuthenticatedHeader active="jobs" />
+          <AuthenticatedHeader active="courses" />
         ) : (
           <View style={styles.publicHeader}>
-            <Pressable accessibilityRole="button" onPress={() => router.replace("/" as any)} style={styles.publicLink}>
+            <Pressable accessibilityRole="button" onPress={() => router.replace(homeRoute as any)} style={styles.publicLink}>
               <Text style={styles.publicLinkText}>{t("common.home")}</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => router.push("/login" as any)} style={styles.publicPrimaryButton}>
@@ -426,46 +322,37 @@ export default function JobsScreen() {
         )}
 
         <View style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>{t("jobs.eyebrow")}</Text>
-          <Text style={styles.heroTitle}>{t("jobs.title")}</Text>
-          <Text style={styles.heroSubtitle}>{t("jobs.subtitle")}</Text>
+          <Text style={styles.heroEyebrow}>Cursuri RabAI</Text>
+          <Text style={styles.heroTitle}>Cursuri reale pentru urmatorul pas profesional.</Text>
+          <Text style={styles.heroSubtitle}>
+            Cauta programe active, furnizori verificati si certificari utile pentru munca in Germania.
+          </Text>
         </View>
 
         <View style={styles.filterCard}>
-          <Text style={styles.filterTitle}>{t("jobs.filterTitle")}</Text>
+          <Text style={styles.filterTitle}>Filtreaza cursurile</Text>
+          {categoriesError ? (
+            <Text style={styles.inlineErrorText}>{categoriesError}</Text>
+          ) : null}
+
           <View style={styles.filterGrid}>
-            <View style={[styles.inputWrap, styles.occupationAutocompleteWrap]}>
-              <HeroAutocompleteField
-                activeIndex={occupationActiveIndex}
-                emptyMessage="Nu am gasit rezultate"
-                errorMessage={occupationError}
-                fieldId="jobs-filter-occupation"
-                isOpen={occupationOpen && occupation.trim().length >= 2}
-                label="Ocupatie"
-                loading={occupationLoading}
-                onActiveIndexChange={setOccupationActiveIndex}
-                onChangeText={handleOccupationTextChange}
-                onFocus={() => {
-                  if (occupation.trim().length >= 2) {
-                    setOccupationOpen(true);
-                  }
-                }}
-                onRequestClose={() => {
-                  setOccupationOpen(false);
-                }}
-                onSelect={handleOccupationSelect}
-                placeholder={t("jobs.search.whatPlaceholder")}
-                queryText={occupation}
-                suggestions={occupationOptions}
-                value={occupation}
+            <View style={styles.inputWrap}>
+              <Text style={styles.inputLabel}>Cautare</Text>
+              <TextInput
+                onChangeText={setSearchText}
+                placeholder="ex: germana, depozit, siguranta"
+                placeholderTextColor={Colors.textMuted}
+                style={styles.input}
+                value={searchText}
               />
             </View>
+
             <View style={[styles.inputWrap, styles.locationAutocompleteWrap]}>
               <HeroAutocompleteField
                 activeIndex={locationActiveIndex}
                 emptyMessage="Nu am gasit rezultate"
                 errorMessage={locationError}
-                fieldId="jobs-filter-location"
+                fieldId="courses-filter-location"
                 isOpen={locationOpen && location.trim().length >= 2}
                 label="Locatie"
                 loading={locationLoading}
@@ -480,54 +367,59 @@ export default function JobsScreen() {
                   setLocationOpen(false);
                 }}
                 onSelect={handleLocationSelect}
-                placeholder={t("jobs.search.locationPlaceholder")}
+                placeholder="ex: Augsburg"
                 queryText={location}
                 suggestions={locationOptions}
                 value={location}
               />
             </View>
+
             <View style={styles.inputWrap}>
-              <Text style={styles.inputLabel}>Salariu minim</Text>
+              <Text style={styles.inputLabel}>Pret maxim</Text>
               <TextInput
                 keyboardType="numeric"
-                onChangeText={setSalaryMin}
-                placeholder="ex: 2000"
+                onChangeText={setMaximumPrice}
+                placeholder="ex: 300"
                 placeholderTextColor={Colors.textMuted}
                 style={styles.input}
-                value={salaryMin}
+                value={maximumPrice}
               />
             </View>
           </View>
 
-          <View style={styles.chipRow}>
-            {employmentTypeOptions.map((option) => {
-              const active = employmentType === option.value;
-
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  key={option.value || "all"}
-                  onPress={() => {
-                    setEmploymentType(option.value);
-                  }}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      active && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <FilterChips
+            label="Categorie"
+            onChange={setCategoryId}
+            options={[
+              { label: "Toate", value: "" },
+              ...categories.map((category) => ({
+                label: localizedCategory(category, language),
+                value: category.id,
+              })),
+            ]}
+            value={categoryId}
+          />
+          <FilterChips
+            label="Mod de livrare"
+            onChange={setDeliveryMode}
+            options={deliveryModeOptions}
+            value={deliveryMode}
+          />
+          <FilterChips
+            label="Limba"
+            onChange={setLanguageCode}
+            options={languageOptions}
+            value={languageCode}
+          />
+          <FilterChips
+            label="Nivel"
+            onChange={setLevel}
+            options={levelOptions}
+            value={level}
+          />
 
           <Pressable accessibilityRole="button" onPress={() => submitFilters(1)} style={styles.searchButton}>
-            <Text style={styles.searchButtonText}>{t("jobs.search.button")}</Text>
+            <Text style={styles.searchButtonText}>Cauta cursuri</Text>
           </Pressable>
         </View>
 
@@ -539,32 +431,29 @@ export default function JobsScreen() {
           <View style={styles.resultsCard}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
-        ) : jobs.length === 0 ? (
+        ) : courses.length === 0 ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>
-              Momentan nu exista joburi care corespund cautarii.
+              Momentan nu exista cursuri care corespund cautarii.
             </Text>
             <Text style={styles.emptyText}>
               Poti modifica filtrele sau reveni mai tarziu.
             </Text>
-            <View style={styles.actionsRow}>
-              <Pressable accessibilityRole="button" onPress={() => router.replace(homeRoute as any)} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>{t("jobs.backToRabai")}</Text>
-              </Pressable>
-            </View>
           </View>
         ) : (
           <View style={styles.resultsCard}>
             <View style={styles.resultsHeader}>
-              <Text style={styles.resultsTitle}>Joburi gasite</Text>
+              <Text style={styles.resultsTitle}>Cursuri gasite</Text>
               <Text style={styles.resultsCount}>{totalCount} rezultate</Text>
             </View>
 
-            {jobs.map((job) => (
-              <JobCard
-                key={job.job_id}
-                job={job}
-                onOpen={() => router.push(`/jobs/${job.job_id}` as any)}
+            {courses.map((course) => (
+              <CourseSummaryCard
+                course={course}
+                key={course.course_id}
+                language={language}
+                returnLabel="Înapoi la cursuri"
+                returnTo={coursesReturnPath}
               />
             ))}
 
@@ -602,41 +491,45 @@ export default function JobsScreen() {
   );
 }
 
-function JobCard({ job, onOpen }: { job: SearchJobResult; onOpen: () => void }) {
+function FilterChips({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  options: { label: string; value: string }[];
+  value: string;
+}) {
   return (
-    <View style={styles.jobCard}>
-      <View style={styles.jobHeader}>
-        <View style={styles.jobTitleWrap}>
-          <Text style={styles.jobTitle}>{job.title}</Text>
-          <Text style={styles.jobMeta}>
-            {job.company_name} - {job.city}, {job.state}
-          </Text>
-        </View>
-        <Text style={styles.publishedAt}>{formatDate(job.published_at)}</Text>
+    <View style={styles.chipBlock}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <View style={styles.chipRow}>
+        {options.map((option) => {
+          const active = value === option.value;
+
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              key={option.value || "all"}
+              onPress={() => onChange(option.value)}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.filterChipText,
+                  active && styles.filterChipTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
-
-      <View style={styles.jobInfoGrid}>
-        <InfoPill label="Salariu" value={formatSalary(job)} />
-        <InfoPill label="Contract" value={formatEmploymentType(job.employment_type)} />
-        <InfoPill label="Ocupatie" value={job.occupation_name_ro} />
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={onOpen}
-        style={styles.viewButton}
-      >
-        <Text style={styles.viewButtonText}>Vezi jobul</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function InfoPill({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.infoPill}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
     </View>
   );
 }
@@ -653,6 +546,18 @@ function LoadingSkeleton() {
       ))}
     </>
   );
+}
+
+function localizedCategory(category: CourseCategory, language: string) {
+  if (language === "de") {
+    return category.name_de;
+  }
+
+  if (language === "en") {
+    return category.name_en;
+  }
+
+  return category.name_ro;
 }
 
 function readParam(value?: string | string[]) {
@@ -677,72 +582,16 @@ function parseOptionalNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function normalizeSlugParam(value: string) {
-  const trimmed = value.trim();
-  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed) ? trimmed : null;
-}
-
 function addQueryParam(query: URLSearchParams, key: string, value: string) {
   if (value.trim()) {
     query.set(key, value.trim());
   }
 }
 
-function formatSalary(job: SearchJobResult) {
-  if (job.salary_from === null && job.salary_to === null) {
-    return "Nespecificat";
-  }
-
-  const suffix = salaryTypeLabel(job.salary_type);
-
-  if (job.salary_from !== null && job.salary_to !== null) {
-    return `${job.salary_from} - ${job.salary_to} EUR ${suffix}`;
-  }
-
-  return `${job.salary_from ?? job.salary_to} EUR ${suffix}`;
-}
-
-function salaryTypeLabel(value: string) {
-  if (value === "hourly") {
-    return "/ ora";
-  }
-
-  if (value === "yearly") {
-    return "/ an";
-  }
-
-  if (value === "fixed") {
-    return "fix";
-  }
-
-  return "/ luna";
-}
-
-function formatEmploymentType(value: string) {
-  return (
-    employmentTypeOptions.find((option) => option.value === value)?.label ??
-    value
-  );
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return date.toLocaleDateString("ro-RO", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 function readError(error: unknown) {
   return error instanceof Error
     ? error.message
-    : "Nu am putut incarca joburile.";
+    : "Nu am putut incarca cursurile.";
 }
 
 const styles = StyleSheet.create({
@@ -819,7 +668,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   heroEyebrow: {
-    color: "#145CFF",
+    color: "#6E1DFF",
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
     marginBottom: 6,
@@ -833,6 +682,7 @@ const styles = StyleSheet.create({
   heroSubtitle: {
     color: Colors.textMuted,
     fontSize: Typography.body,
+    lineHeight: 24,
     marginTop: Spacing.sm,
   },
   filterCard: {
@@ -862,9 +712,6 @@ const styles = StyleSheet.create({
     flexBasis: 240,
     flexGrow: 1,
   },
-  occupationAutocompleteWrap: {
-    zIndex: 30,
-  },
   locationAutocompleteWrap: {
     zIndex: 20,
   },
@@ -879,38 +726,42 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     color: Colors.text,
+    minHeight: 48,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
+  },
+  chipBlock: {
+    marginTop: Spacing.md,
   },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
-    marginTop: Spacing.md,
   },
   filterChip: {
     backgroundColor: "#F7FAFF",
     borderColor: "#E6ECF7",
     borderRadius: Radius.round,
     borderWidth: 1,
+    maxWidth: 260,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
   filterChipActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
+    backgroundColor: "#F1E9FF",
+    borderColor: "#6E1DFF",
   },
   filterChipText: {
     color: Colors.textMuted,
-    fontSize: Typography.body,
+    fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
   },
   filterChipTextActive: {
-    color: "#145CFF",
+    color: "#5D37EA",
   },
   searchButton: {
     alignSelf: "flex-start",
-    backgroundColor: "#6F5BFF",
+    backgroundColor: "#6E1DFF",
     borderRadius: Radius.lg,
     marginTop: Spacing.md,
     paddingHorizontal: Spacing.lg,
@@ -942,77 +793,6 @@ const styles = StyleSheet.create({
   resultsCount: {
     color: Colors.textMuted,
     fontSize: Typography.body,
-  },
-  jobCard: {
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-    padding: Spacing.lg,
-  },
-  jobHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    justifyContent: "space-between",
-  },
-  jobTitleWrap: {
-    flex: 1,
-    minWidth: 240,
-  },
-  jobTitle: {
-    color: Colors.text,
-    fontSize: Typography.cardTitle,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  jobMeta: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    marginTop: 4,
-  },
-  publishedAt: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  jobInfoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  infoPill: {
-    backgroundColor: "#F7FAFF",
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    minWidth: 150,
-    padding: Spacing.md,
-  },
-  infoLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    marginBottom: 3,
-  },
-  infoValue: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  viewButton: {
-    alignSelf: "flex-start",
-    backgroundColor: "#F3F7FF",
-    borderRadius: Radius.lg,
-    marginTop: Spacing.md,
-    opacity: 0.72,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  viewButtonText: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
   },
   paginationRow: {
     alignItems: "center",
@@ -1075,11 +855,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xxl,
     borderWidth: 1,
     padding: Spacing.lg,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
   },
   emptyTitle: {
     color: Colors.text,
@@ -1089,29 +864,18 @@ const styles = StyleSheet.create({
   emptyText: {
     color: Colors.textMuted,
     fontSize: Typography.body,
-    marginTop: Spacing.sm,
     lineHeight: 22,
+    marginTop: Spacing.sm,
   },
   errorText: {
     color: Colors.danger,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
   },
-  actionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
-  },
-  primaryButton: {
-    backgroundColor: "#145CFF",
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  primaryButtonText: {
-    color: Colors.white,
-    fontSize: Typography.body,
+  inlineErrorText: {
+    color: Colors.danger,
+    fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
+    marginBottom: Spacing.md,
   },
 });

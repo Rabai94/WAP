@@ -3,6 +3,7 @@ import { Button, Card, Header, Screen } from "@/components/ui";
 import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
+import { buildJobDetailsPath } from "@/services/jobs/jobNavigation";
 import {
   fetchOwnWorkerProfile,
   listWorkerApplications,
@@ -199,7 +200,12 @@ function WorkerDashboardContent() {
                     <Pressable
                       accessibilityRole="button"
                       onPress={() =>
-                        router.push(`/jobs/${application.job_id}` as any)
+                        router.push(
+                          buildJobDetailsPath(
+                            application.job_id,
+                            "/worker-dashboard"
+                          ) as any
+                        )
                       }
                       style={styles.secondaryAction}
                     >

@@ -5,7 +5,7 @@ import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-type ActiveTab = "home" | "jobs" | "profile";
+type ActiveTab = "home" | "jobs" | "courses" | "profile";
 
 type AuthenticatedHeaderProps = {
   active?: ActiveTab;
@@ -37,6 +37,7 @@ export default function AuthenticatedHeader({ active = "home" }: AuthenticatedHe
       <View style={styles.navLinks}>
         <NavLink label={t("common.home")} active={active === "home"} onPress={() => router.replace("/engine" as any)} />
         <NavLink label={t("home.nav.jobs")} active={active === "jobs"} onPress={() => router.push("/jobs" as any)} />
+        <NavLink label={t("home.nav.courses")} active={active === "courses"} onPress={() => router.push("/courses" as any)} />
         {canOpenWorkerProfile ? <NavLink label={t("common.profile")} active={active === "profile"} onPress={() => router.push("/worker-dashboard" as any)} /> : null}
       </View>
 

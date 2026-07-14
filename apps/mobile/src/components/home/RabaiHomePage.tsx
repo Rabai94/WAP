@@ -1,12 +1,22 @@
 import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
+import CourseSummaryCard from "@/components/courses/CourseSummaryCard";
+import JobSummaryCard from "@/components/jobs/JobSummaryCard";
 import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
 import { Screen } from "@/components/ui";
 import type { AuthRole } from "@/domain/auth/auth.types";
 import { getLanguageNationalIdentity } from "@/domain/nationality/nationalities";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { LanguageCode, languages } from "@/i18n/translations";
+import {
+  fetchLatestPublishedCourses,
+  type SearchCourseResult,
+} from "@/services/courses/courseService";
+import {
+  fetchLatestPublishedJobs,
+  type SearchJobResult,
+} from "@/services/jobs/jobFlowService";
 import {
   searchLocationSuggestions,
   searchOccupationSuggestions,
@@ -15,7 +25,7 @@ import {
 } from "@/services/search/heroAutocomplete";
 import { Radius, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
     AccessibilityInfo,
     Image,
@@ -405,7 +415,7 @@ const navItems: { key: NavKey; enabled: boolean; route?: string }[] = [
   { key: "home", enabled: true, route: "/engine" },
   { key: "jobs", enabled: true, route: "/jobs" },
   { key: "companies", enabled: false },
-  { key: "courses", enabled: false },
+  { key: "courses", enabled: true, route: "/courses" },
   { key: "freelancers", enabled: false },
 ];
 
@@ -646,6 +656,12 @@ export default function RabaiHomePage({
   const [locationActiveIndex, setLocationActiveIndex] = useState(-1);
   const [previewRole, setPreviewRole] = useState<PreviewRole>("worker");
   const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
+  const [latestJobs, setLatestJobs] = useState<SearchJobResult[]>([]);
+  const [latestJobsLoading, setLatestJobsLoading] = useState(true);
+  const [latestJobsError, setLatestJobsError] = useState("");
+  const [latestCourses, setLatestCourses] = useState<SearchCourseResult[]>([]);
+  const [latestCoursesLoading, setLatestCoursesLoading] = useState(true);
+  const [latestCoursesError, setLatestCoursesError] = useState("");
   const occupationRequestId = useRef(0);
   const locationRequestId = useRef(0);
 
@@ -675,6 +691,37 @@ export default function RabaiHomePage({
     return () => {
       mounted = false;
       subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const timeoutId = setTimeout(() => {
+      setLatestCoursesLoading(true);
+      setLatestCoursesError("");
+
+      fetchLatestPublishedCourses(4)
+        .then((courses) => {
+          if (mounted) {
+            setLatestCourses(courses);
+          }
+        })
+        .catch((error) => {
+          if (mounted) {
+            setLatestCourses([]);
+            setLatestCoursesError(readLatestCoursesError(error));
+          }
+        })
+        .finally(() => {
+          if (mounted) {
+            setLatestCoursesLoading(false);
+          }
+        });
+    }, 0);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
     };
   }, []);
 
@@ -720,6 +767,37 @@ export default function RabaiHomePage({
       clearTimeout(timeoutId);
     };
   }, [activeCategory, language, query]);
+
+  useEffect(() => {
+    let mounted = true;
+    const timeoutId = setTimeout(() => {
+      setLatestJobsLoading(true);
+      setLatestJobsError("");
+
+      fetchLatestPublishedJobs(4)
+        .then((jobs) => {
+          if (mounted) {
+            setLatestJobs(jobs);
+          }
+        })
+        .catch((error) => {
+          if (mounted) {
+            setLatestJobs([]);
+            setLatestJobsError(readLatestJobsError(error));
+          }
+        })
+        .finally(() => {
+          if (mounted) {
+            setLatestJobsLoading(false);
+          }
+        });
+    }, 0);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     const trimmedLocation = location.trim();
@@ -1014,7 +1092,12 @@ export default function RabaiHomePage({
       }
     } else {
       addParam("search", trimmedQuery);
-      addParam("location", selectedLocation?.label ?? trimmedLocation);
+      if (selectedLocation) {
+        addParam("location", selectedLocation.label);
+        addParam("locationId", selectedLocation.id);
+      } else {
+        addParam("location", trimmedLocation);
+      }
     }
 
     const queryString = params
@@ -1303,18 +1386,64 @@ export default function RabaiHomePage({
             actionDisabled={false}
             actionLabel={copy.sections.viewJobs}
             emptyText={copy.sections.jobsEmpty}
+            errorText={latestJobsError}
+            loading={latestJobsLoading}
             onAction={() => {
               navigate("/jobs");
             }}
             title={copy.sections.jobsTitle}
-          />
+          >
+            {latestJobs.length > 0 ? (
+              <View
+                style={[
+                  styles.latestJobsGrid,
+                  latestJobs.length === 1 && styles.latestJobsGridSingle,
+                ]}
+              >
+                {latestJobs.map((job) => (
+                  <JobSummaryCard
+                    job={job}
+                    key={job.job_id}
+                    language={language}
+                    returnLabel="Înapoi la pagina principală"
+                    returnTo="/engine"
+                    variant="compact"
+                  />
+                ))}
+              </View>
+            ) : null}
+          </PublicSectionCard>
           <PublicSectionCard
-            actionDisabled
+            actionDisabled={false}
             actionLabel={copy.sections.viewCourses}
-            disabledLabel={copy.auth.soon}
             emptyText={copy.sections.coursesEmpty}
+            errorText={latestCoursesError}
+            loading={latestCoursesLoading}
+            onAction={() => {
+              navigate("/courses");
+            }}
             title={copy.sections.coursesTitle}
-          />
+          >
+            {latestCourses.length > 0 ? (
+              <View
+                style={[
+                  styles.latestJobsGrid,
+                  latestCourses.length === 1 && styles.latestJobsGridSingle,
+                ]}
+              >
+                {latestCourses.map((course) => (
+                  <CourseSummaryCard
+                    course={course}
+                    key={course.course_id}
+                    language={language}
+                    returnLabel="Înapoi la pagina principală"
+                    returnTo="/engine"
+                    variant="compact"
+                  />
+                ))}
+              </View>
+            ) : null}
+          </PublicSectionCard>
         </View>
 
         {isAuthenticated ? (
@@ -1596,18 +1725,26 @@ function HeroSearchControls({
 function PublicSectionCard({
   actionDisabled,
   actionLabel,
+  children,
   disabledLabel,
   emptyText,
+  errorText,
+  loading,
   onAction,
   title,
 }: {
   actionDisabled?: boolean;
   actionLabel: string;
+  children?: ReactNode;
   disabledLabel?: string;
   emptyText: string;
+  errorText?: string;
+  loading?: boolean;
   onAction?: () => void;
   title: string;
 }) {
+  const hasContent = Boolean(children);
+
   return (
     <View style={styles.sectionCard}>
       <View style={styles.sectionCardHeader}>
@@ -1637,12 +1774,48 @@ function PublicSectionCard({
         </Pressable>
       </View>
 
-      <View style={styles.emptyState}>
-        <View style={styles.emptyStateLine} />
-        <Text style={styles.emptyStateText}>{emptyText}</Text>
-      </View>
+      {loading ? (
+        <LatestJobsSkeleton />
+      ) : errorText ? (
+        <View style={styles.sectionStatusState}>
+          <Text style={styles.sectionErrorText}>{errorText}</Text>
+        </View>
+      ) : hasContent ? (
+        children
+      ) : (
+        <View style={styles.emptyState}>
+          <View style={styles.emptyStateLine} />
+          <Text style={styles.emptyStateText}>{emptyText}</Text>
+        </View>
+      )}
     </View>
   );
+}
+
+function LatestJobsSkeleton() {
+  return (
+    <View style={styles.latestJobsGrid}>
+      {[0, 1].map((item) => (
+        <View key={item} style={styles.jobSkeletonCard}>
+          <View style={styles.jobSkeletonTitle} />
+          <View style={styles.jobSkeletonLine} />
+          <View style={styles.jobSkeletonLineShort} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function readLatestJobsError(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Nu am putut incarca joburile publicate.";
+}
+
+function readLatestCoursesError(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Nu am putut incarca cursurile active.";
 }
 
 const styles = StyleSheet.create({
@@ -2420,6 +2593,58 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
     textAlign: "center",
+  },
+  latestJobsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  latestJobsGridSingle: {
+    maxWidth: 420,
+  },
+  sectionStatusState: {
+    backgroundColor: "rgba(243, 247, 255, 0.78)",
+    borderColor: "rgba(218, 227, 245, 0.62)",
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    marginTop: Spacing.lg,
+    padding: Spacing.lg,
+  },
+  sectionErrorText: {
+    color: palette.rose,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  jobSkeletonCard: {
+    backgroundColor: "rgba(243, 247, 255, 0.78)",
+    borderColor: "rgba(218, 227, 245, 0.62)",
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    flexBasis: 220,
+    flexGrow: 1,
+    minHeight: 142,
+    padding: Spacing.lg,
+  },
+  jobSkeletonTitle: {
+    backgroundColor: palette.border,
+    borderRadius: Radius.round,
+    height: 12,
+    marginBottom: Spacing.md,
+    width: "78%",
+  },
+  jobSkeletonLine: {
+    backgroundColor: palette.borderSoft,
+    borderRadius: Radius.round,
+    height: 10,
+    marginBottom: Spacing.sm,
+    width: "100%",
+  },
+  jobSkeletonLineShort: {
+    backgroundColor: palette.borderSoft,
+    borderRadius: Radius.round,
+    height: 10,
+    width: "54%",
   },
   emptyState: {
     alignItems: "center",

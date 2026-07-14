@@ -6,7 +6,7 @@ import {
   type CompanyApplication,
 } from "@/services/worker/workerService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -27,6 +27,8 @@ export default function ApplicationsScreen() {
 
 function ApplicationsContent() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ jobId?: string | string[] }>();
+  const requestedJobId = readParam(params.jobId);
   const [applications, setApplications] = useState<CompanyApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,8 +36,13 @@ function ApplicationsContent() {
 
   const groupedApplications = useMemo(() => {
     const groups = new Map<string, CompanyApplication[]>();
+    const visibleApplications = requestedJobId
+      ? applications.filter(
+          (application) => application.job_id === requestedJobId
+        )
+      : applications;
 
-    for (const application of applications) {
+    for (const application of visibleApplications) {
       const current = groups.get(application.job_id) ?? [];
       current.push(application);
       groups.set(application.job_id, current);
@@ -46,7 +53,7 @@ function ApplicationsContent() {
       jobId,
       jobTitle: items[0]?.job_title ?? "Job",
     }));
-  }, [applications]);
+  }, [applications, requestedJobId]);
 
   const loadApplications = useCallback(async () => {
     setLoading(true);
@@ -99,8 +106,12 @@ function ApplicationsContent() {
         </View>
 
         <Header
-          title="Aplicatii primite"
-          subtitle="Candidatii sunt afisati doar pentru joburile companiei tale."
+          title={requestedJobId ? "Aplicatii pentru job" : "Aplicatii primite"}
+          subtitle={
+            requestedJobId
+              ? "Sunt afisate aplicatiile pentru jobul selectat."
+              : "Candidatii sunt afisati doar pentru joburile companiei tale."
+          }
         />
 
         {loading ? (
@@ -207,6 +218,10 @@ function ApplicationsContent() {
       </ScrollView>
     </Screen>
   );
+}
+
+function readParam(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] : value;
 }
 
 function formatApplicationStatus(value: string) {

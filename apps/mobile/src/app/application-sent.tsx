@@ -3,6 +3,7 @@ import { Button, Card, Header, Screen } from "@/components/ui";
 import { Colors, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StyleSheet, Text } from "react-native";
+import { buildJobDetailsPath } from "@/services/jobs/jobNavigation";
 
 export default function ApplicationSentScreen() {
   const router = useRouter();
@@ -48,7 +49,9 @@ export default function ApplicationSentScreen() {
             variant="secondary"
             style={styles.secondaryButton}
             onPress={() => {
-              router.replace(`/jobs/${jobId}` as any);
+              router.replace(
+                buildJobDetailsPath(jobId, "/worker-dashboard") as any
+              );
             }}
           />
         ) : null}

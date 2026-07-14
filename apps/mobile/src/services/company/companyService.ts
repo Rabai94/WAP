@@ -33,6 +33,22 @@ export type SaveCompanyInput = {
   website: string | null;
 };
 
+export type CompanyDashboardJob = {
+  id: string;
+  company_id: string;
+  title: string;
+  status: string;
+  created_at: string;
+  expires_at: string | null;
+  location: {
+    id: string;
+    postal_code: string;
+    city: string;
+    district: string | null;
+    state: string;
+  } | null;
+};
+
 const companySelect = [
   "id",
   "owner_user_id",
@@ -51,6 +67,16 @@ const companySelect = [
   "status",
   "created_at",
   "updated_at",
+].join(", ");
+
+const companyDashboardJobSelect = [
+  "id",
+  "company_id",
+  "title",
+  "status",
+  "created_at",
+  "expires_at",
+  "location:locations(id, postal_code, city, district, state)",
 ].join(", ");
 
 export async function fetchOwnCompany(userId: string) {
@@ -89,4 +115,31 @@ export async function saveOwnCompany(input: SaveCompanyInput) {
   }
 
   return data;
+}
+
+export async function fetchOwnCompanyJobs(companyId: string) {
+  const { data, error } = await supabase
+    .from("jobs")
+    .select(companyDashboardJobSelect)
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .returns<CompanyDashboardJob[]>();
+
+  if (error) {
+    throw new Error(error.message || "Company jobs could not be loaded.");
+  }
+
+  return data ?? [];
+}
+
+export async function deactivateOwnJob(jobId: string) {
+  const { data, error } = await supabase.rpc("deactivate_own_job", {
+    p_job_id: jobId,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Job could not be deactivated.");
+  }
+
+  return data as string;
 }
