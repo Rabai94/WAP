@@ -1,5 +1,6 @@
 node_modules
 .expo
+.cache/
 supabase/.temp/
 apps/mobile/supabase/
 apps/mobile/supabase/.temp/

@@ -1,991 +1,762 @@
-import type { ComponentProps } from "react";
-import { useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  ViewStyle,
-} from "react-native";
-import { useRouter } from "expo-router";
-import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
-import {
-  getDefaultNationalIdentity,
-  getNationalIdentityByCode,
-} from "@/domain/nationality/nationalities";
-import { detectEuropeanCountryFromLocale } from "@/domain/phone/detectCountry";
-import {
-  EuropeanCountry,
-  europeanCountries,
-} from "@/domain/phone/europeanCountries";
+import HeroAutocompleteField, {
+  type HeroAutocompleteOption,
+} from "@/components/home/HeroAutocompleteField";
+import RequireAuth from "@/components/RequireAuth";
+import { Button, Card, Header, Input, Screen } from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
+import {
+  searchLocationSuggestions,
+  searchOccupationSuggestions,
+  type LocationSuggestion,
+  type OccupationSuggestion,
+} from "@/services/search/heroAutocomplete";
+import {
+  fetchOwnWorkerProfile,
+  saveOwnWorkerProfile,
+  type WorkerProfile,
+} from "@/services/worker/workerService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
-const palette = {
-  page: "#F7F9FD",
-  surface: "#FFFFFF",
-  surfaceSoft: "#F3F6FB",
-  ink: "#111827",
-  muted: "#5F6B7A",
-  subtle: "#8B95A7",
-  line: "#DDE5F2",
-  violet: "#6D28D9",
-  violetDark: "#3B167A",
-  violetSoft: "#F1EAFE",
-  blue: "#2563EB",
-  blueSoft: "#EAF1FF",
-  red: "#E11D48",
-  redSoft: "#FFE7EE",
-  green: "#0F9F6E",
-  greenSoft: "#E8F8F2",
-  shadow: "#172033",
-} as const;
+type LocationOption = HeroAutocompleteOption & {
+  suggestion: LocationSuggestion;
+};
+
+type OccupationOption = HeroAutocompleteOption & {
+  suggestion: OccupationSuggestion;
+};
 
 type FormErrors = Partial<
   Record<
+    | "experienceYears"
     | "firstName"
     | "lastName"
-    | "email"
-    | "password"
+    | "location"
+    | "occupation"
     | "phone",
     string
   >
 >;
 
-const benefits = [
-  "workerForm.benefit.verifiedJobs",
-  "workerForm.benefit.safePayments",
-  "workerForm.benefit.ratings",
-  "workerForm.benefit.careerGrowth",
-] as const;
+const languageOptions = [
+  { label: "Romana", value: "ro" },
+  { label: "Germana", value: "de" },
+  { label: "Engleza", value: "en" },
+];
 
-const trustCards = [
-  "workerForm.trust.verifiedCompanies",
-  "workerForm.trust.safePayment",
-  "workerForm.trust.support",
-] as const;
+const availabilityOptions = [
+  { label: "Disponibil acum", value: "available" },
+  { label: "Disponibil in curand", value: "soon" },
+  { label: "Angajat momentan", value: "employed" },
+  { label: "Indisponibil", value: "unavailable" },
+];
 
-function getCountryIdentity(country: EuropeanCountry) {
-  return getNationalIdentityByCode(country.identityCode) ?? getDefaultNationalIdentity();
-}
+const workAuthorizationOptions = [
+  { label: "Cetatean UE", value: "eu_citizen" },
+  { label: "Permis de munca", value: "work_permit" },
+  { label: "Are nevoie de permis", value: "needs_permit" },
+  { label: "De clarificat", value: "unknown" },
+];
 
 export default function WorkerFormScreen() {
+  return (
+    <RequireAuth requiredRole="worker">
+      <WorkerFormContent />
+    </RequireAuth>
+  );
+}
+
+function WorkerFormContent() {
   const router = useRouter();
-  const { signUp } = useAuth();
-  const { t } = useLanguage();
-  const [step, setStep] = useState<1 | 2>(1);
+  const { language } = useLanguage();
+  const { user } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState<EuropeanCountry>(() =>
-    detectEuropeanCountryFromLocale(europeanCountries)
-  );
-  const [isCountryPickerOpen, setIsCountryPickerOpen] = useState(false);
   const [phone, setPhone] = useState("");
+  const [locationText, setLocationText] = useState("");
+  const [occupationText, setOccupationText] = useState("");
+  const [selectedLocation, setSelectedLocation] =
+    useState<LocationSuggestion | null>(null);
+  const [selectedOccupation, setSelectedOccupation] =
+    useState<OccupationSuggestion | null>(null);
+  const [experienceYears, setExperienceYears] = useState("0");
+  const [preferredLanguage, setPreferredLanguage] = useState("de");
+  const [availabilityStatus, setAvailabilityStatus] = useState("available");
+  const [workAuthorizationStatus, setWorkAuthorizationStatus] =
+    useState("unknown");
+  const [professionalSummary, setProfessionalSummary] = useState("");
+  const [locationSuggestions, setLocationSuggestions] = useState<
+    LocationSuggestion[]
+  >([]);
+  const [occupationSuggestions, setOccupationSuggestions] = useState<
+    OccupationSuggestion[]
+  >([]);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [occupationLoading, setOccupationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [occupationError, setOccupationError] = useState<string | null>(null);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [occupationOpen, setOccupationOpen] = useState(false);
+  const [locationActiveIndex, setLocationActiveIndex] = useState(-1);
+  const [occupationActiveIndex, setOccupationActiveIndex] = useState(-1);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [authError, setAuthError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const locationRequestId = useRef(0);
+  const occupationRequestId = useRef(0);
 
-  function handleBack() {
-    if (step === 2) {
-      setStep(1);
-      setErrors({});
-      setAuthError("");
-      setSuccessMessage("");
-      return;
-    }
+  const locationOptions = useMemo<LocationOption[]>(
+    () =>
+      locationSuggestions.map((suggestion) => ({
+        id: suggestion.id,
+        suggestion,
+        title: suggestion.label,
+      })),
+    [locationSuggestions]
+  );
+  const occupationOptions = useMemo<OccupationOption[]>(
+    () =>
+      occupationSuggestions.map((suggestion) => ({
+        id: suggestion.id,
+        suggestion,
+        subtitle: suggestion.categoryLabel,
+        title: suggestion.label,
+      })),
+    [occupationSuggestions]
+  );
 
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
+  const hydrateProfile = useCallback(
+    (profile: WorkerProfile) => {
+      setFirstName(profile.first_name);
+      setLastName(profile.last_name);
+      setPhone(profile.phone ?? "");
+      setExperienceYears(String(profile.experience_years ?? 0));
+      setPreferredLanguage(profile.preferred_language);
+      setAvailabilityStatus(profile.availability_status);
+      setWorkAuthorizationStatus(profile.work_authorization_status);
+      setProfessionalSummary(profile.professional_summary ?? "");
 
-    router.push("/role" as any);
-  }
+      if (profile.location) {
+        const locationSuggestion: LocationSuggestion = {
+          city: profile.location.city,
+          countryCode: profile.location.country_code,
+          district: profile.location.district,
+          id: profile.location.id,
+          label: formatLocationLabel(profile.location),
+          latitude: profile.location.latitude,
+          longitude: profile.location.longitude,
+          postalCode: profile.location.postal_code,
+          state: profile.location.state,
+        };
 
-  function handleCountrySelect(country: EuropeanCountry) {
-    setSelectedCountry(country);
-    setIsCountryPickerOpen(false);
-  }
+        setSelectedLocation(locationSuggestion);
+        setLocationText(locationSuggestion.label);
+      }
 
-  async function handleContinueToVerification() {
-    if (isSubmitting) {
-      return;
-    }
+      if (profile.occupation) {
+        const occupationSuggestion: OccupationSuggestion = {
+          categoryLabel: profile.occupation.category
+            ? localizedName(profile.occupation.category, language)
+            : "",
+          id: profile.occupation.id,
+          label: localizedName(profile.occupation, language),
+          slug: profile.occupation.slug,
+        };
 
-    if (!validateBasicDetails()) {
-      return;
-    }
+        setSelectedOccupation(occupationSuggestion);
+        setOccupationText(occupationSuggestion.label);
+      }
+    },
+    [language]
+  );
 
-    setErrors({});
-    setAuthError("");
-    setSuccessMessage("");
-    setIsSubmitting(true);
+  useEffect(() => {
+    let mounted = true;
 
-    try {
-      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
-      const fullPhone = `${selectedCountry.dialCode}${phone.trim()}`;
-
-      const result = await signUp({
-        email: email.trim(),
-        password,
-        role: "worker",
-        fullName,
-        phone: fullPhone,
-      });
-
-      if (result.session) {
-        router.replace("/engine" as any);
+    async function loadProfile() {
+      if (!user?.id) {
         return;
       }
 
-      setStep(2);
-      setSuccessMessage(
-        "Account created. Please verify your email, then log in."
-      );
-    } catch (nextError) {
-      setAuthError(
-        nextError instanceof Error
-          ? nextError.message
-          : "RabAI account creation failed. Please try again."
-      );
-    } finally {
-      setIsSubmitting(false);
+      setLoadingProfile(true);
+      setLoadError("");
+
+      try {
+        const profile = await fetchOwnWorkerProfile(user.id);
+
+        if (mounted && profile) {
+          hydrateProfile(profile);
+        }
+      } catch (error) {
+        if (mounted) {
+          setLoadError(readError(error));
+        }
+      } finally {
+        if (mounted) {
+          setLoadingProfile(false);
+        }
+      }
+    }
+
+    void loadProfile();
+
+    return () => {
+      mounted = false;
+    };
+  }, [hydrateProfile, user?.id]);
+
+  useEffect(() => {
+    const trimmedLocation = locationText.trim();
+    locationRequestId.current += 1;
+    const requestId = locationRequestId.current;
+
+    if (trimmedLocation.length < 2) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setLocationLoading(true);
+      setLocationError(null);
+
+      searchLocationSuggestions(trimmedLocation, 10)
+        .then((suggestions) => {
+          if (locationRequestId.current !== requestId) {
+            return;
+          }
+
+          setLocationSuggestions(suggestions);
+          setLocationActiveIndex(suggestions.length > 0 ? 0 : -1);
+        })
+        .catch(() => {
+          if (locationRequestId.current !== requestId) {
+            return;
+          }
+
+          setLocationSuggestions([]);
+          setLocationActiveIndex(-1);
+          setLocationError("Nu am putut incarca locatiile.");
+        })
+        .finally(() => {
+          if (locationRequestId.current === requestId) {
+            setLocationLoading(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [locationText]);
+
+  useEffect(() => {
+    const trimmedOccupation = occupationText.trim();
+    occupationRequestId.current += 1;
+    const requestId = occupationRequestId.current;
+
+    if (trimmedOccupation.length < 2) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setOccupationLoading(true);
+      setOccupationError(null);
+
+      searchOccupationSuggestions(trimmedOccupation, language, 8)
+        .then((suggestions) => {
+          if (occupationRequestId.current !== requestId) {
+            return;
+          }
+
+          setOccupationSuggestions(suggestions);
+          setOccupationActiveIndex(suggestions.length > 0 ? 0 : -1);
+        })
+        .catch(() => {
+          if (occupationRequestId.current !== requestId) {
+            return;
+          }
+
+          setOccupationSuggestions([]);
+          setOccupationActiveIndex(-1);
+          setOccupationError("Nu am putut incarca ocupatiile.");
+        })
+        .finally(() => {
+          if (occupationRequestId.current === requestId) {
+            setOccupationLoading(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [language, occupationText]);
+
+  function handleLocationTextChange(text: string) {
+    setLocationText(text);
+
+    if (selectedLocation && text !== selectedLocation.label) {
+      setSelectedLocation(null);
+    }
+
+    if (text.trim().length < 2) {
+      locationRequestId.current += 1;
+      setLocationSuggestions([]);
+      setLocationActiveIndex(-1);
+      setLocationError(null);
+      setLocationLoading(false);
+    } else {
+      setLocationOpen(true);
     }
   }
 
-  function validateBasicDetails() {
+  function handleLocationSelect(option: LocationOption) {
+    setSelectedLocation(option.suggestion);
+    setLocationText(option.suggestion.label);
+    setLocationOpen(false);
+    setLocationActiveIndex(-1);
+  }
+
+  function handleOccupationTextChange(text: string) {
+    setOccupationText(text);
+
+    if (selectedOccupation && text !== selectedOccupation.label) {
+      setSelectedOccupation(null);
+    }
+
+    if (text.trim().length < 2) {
+      occupationRequestId.current += 1;
+      setOccupationSuggestions([]);
+      setOccupationActiveIndex(-1);
+      setOccupationError(null);
+      setOccupationLoading(false);
+    } else {
+      setOccupationOpen(true);
+    }
+  }
+
+  function handleOccupationSelect(option: OccupationOption) {
+    setSelectedOccupation(option.suggestion);
+    setOccupationText(option.suggestion.label);
+    setOccupationOpen(false);
+    setOccupationActiveIndex(-1);
+  }
+
+  async function handleSubmit() {
+    if (submitting) {
+      return;
+    }
+
+    const nextErrors = validateForm();
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setSubmitting(true);
+    setLoadError("");
+
+    try {
+      await saveOwnWorkerProfile({
+        availabilityStatus,
+        experienceYears: Number(experienceYears),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        locationId: selectedLocation?.id ?? "",
+        occupationId: selectedOccupation?.id ?? "",
+        phone: phone.trim() || null,
+        preferredLanguage,
+        professionalSummary: professionalSummary.trim() || null,
+        workAuthorizationStatus,
+      });
+      router.replace("/worker-dashboard" as any);
+    } catch (error) {
+      setLoadError(readError(error));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function validateForm() {
     const nextErrors: FormErrors = {};
+    const parsedExperience = Number(experienceYears);
 
     if (!firstName.trim()) {
-      nextErrors.firstName = t("workerForm.error.firstName");
+      nextErrors.firstName = "Prenumele este obligatoriu.";
     }
 
     if (!lastName.trim()) {
-      nextErrors.lastName = t("workerForm.error.lastName");
+      nextErrors.lastName = "Numele este obligatoriu.";
     }
 
-    if (!email.trim()) {
-      nextErrors.email = t("workerForm.error.emailRequired");
-    } else if (!email.includes("@")) {
-      nextErrors.email = t("workerForm.error.emailInvalid");
+    if (!selectedLocation) {
+      nextErrors.location = "Alege o locatie din lista.";
     }
 
-    if (password.length < 6) {
-      nextErrors.password = "Password must be at least 6 characters.";
+    if (!selectedOccupation) {
+      nextErrors.occupation = "Alege o ocupatie din lista.";
     }
 
-    if (!phone.trim()) {
-      nextErrors.phone = t("workerForm.error.phone");
+    if (!Number.isFinite(parsedExperience) || parsedExperience < 0) {
+      nextErrors.experienceYears = "Experienta trebuie sa fie 0 sau mai mare.";
     }
 
-    setErrors(nextErrors);
+    if (phone.trim() && !/^[+0-9 ()-]{7,32}$/.test(phone.trim())) {
+      nextErrors.phone = "Telefonul nu pare valid.";
+    }
 
-    return Object.keys(nextErrors).length === 0;
+    return nextErrors;
   }
 
   return (
-    <View style={styles.screen}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-      >
-        <View style={styles.header}>
-          <Pressable style={styles.backButton} onPress={handleBack}>
-            <Text style={styles.backText}>{t("common.back")}</Text>
+    <Screen centered={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.topBar}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.replace("/engine" as any)}
+            style={styles.homeButton}
+          >
+            <Text style={styles.homeButtonText}>Acasa</Text>
           </Pressable>
-
-          <View style={styles.brandBlock}>
-            <Text style={styles.logo}>{t("workerForm.brand")}</Text>
-            <Text style={styles.brandSubtitle}>
-              {t("workerForm.brandSubtitle")}
-            </Text>
-          </View>
         </View>
 
-        <View style={styles.hero}>
-          <Text style={styles.heroBadge}>{t("workerForm.badge")}</Text>
-          <Text style={styles.title}>{t("workerForm.accountTitle")}</Text>
-          <Text style={styles.subtitle}>{t("workerForm.accountSubtitle")}</Text>
-        </View>
+        <Header
+          title="Profil worker"
+          subtitle="Completeaza profilul real folosit pentru aplicari la joburi."
+        />
 
-        <View style={styles.mainGrid}>
-          <View style={styles.benefitsPanel}>
-            <Text style={styles.panelEyebrow}>{t("workerForm.benefits")}</Text>
-            <Text style={styles.panelTitle}>
-              {t("workerForm.benefitsTitle")}
-            </Text>
-            <View style={styles.benefitList}>
-              {benefits.map((benefit) => (
-                <View key={benefit} style={styles.benefitItem}>
-                  <View style={styles.benefitIcon} />
-                  <Text style={styles.benefitText}>{t(benefit)}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
+        {loadingProfile ? (
+          <Card>
+            <Text style={styles.mutedText}>Se incarca profilul...</Text>
+          </Card>
+        ) : null}
 
-          <View style={styles.formCard}>
-            <View style={styles.progressRow}>
-              <ProgressStep
-                active={step === 1}
-                complete={step > 1}
-                label={t("workerForm.step.basic")}
-                number="1"
+        {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
+
+        <Card title="Date personale">
+          <View style={styles.twoColumn}>
+            <View style={styles.fieldColumn}>
+              <Input
+                label="Prenume"
+                onChangeText={setFirstName}
+                placeholder="ex: Ion"
+                value={firstName}
               />
-              <View style={styles.progressDivider} />
-              <ProgressStep
-                active={step === 2}
-                complete={false}
-                label={t("workerForm.step.verify")}
-                number="2"
+              <FieldError message={errors.firstName} />
+            </View>
+            <View style={styles.fieldColumn}>
+              <Input
+                label="Nume"
+                onChangeText={setLastName}
+                placeholder="ex: Popescu"
+                value={lastName}
               />
+              <FieldError message={errors.lastName} />
             </View>
-
-            {step === 1 ? (
-              <View>
-                <Text style={styles.formTitle}>
-                  {t("workerForm.basic.title")}
-                </Text>
-                <Text style={styles.formDescription}>
-                  {t("workerForm.basic.description")}
-                </Text>
-
-                <View style={styles.twoColumnFields}>
-                  <InputField
-                    error={errors.lastName}
-                    label={t("workerForm.lastName")}
-                    onChangeText={setLastName}
-                    placeholder={t("workerForm.lastNamePlaceholder")}
-                    value={lastName}
-                  />
-                  <InputField
-                    error={errors.firstName}
-                    label={t("workerForm.firstName")}
-                    onChangeText={setFirstName}
-                    placeholder={t("workerForm.firstNamePlaceholder")}
-                    value={firstName}
-                  />
-                </View>
-
-                <InputField
-                  autoCapitalize="none"
-                  error={errors.email}
-                  keyboardType="email-address"
-                  label={t("workerForm.email")}
-                  onChangeText={setEmail}
-                  placeholder={t("workerForm.emailPlaceholder")}
-                  value={email}
-                />
-
-                <InputField
-                  error={errors.password}
-                  label="Password"
-                  onChangeText={setPassword}
-                  placeholder="At least 6 characters"
-                  secureTextEntry
-                  value={password}
-                />
-
-                <View style={styles.phoneSection}>
-                  <Text style={styles.fieldLabel}>
-                    {t("workerForm.phoneNumber")}
-                  </Text>
-                  <View style={styles.phoneInputRow}>
-                    <Pressable
-                      style={styles.countrySelectButton}
-                      onPress={() => {
-                        setIsCountryPickerOpen((current) => !current);
-                      }}
-                    >
-                      <NationalInsigniaBadge
-                        identity={getCountryIdentity(selectedCountry)}
-                        showCode
-                        showDialCode
-                        size="sm"
-                        withChevron
-                      />
-                    </Pressable>
-                    <TextInput
-                      keyboardType="phone-pad"
-                      onChangeText={setPhone}
-                      placeholder={t("workerForm.phonePlaceholder")}
-                      placeholderTextColor={palette.subtle}
-                      style={[styles.input, styles.phoneNumberInput]}
-                      value={phone}
-                    />
-                  </View>
-                  <ErrorMessage message={errors.phone} />
-
-                  {isCountryPickerOpen ? (
-                    <View style={styles.countryPicker}>
-                      {europeanCountries.map((country) => (
-                        <Pressable
-                          key={country.code}
-                          style={[
-                            styles.countryPickerItem,
-                            selectedCountry.code === country.code &&
-                              styles.countryPickerItemActive,
-                          ]}
-                          onPress={() => {
-                            handleCountrySelect(country);
-                          }}
-                        >
-                          <NationalInsigniaBadge
-                            identity={getCountryIdentity(country)}
-                            showCode
-                            showDialCode
-                            showName
-                            size="sm"
-                          />
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-
-                <Pressable
-                  style={styles.primaryButton}
-                  onPress={handleContinueToVerification}
-                >
-                  <Text style={styles.primaryButtonText}>
-                    {isSubmitting
-                      ? "Creating account..."
-                      : t("workerForm.continueToVerification")}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View>
-                <Text style={styles.formTitle}>Account created</Text>
-                <Text style={styles.formDescription}>
-                  Check your email to confirm your RabAI account, then log in.
-                </Text>
-                <ErrorMessage message={authError} />
-                {successMessage ? (
-                  <View style={styles.successPanel}>
-                    <Text style={styles.successText}>{successMessage}</Text>
-                    <View style={styles.actionStack}>
-                      <Pressable
-                        style={styles.secondaryButton}
-                        onPress={() => {
-                          router.replace("/login" as any);
-                        }}
-                      >
-                        <Text style={styles.secondaryButtonText}>Go to login</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : null}
-              </View>
-            )}
           </View>
 
-          <View style={styles.mascotPanel}>
-            <View style={styles.mascotBox}>
-              <Text style={styles.mascotText}>{t("workerForm.mascot")}</Text>
-            </View>
-            <Text style={styles.mascotTitle}>
-              {t("workerForm.workerTrust")}
-            </Text>
-            <Text style={styles.mascotBody}>
-              {t("workerForm.workerTrustText")}
-            </Text>
-          </View>
-        </View>
+          <Input
+            label="Telefon"
+            onChangeText={setPhone}
+            placeholder="ex: +49 151 12345678"
+            value={phone}
+          />
+          <FieldError message={errors.phone} />
+        </Card>
 
-        <View style={styles.trustGrid}>
-          {trustCards.map((trustCard) => (
-            <View key={trustCard} style={styles.trustCard}>
-              <View style={styles.trustDot} />
-              <Text style={styles.trustText}>{t(trustCard)}</Text>
+        <Card title="Profil profesional">
+          <View style={styles.autocompleteStack}>
+            <View style={styles.autocompleteWrap}>
+              <HeroAutocompleteField
+                activeIndex={locationActiveIndex}
+                emptyMessage="Nu am gasit rezultate"
+                errorMessage={locationError}
+                fieldId="worker-location"
+                isOpen={locationOpen && locationText.trim().length >= 2}
+                label="Locatie"
+                loading={locationLoading}
+                onActiveIndexChange={setLocationActiveIndex}
+                onChangeText={handleLocationTextChange}
+                onFocus={() => {
+                  if (locationText.trim().length >= 2) {
+                    setLocationOpen(true);
+                  }
+                }}
+                onRequestClose={() => setLocationOpen(false)}
+                onSelect={handleLocationSelect}
+                placeholder="ex: Augsburg"
+                queryText={locationText}
+                suggestions={locationOptions}
+                value={locationText}
+              />
+              <FieldError message={errors.location} />
             </View>
-          ))}
-        </View>
+
+            <View style={styles.autocompleteWrap}>
+              <HeroAutocompleteField
+                activeIndex={occupationActiveIndex}
+                emptyMessage="Nu am gasit rezultate"
+                errorMessage={occupationError}
+                fieldId="worker-occupation"
+                isOpen={occupationOpen && occupationText.trim().length >= 2}
+                label="Ocupatie"
+                loading={occupationLoading}
+                onActiveIndexChange={setOccupationActiveIndex}
+                onChangeText={handleOccupationTextChange}
+                onFocus={() => {
+                  if (occupationText.trim().length >= 2) {
+                    setOccupationOpen(true);
+                  }
+                }}
+                onRequestClose={() => setOccupationOpen(false)}
+                onSelect={handleOccupationSelect}
+                placeholder="ex: lucrator depozit"
+                queryText={occupationText}
+                suggestions={occupationOptions}
+                value={occupationText}
+              />
+              <FieldError message={errors.occupation} />
+            </View>
+          </View>
+
+          <Input
+            keyboardType="numeric"
+            label="Ani experienta"
+            onChangeText={setExperienceYears}
+            placeholder="0"
+            value={experienceYears}
+          />
+          <FieldError message={errors.experienceYears} />
+
+          <SegmentedControl
+            label="Limba preferata"
+            onChange={setPreferredLanguage}
+            options={languageOptions}
+            value={preferredLanguage}
+          />
+
+          <SegmentedControl
+            label="Disponibilitate"
+            onChange={setAvailabilityStatus}
+            options={availabilityOptions}
+            value={availabilityStatus}
+          />
+
+          <SegmentedControl
+            label="Drept de munca"
+            onChange={setWorkAuthorizationStatus}
+            options={workAuthorizationOptions}
+            value={workAuthorizationStatus}
+          />
+
+          <Text style={styles.label}>Scurta descriere profesionala</Text>
+          <TextInput
+            multiline
+            onChangeText={setProfessionalSummary}
+            placeholder="Experienta, roluri cautate, disponibilitate sau certificari relevante."
+            placeholderTextColor={Colors.placeholder}
+            style={[styles.summaryInput, styles.summaryInputMultiline]}
+            value={professionalSummary}
+          />
+        </Card>
+
+        <Button
+          disabled={submitting}
+          title={submitting ? "Se salveaza..." : "Salveaza profilul"}
+          onPress={handleSubmit}
+        />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 
-type ProgressStepProps = {
-  active: boolean;
-  complete: boolean;
-  label: string;
-  number: string;
-};
-
-function ProgressStep({ active, complete, label, number }: ProgressStepProps) {
-  return (
-    <View style={styles.progressStep}>
-      <View
-        style={[
-          styles.progressCircle,
-          active && styles.progressCircleActive,
-          complete && styles.progressCircleComplete,
-        ]}
-      >
-        <Text
-          style={[
-            styles.progressCircleText,
-            (active || complete) && styles.progressCircleTextActive,
-          ]}
-        >
-          {number}
-        </Text>
-      </View>
-      <Text
-        style={[
-          styles.progressLabel,
-          (active || complete) && styles.progressLabelActive,
-        ]}
-      >
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-type InputFieldProps = ComponentProps<typeof TextInput> & {
-  error?: string;
-  label: string;
-  wrapperStyle?: StyleProp<ViewStyle>;
-};
-
-function InputField({ error, label, wrapperStyle, style, ...props }: InputFieldProps) {
-  return (
-    <View style={[styles.inputWrapper, wrapperStyle]}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        placeholderTextColor={palette.subtle}
-        style={[styles.input, style]}
-        {...props}
-      />
-      <ErrorMessage message={error} />
-    </View>
-  );
-}
-
-type ErrorMessageProps = {
-  message?: string;
-};
-
-function ErrorMessage({ message }: ErrorMessageProps) {
+function FieldError({ message }: { message?: string }) {
   if (!message) {
     return null;
   }
 
-  return <Text style={styles.errorText}>{message}</Text>;
+  return <Text style={styles.fieldError}>{message}</Text>;
+}
+
+function SegmentedControl({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  options: { label: string; value: string }[];
+  value: string;
+}) {
+  return (
+    <View style={styles.segmentBlock}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.segmentRow}>
+        {options.map((option) => {
+          const active = option.value === value;
+
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              key={option.value}
+              onPress={() => onChange(option.value)}
+              style={[styles.segmentButton, active && styles.segmentButtonActive]}
+            >
+              <Text
+                style={[
+                  styles.segmentButtonText,
+                  active && styles.segmentButtonTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function localizedName(
+  row: { name_ro: string; name_de: string; name_en: string },
+  language: string
+) {
+  if (language === "de") {
+    return row.name_de;
+  }
+
+  if (language === "en") {
+    return row.name_en;
+  }
+
+  return row.name_ro;
+}
+
+function formatLocationLabel(location: {
+  city: string;
+  district: string | null;
+  postal_code: string;
+  state: string;
+}) {
+  const cityLabel = location.district
+    ? `${location.city}-${location.district}`
+    : location.city;
+
+  return `${location.postal_code} ${cityLabel}, ${location.state}`;
+}
+
+function readError(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Nu am putut salva profilul worker.";
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: palette.page,
-    flex: 1,
-  },
   content: {
-    alignSelf: "center",
-    padding: Spacing.screen,
-    paddingBottom: Spacing.eight,
-    width: "100%",
-  },
-  header: {
-    alignItems: "center",
-    alignSelf: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.three,
-    justifyContent: "space-between",
-    marginBottom: Spacing.five,
-    maxWidth: 1240,
-    width: "100%",
-  },
-  backButton: {
-    backgroundColor: palette.surface,
-    borderColor: palette.line,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.xl,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
-    elevation: 2,
-  },
-  backText: {
-    color: palette.ink,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  brandBlock: {
-    alignItems: "flex-end",
-  },
-  logo: {
-    color: palette.ink,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
-  },
-  brandSubtitle: {
-    color: palette.red,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.black,
-    marginTop: Spacing.xs,
-  },
-  hero: {
-    alignItems: "center",
-    alignSelf: "center",
-    marginBottom: Spacing.five,
-    maxWidth: 760,
-  },
-  heroBadge: {
-    backgroundColor: palette.redSoft,
-    borderRadius: Radius.round,
-    color: palette.red,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.black,
-    marginBottom: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.md,
-  },
-  title: {
-    color: palette.ink,
-    fontSize: Typography.hero,
-    fontWeight: Typography.fontWeight.black,
-    lineHeight: Typography.lineHeight.subtitleLarge,
-    marginBottom: Spacing.xl,
-    textAlign: "center",
-  },
-  subtitle: {
-    color: palette.muted,
-    fontSize: Typography.total,
-    lineHeight: 28,
-    textAlign: "center",
-  },
-  mainGrid: {
-    alignItems: "stretch",
-    alignSelf: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.three,
-    maxWidth: 1240,
-    width: "100%",
-  },
-  benefitsPanel: {
-    backgroundColor: palette.violetDark,
-    borderRadius: Radius.xxl,
-    flex: 0.75,
-    minWidth: 260,
-    padding: Spacing.five,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.12,
-    shadowRadius: 28,
-    elevation: 4,
-  },
-  panelEyebrow: {
-    color: "#E9DFFF",
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.black,
-    marginBottom: Spacing.xl,
-    textTransform: "uppercase",
-  },
-  panelTitle: {
-    color: Colors.white,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
-    lineHeight: 30,
-    marginBottom: Spacing.five,
-  },
-  benefitList: {
-    gap: Spacing.xl,
-  },
-  benefitItem: {
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderRadius: Radius.lg,
-    flexDirection: "row",
-    gap: Spacing.xl,
-    padding: Spacing.three,
-  },
-  benefitIcon: {
-    backgroundColor: palette.red,
-    borderRadius: Radius.round,
-    height: 12,
-    width: 12,
-  },
-  benefitText: {
-    color: Colors.white,
-    flex: 1,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: Typography.lineHeight.default,
-  },
-  formCard: {
-    backgroundColor: palette.surface,
-    borderColor: palette.line,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    flex: 1.3,
-    minWidth: 320,
-    padding: Spacing.five,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.08,
-    shadowRadius: 32,
-    elevation: 4,
-  },
-  progressRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    marginBottom: Spacing.five,
-  },
-  progressStep: {
-    alignItems: "center",
-    flex: 1,
     gap: Spacing.md,
+    paddingBottom: Spacing.five,
   },
-  progressCircle: {
-    alignItems: "center",
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.line,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    height: 38,
-    justifyContent: "center",
-    width: 38,
-  },
-  progressCircleActive: {
-    backgroundColor: palette.violet,
-    borderColor: palette.violet,
-  },
-  progressCircleComplete: {
-    backgroundColor: palette.green,
-    borderColor: palette.green,
-  },
-  progressCircleText: {
-    color: palette.muted,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.black,
-  },
-  progressCircleTextActive: {
-    color: Colors.white,
-  },
-  progressLabel: {
-    color: palette.muted,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-    textAlign: "center",
-  },
-  progressLabelActive: {
-    color: palette.ink,
-    fontWeight: Typography.fontWeight.black,
-  },
-  progressDivider: {
-    backgroundColor: palette.line,
-    height: 1,
-    width: 42,
-  },
-  formTitle: {
-    color: palette.ink,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
+  topBar: {
+    alignItems: "flex-start",
     marginBottom: Spacing.md,
   },
-  formDescription: {
-    color: palette.muted,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.default,
-    marginBottom: Spacing.three,
+  homeButton: {
+    backgroundColor: "#145CFF",
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
-  twoColumnFields: {
+  homeButtonText: {
+    color: Colors.white,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  twoColumn: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.three,
+    gap: Spacing.md,
   },
-  inputWrapper: {
-    flex: 1,
-    minWidth: 220,
+  fieldColumn: {
+    flexBasis: 260,
+    flexGrow: 1,
   },
-  fieldLabel: {
-    color: palette.ink,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.black,
+  autocompleteStack: {
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+    zIndex: 20,
+  },
+  autocompleteWrap: {
+    zIndex: 20,
+  },
+  label: {
+    color: Colors.text,
+    fontSize: Typography.label,
+    fontWeight: Typography.fontWeight.extraBold,
     marginBottom: Spacing.sm,
   },
-  input: {
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.line,
+  summaryInput: {
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    color: palette.ink,
+    color: Colors.text,
     fontSize: Typography.body,
-    marginBottom: Spacing.md,
-    minHeight: 50,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.xl,
+    padding: Spacing.xxl,
   },
-  errorText: {
-    color: palette.red,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.md,
+  summaryInputMultiline: {
+    minHeight: 140,
+    textAlignVertical: "top",
   },
-  phoneSection: {
-    marginBottom: Spacing.md,
+  segmentBlock: {
+    marginBottom: Spacing.xxl,
   },
-  phoneInputRow: {
-    alignItems: "flex-start",
+  segmentRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
-  },
-  countrySelectButton: {
-    alignItems: "center",
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.line,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexDirection: "row",
     gap: Spacing.sm,
-    minHeight: 50,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.xl,
   },
-  countrySelectDial: {
-    color: palette.ink,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
-  },
-  countrySelectArrow: {
-    color: palette.muted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.black,
-  },
-  phoneNumberInput: {
-    flex: 1,
-    marginBottom: Spacing.none,
-    minWidth: 220,
-  },
-  countryPicker: {
-    backgroundColor: palette.surface,
-    borderColor: palette.line,
-    borderRadius: Radius.xl,
+  segmentButton: {
+    backgroundColor: "#F4F7FB",
+    borderColor: Colors.border,
+    borderRadius: Radius.round,
     borderWidth: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    marginTop: Spacing.md,
-    padding: Spacing.md,
-  },
-  countryPickerItem: {
-    alignItems: "center",
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.line,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: Spacing.md,
-    minWidth: 170,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
-  countryPickerItemActive: {
-    backgroundColor: palette.blueSoft,
-    borderColor: palette.blue,
+  segmentButtonActive: {
+    backgroundColor: "#EAF1FF",
+    borderColor: "#145CFF",
   },
-  countryPickerName: {
-    color: palette.ink,
-    flex: 1,
+  segmentButtonText: {
+    color: Colors.textBody,
     fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  countryPickerNameActive: {
-    color: palette.blue,
-  },
-  countryPickerDial: {
-    color: palette.muted,
-    fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
   },
-  countryPickerDialActive: {
-    color: palette.blue,
+  segmentButtonTextActive: {
+    color: "#145CFF",
   },
-  primaryButton: {
-    alignItems: "center",
-    backgroundColor: palette.red,
-    borderRadius: Radius.lg,
-    marginTop: Spacing.xl,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.xxl,
+  fieldError: {
+    color: Colors.danger,
+    fontSize: Typography.small,
+    fontWeight: Typography.fontWeight.bold,
+    marginBottom: Spacing.md,
+    marginTop: -Spacing.lg,
   },
-  primaryButtonText: {
-    color: Colors.white,
-    fontSize: Typography.label,
-    fontWeight: Typography.fontWeight.black,
-    textAlign: "center",
-  },
-  methodGrid: {
-    gap: Spacing.xl,
-  },
-  methodCard: {
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.line,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    padding: Spacing.three,
-  },
-  methodCardActive: {
-    backgroundColor: palette.violetSoft,
-    borderColor: palette.violet,
-  },
-  methodTitle: {
-    color: palette.ink,
-    fontSize: Typography.total,
-    fontWeight: Typography.fontWeight.black,
-    marginBottom: Spacing.xs,
-  },
-  methodTitleActive: {
-    color: palette.violet,
-  },
-  methodText: {
-    color: palette.muted,
+  errorText: {
+    color: Colors.danger,
     fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.default,
+    fontWeight: Typography.fontWeight.bold,
   },
-  successPanel: {
-    backgroundColor: palette.surface,
-    borderColor: "#BDEEDB",
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    marginTop: Spacing.three,
-    padding: Spacing.three,
-  },
-  successText: {
-    color: palette.green,
+  mutedText: {
+    color: Colors.textSecondary,
     fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: Typography.lineHeight.default,
-    marginBottom: Spacing.xl,
-  },
-  resendText: {
-    color: palette.green,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.xl,
-  },
-  unavailablePanel: {
-    backgroundColor: palette.blueSoft,
-    borderColor: palette.blue,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    marginTop: Spacing.three,
-    padding: Spacing.three,
-  },
-  unavailableText: {
-    color: palette.ink,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: Typography.lineHeight.default,
-    marginBottom: Spacing.xl,
-  },
-  actionStack: {
-    gap: Spacing.xl,
-  },
-  secondaryButton: {
-    alignItems: "center",
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.green,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.xxl,
-  },
-  secondaryButtonText: {
-    color: palette.green,
-    fontSize: Typography.label,
-    fontWeight: Typography.fontWeight.black,
-    textAlign: "center",
-  },
-  mascotPanel: {
-    backgroundColor: palette.surface,
-    borderColor: palette.line,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    flex: 0.75,
-    minWidth: 260,
-    padding: Spacing.five,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    elevation: 3,
-  },
-  mascotBox: {
-    alignItems: "center",
-    backgroundColor: palette.redSoft,
-    borderColor: "#FFC9D5",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    justifyContent: "center",
-    marginBottom: Spacing.five,
-    minHeight: 150,
-    padding: Spacing.three,
-  },
-  mascotText: {
-    color: palette.red,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
-    textAlign: "center",
-  },
-  mascotTitle: {
-    color: palette.ink,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
-    lineHeight: 30,
-    marginBottom: Spacing.xl,
-  },
-  mascotBody: {
-    color: palette.muted,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.default,
-  },
-  trustGrid: {
-    alignSelf: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.three,
-    marginTop: Spacing.three,
-    maxWidth: 1240,
-    width: "100%",
-  },
-  trustCard: {
-    alignItems: "center",
-    backgroundColor: palette.surface,
-    borderColor: palette.line,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: "row",
-    gap: Spacing.xl,
-    minWidth: 220,
-    padding: Spacing.three,
-  },
-  trustDot: {
-    backgroundColor: palette.violet,
-    borderRadius: Radius.round,
-    height: 12,
-    width: 12,
-  },
-  trustText: {
-    color: palette.ink,
-    flex: 1,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
   },
 });

@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "locations:import:de:dry": "node --experimental-strip-types scripts/import-germany-locations.ts --dry-run",
+    "locations:import:de": "node --experimental-strip-types scripts/import-germany-locations.ts"
+  }
+}

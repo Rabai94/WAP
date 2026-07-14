@@ -1,21 +1,32 @@
+import HeroAutocompleteField, {
+  type HeroAutocompleteOption,
+} from "@/components/home/HeroAutocompleteField";
 import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
 import { Screen } from "@/components/ui";
 import type { AuthRole } from "@/domain/auth/auth.types";
 import { getLanguageNationalIdentity } from "@/domain/nationality/nationalities";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { LanguageCode, languages } from "@/i18n/translations";
+import {
+  searchLocationSuggestions,
+  searchOccupationSuggestions,
+  type LocationSuggestion,
+  type OccupationSuggestion,
+} from "@/services/search/heroAutocomplete";
 import { Radius, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+    AccessibilityInfo,
     Image,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     useWindowDimensions,
     View,
+    type ViewStyle,
 } from "react-native";
 
 type NavKey = "home" | "jobs" | "companies" | "courses" | "freelancers";
@@ -27,6 +38,13 @@ type EcosystemNodeKey =
   | "companies"
   | "freelancers";
 type PreviewRole = Exclude<AuthRole, "admin">;
+type AutocompleteTarget = "occupation" | "location" | null;
+type OccupationAutocompleteOption = HeroAutocompleteOption & {
+  suggestion: OccupationSuggestion;
+};
+type LocationAutocompleteOption = HeroAutocompleteOption & {
+  suggestion: LocationSuggestion;
+};
 
 type HomeCopy = {
   nav: Record<NavKey, string>;
@@ -391,11 +409,11 @@ const navItems: { key: NavKey; enabled: boolean; route?: string }[] = [
   { key: "freelancers", enabled: false },
 ];
 
-const searchTabs: { key: SearchTabKey; enabled: boolean }[] = [
-  { key: "jobs", enabled: true },
-  { key: "companies", enabled: false },
-  { key: "courses", enabled: false },
-  { key: "freelancers", enabled: false },
+const searchTabs: { key: SearchTabKey }[] = [
+  { key: "jobs" },
+  { key: "companies" },
+  { key: "courses" },
+  { key: "freelancers" },
 ];
 
 const supportItems = [
@@ -433,7 +451,158 @@ const layout = {
   contentMaxWidth: 1200,
 } as const;
 
-const heroCoverImage = require("../../assets/hero/rabai-hero-cover-it.png.png");
+const searchRoutes: Record<SearchTabKey, string> = {
+  jobs: "/jobs",
+  companies: "/companies",
+  courses: "/courses",
+  freelancers: "/freelancers",
+};
+
+const searchModeCopy = {
+  ro: {
+    jobs: {
+      whatPlaceholder: "ex: lucrător depozit",
+      locationPlaceholder: "ex: München",
+      button: "Caută joburi",
+    },
+    companies: {
+      whatPlaceholder: "ex: Amazon",
+      locationPlaceholder: "ex: Augsburg",
+      button: "Caută firme",
+    },
+    courses: {
+      whatPlaceholder: "ex: limba germană",
+      locationPlaceholder: "ex: online sau München",
+      button: "Caută cursuri",
+    },
+    freelancers: {
+      whatPlaceholder: "ex: electrician",
+      locationPlaceholder: "ex: Augsburg",
+      button: "Caută freelanceri",
+    },
+  },
+  en: {
+    jobs: {
+      whatPlaceholder: "ex: warehouse worker",
+      locationPlaceholder: "ex: Munich",
+      button: "Search jobs",
+    },
+    companies: {
+      whatPlaceholder: "ex: Amazon",
+      locationPlaceholder: "ex: Augsburg",
+      button: "Search companies",
+    },
+    courses: {
+      whatPlaceholder: "ex: German language",
+      locationPlaceholder: "ex: online or Munich",
+      button: "Search courses",
+    },
+    freelancers: {
+      whatPlaceholder: "ex: electrician",
+      locationPlaceholder: "ex: Augsburg",
+      button: "Search freelancers",
+    },
+  },
+  de: {
+    jobs: {
+      whatPlaceholder: "z. B. Lagerarbeiter",
+      locationPlaceholder: "z. B. München",
+      button: "Jobs suchen",
+    },
+    companies: {
+      whatPlaceholder: "z. B. Amazon",
+      locationPlaceholder: "z. B. Augsburg",
+      button: "Firmen suchen",
+    },
+    courses: {
+      whatPlaceholder: "z. B. Deutschkurs",
+      locationPlaceholder: "z. B. online oder München",
+      button: "Kurse suchen",
+    },
+    freelancers: {
+      whatPlaceholder: "z. B. Elektriker",
+      locationPlaceholder: "z. B. Augsburg",
+      button: "Freelancer suchen",
+    },
+  },
+} satisfies Record<
+  LanguageCode,
+  Record<
+    SearchTabKey,
+    {
+      whatPlaceholder: string;
+      locationPlaceholder: string;
+      button: string;
+    }
+  >
+>;
+
+const heroCoverImage = require("../../assets/hero/rabai-home-hero-background-v001.png");
+const heroBackgroundWebStyle =
+  Platform.OS === "web"
+    ? ({
+        backgroundImage:
+          "radial-gradient(circle at 45% 46%, rgba(6,10,25,0.84) 0%, rgba(6,10,25,0.70) 32%, rgba(6,10,25,0.38) 66%, rgba(6,10,25,0.20) 100%), linear-gradient(90deg, rgba(6,10,25,0.82) 0%, rgba(6,10,25,0.66) 42%, rgba(6,10,25,0.34) 78%, rgba(6,10,25,0.24) 100%), url('/images/rabai-home-hero-background-v001.png')",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "cover",
+      } as unknown as ViewStyle)
+    : null;
+const pageBackgroundWebStyle =
+  Platform.OS === "web"
+    ? ({
+        backgroundColor: palette.page,
+        backgroundImage:
+          "radial-gradient(circle at 12% 18%, rgba(20,92,255,0.075) 0%, rgba(20,92,255,0.035) 18%, rgba(20,92,255,0) 34%), radial-gradient(circle at 86% 30%, rgba(110,29,255,0.068) 0%, rgba(110,29,255,0.032) 16%, rgba(110,29,255,0) 32%), radial-gradient(circle at 52% 92%, rgba(24,199,223,0.055) 0%, rgba(24,199,223,0.026) 18%, rgba(24,199,223,0) 38%)",
+        backgroundRepeat: "no-repeat",
+      } as unknown as ViewStyle)
+    : null;
+const glassPanelWebStyle =
+  Platform.OS === "web"
+    ? ({
+        WebkitBackdropFilter: "blur(14px)",
+        backdropFilter: "blur(14px)",
+        boxShadow:
+          "0 26px 70px rgba(25, 35, 95, 0.16), 0 0 42px rgba(110, 29, 255, 0.10)",
+      } as unknown as ViewStyle)
+    : null;
+const searchButtonWebStyle =
+  Platform.OS === "web"
+    ? ({
+        backgroundImage: "linear-gradient(135deg, #145CFF 0%, #5D37EA 100%)",
+        boxShadow:
+          "0 16px 30px rgba(20, 92, 255, 0.24), 0 0 26px rgba(110, 29, 255, 0.16)",
+      } as unknown as ViewStyle)
+    : null;
+const searchButtonHoverWebStyle =
+  Platform.OS === "web"
+    ? ({
+        boxShadow:
+          "0 18px 34px rgba(20, 92, 255, 0.28), 0 0 30px rgba(110, 29, 255, 0.18)",
+      } as unknown as ViewStyle)
+    : null;
+const focusRingWebStyle =
+  Platform.OS === "web"
+    ? ({
+        outlineColor: "rgba(24, 199, 223, 0.82)",
+        outlineOffset: 3,
+        outlineStyle: "solid",
+        outlineWidth: 2,
+      } as unknown as ViewStyle)
+    : null;
+const categoryGlassWebStyle =
+  Platform.OS === "web"
+    ? ({
+        WebkitBackdropFilter: "blur(10px)",
+        backdropFilter: "blur(10px)",
+      } as unknown as ViewStyle)
+    : null;
+
+type WebPressableState = {
+  focused?: boolean;
+  hovered?: boolean;
+  pressed?: boolean;
+};
 
 type RabaiHomePageProps = {
   authState: "public" | "authenticated";
@@ -454,20 +623,146 @@ export default function RabaiHomePage({
   const router = useRouter();
   const { language, setLanguage, t } = useLanguage();
   const { width } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState<SearchTabKey>("jobs");
+  const [activeCategory, setActiveCategory] = useState<SearchTabKey>("jobs");
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
-  const [category, setCategory] = useState("");
+  const [selectedOccupation, setSelectedOccupation] =
+    useState<OccupationSuggestion | null>(null);
+  const [selectedLocation, setSelectedLocation] =
+    useState<LocationSuggestion | null>(null);
+  const [occupationSuggestions, setOccupationSuggestions] = useState<
+    OccupationSuggestion[]
+  >([]);
+  const [locationSuggestions, setLocationSuggestions] = useState<
+    LocationSuggestion[]
+  >([]);
+  const [occupationLoading, setOccupationLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [occupationError, setOccupationError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [openAutocomplete, setOpenAutocomplete] =
+    useState<AutocompleteTarget>(null);
+  const [occupationActiveIndex, setOccupationActiveIndex] = useState(-1);
+  const [locationActiveIndex, setLocationActiveIndex] = useState(-1);
   const [previewRole, setPreviewRole] = useState<PreviewRole>("worker");
+  const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
+  const occupationRequestId = useRef(0);
+  const locationRequestId = useRef(0);
 
   const isCompact = width < 860;
   const isPhone = width < 620;
   const copy = copyByLanguage[language];
-  const activeSearchEnabled = activeTab === "jobs";
+  const activeSearchModeCopy = searchModeCopy[language][activeCategory];
   const isAuthenticated = authState === "authenticated";
   const isAdmin = user?.isAdmin === true;
   const effectivePreviewRole: PreviewRole =
     isAdmin ? previewRole : user?.role && user.role !== "admin" ? user.role : "worker";
+
+  useEffect(() => {
+    let mounted = true;
+
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (mounted) {
+        setReduceMotionEnabled(enabled);
+      }
+    });
+
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      setReduceMotionEnabled
+    );
+
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const trimmedQuery = query.trim();
+    occupationRequestId.current += 1;
+    const requestId = occupationRequestId.current;
+
+    if (activeCategory !== "jobs" || trimmedQuery.length < 2) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setOccupationLoading(true);
+      setOccupationError(null);
+
+      searchOccupationSuggestions(trimmedQuery, language, 8)
+        .then((suggestions) => {
+          if (occupationRequestId.current !== requestId) {
+            return;
+          }
+
+          setOccupationSuggestions(suggestions);
+          setOccupationActiveIndex(suggestions.length > 0 ? 0 : -1);
+        })
+        .catch(() => {
+          if (occupationRequestId.current !== requestId) {
+            return;
+          }
+
+          setOccupationSuggestions([]);
+          setOccupationActiveIndex(-1);
+          setOccupationError("Nu am putut incarca ocupatiile.");
+        })
+        .finally(() => {
+          if (occupationRequestId.current === requestId) {
+            setOccupationLoading(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [activeCategory, language, query]);
+
+  useEffect(() => {
+    const trimmedLocation = location.trim();
+    locationRequestId.current += 1;
+    const requestId = locationRequestId.current;
+
+    if (trimmedLocation.length < 2) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setLocationLoading(true);
+      setLocationError(null);
+
+      searchLocationSuggestions(trimmedLocation, 10)
+        .then((suggestions) => {
+          if (locationRequestId.current !== requestId) {
+            return;
+          }
+
+          setLocationSuggestions(suggestions);
+          setLocationActiveIndex(suggestions.length > 0 ? 0 : -1);
+        })
+        .catch(() => {
+          if (locationRequestId.current !== requestId) {
+            return;
+          }
+
+          setLocationSuggestions([]);
+          setLocationActiveIndex(-1);
+          setLocationError("Nu am putut incarca locatiile.");
+        })
+        .finally(() => {
+          if (locationRequestId.current === requestId) {
+            setLocationLoading(false);
+          }
+        });
+    }, 300);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [location]);
 
   const heroTitle = useMemo(
     () => (
@@ -478,6 +773,27 @@ export default function RabaiHomePage({
       </>
     ),
     [copy.hero.title, copy.hero.titleAccent, copy.hero.titleEnd]
+  );
+
+  const occupationOptions = useMemo<OccupationAutocompleteOption[]>(
+    () =>
+      occupationSuggestions.map((suggestion) => ({
+        id: suggestion.id,
+        suggestion,
+        subtitle: suggestion.categoryLabel,
+        title: suggestion.label,
+      })),
+    [occupationSuggestions]
+  );
+
+  const locationOptions = useMemo<LocationAutocompleteOption[]>(
+    () =>
+      locationSuggestions.map((suggestion) => ({
+        id: suggestion.id,
+        suggestion,
+        title: suggestion.label,
+      })),
+    [locationSuggestions]
   );
 
   const roleHighlights = useMemo(() => {
@@ -607,9 +923,120 @@ export default function RabaiHomePage({
     router.push(route as never);
   }
 
+  function handleQueryChange(text: string) {
+    setQuery(text);
+
+    if (selectedOccupation && text !== selectedOccupation.label) {
+      setSelectedOccupation(null);
+    }
+
+    if (activeCategory !== "jobs" || text.trim().length < 2) {
+      occupationRequestId.current += 1;
+      setOccupationSuggestions([]);
+      setOccupationLoading(false);
+      setOccupationError(null);
+      setOccupationActiveIndex(-1);
+    } else {
+      setOccupationError(null);
+      setOpenAutocomplete("occupation");
+    }
+  }
+
+  function handleLocationChange(text: string) {
+    setLocation(text);
+
+    if (selectedLocation && text !== selectedLocation.label) {
+      setSelectedLocation(null);
+    }
+
+    if (text.trim().length < 2) {
+      locationRequestId.current += 1;
+      setLocationSuggestions([]);
+      setLocationLoading(false);
+      setLocationError(null);
+      setLocationActiveIndex(-1);
+    } else {
+      setLocationError(null);
+      setOpenAutocomplete("location");
+    }
+  }
+
+  function selectOccupationSuggestion(suggestion: OccupationSuggestion) {
+    setSelectedOccupation(suggestion);
+    setQuery(suggestion.label);
+    setOpenAutocomplete(null);
+    setOccupationActiveIndex(-1);
+  }
+
+  function selectLocationSuggestion(suggestion: LocationSuggestion) {
+    setSelectedLocation(suggestion);
+    setLocation(suggestion.label);
+    setOpenAutocomplete(null);
+    setLocationActiveIndex(-1);
+  }
+
+  function closeAutocomplete() {
+    setOpenAutocomplete(null);
+  }
+
   function submitSearch() {
-    if (activeSearchEnabled) {
-      router.push("/jobs" as never);
+    const params: [string, string][] = [];
+    const trimmedQuery = query.trim();
+    const trimmedLocation = location.trim();
+
+    function addParam(key: string, value?: string | number | null) {
+      if (value === null || value === undefined) {
+        return;
+      }
+
+      const normalizedValue = String(value).trim();
+
+      if (normalizedValue.length > 0) {
+        params.push([key, normalizedValue]);
+      }
+    }
+
+    if (activeCategory === "jobs") {
+      if (selectedOccupation) {
+        addParam("occupation", selectedOccupation.slug);
+        addParam("occupationId", selectedOccupation.id);
+      } else {
+        addParam("occupation", trimmedQuery);
+      }
+
+      if (selectedLocation) {
+        addParam("location", selectedLocation.label);
+        addParam("locationId", selectedLocation.id);
+        addParam("lat", selectedLocation.latitude);
+        addParam("lng", selectedLocation.longitude);
+      } else {
+        addParam("location", trimmedLocation);
+      }
+    } else {
+      addParam("search", trimmedQuery);
+      addParam("location", selectedLocation?.label ?? trimmedLocation);
+    }
+
+    const queryString = params
+      .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+      .join("&");
+    const searchRoute = `${searchRoutes[activeCategory]}${
+      queryString ? `?${queryString}` : ""
+    }`;
+
+    router.push(searchRoute as never);
+  }
+
+  function selectSearchCategory(categoryKey: SearchTabKey) {
+    if (categoryKey !== activeCategory) {
+      setActiveCategory(categoryKey);
+      setOpenAutocomplete(null);
+
+      if (categoryKey !== "jobs") {
+        setSelectedOccupation(null);
+        setOccupationSuggestions([]);
+        setOccupationActiveIndex(-1);
+      }
     }
   }
 
@@ -623,7 +1050,7 @@ export default function RabaiHomePage({
   }
 
   return (
-    <Screen centered={false} style={styles.screen}>
+    <Screen centered={false} style={[styles.screen, pageBackgroundWebStyle]}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -784,23 +1211,110 @@ export default function RabaiHomePage({
           </View>
         ) : null}
 
-        <View style={[styles.hero, isCompact && styles.heroCompact]}>
-          <Image
-            resizeMode="cover"
-            source={heroCoverImage}
-            style={styles.heroCoverImage}
-          />
-          <View style={styles.heroCoverOverlay} />
+        <View
+          style={[
+            styles.hero,
+            isCompact && styles.heroCompact,
+            isPhone && styles.heroPhone,
+            heroBackgroundWebStyle,
+          ]}
+        >
+          {Platform.OS !== "web" ? (
+            <View style={styles.heroBackgroundClip}>
+              <Image
+                resizeMode="cover"
+                source={heroCoverImage}
+                style={styles.heroCoverImage}
+              />
+              <View style={styles.heroCoverOverlay} />
+              <View style={styles.heroLeftOverlay} />
+              <View style={styles.heroCenterOverlay} />
+            </View>
+          ) : null}
 
-          <View style={[styles.heroCenter, isCompact && styles.heroCenterCompact]}>
-            <Text style={styles.heroEyebrow}>{copy.hero.ecosystem}</Text>
-            <Text style={[styles.heroTitle, isPhone && styles.heroTitlePhone]}>
-              {heroTitle}
-            </Text>
-            <Text style={[styles.heroSubtitle, isPhone && styles.heroSubtitlePhone]}>
-              {copy.hero.subtitle}
-            </Text>
+          <View
+            style={[
+              styles.heroContent,
+              isCompact && styles.heroContentCompact,
+              isPhone && styles.heroContentPhone,
+            ]}
+          >
+            <View style={styles.heroTextBlock}>
+              <Text style={styles.heroEyebrow}>{copy.hero.ecosystem}</Text>
+              <Text
+                style={[
+                  styles.heroTitle,
+                  isCompact && styles.heroTitleCompact,
+                  isPhone && styles.heroTitlePhone,
+                ]}
+              >
+                {heroTitle}
+              </Text>
+              <Text style={[styles.heroSubtitle, isPhone && styles.heroSubtitlePhone]}>
+                {copy.hero.subtitle}
+              </Text>
+            </View>
+
+            <HeroSearchControls
+              activeCategory={activeCategory}
+              copy={copy}
+              isCompact={isCompact}
+              isPhone={isPhone}
+              location={location}
+              locationActiveIndex={locationActiveIndex}
+              locationError={locationError}
+              locationLoading={locationLoading}
+              locationOptions={locationOptions}
+              onAutocompleteClose={closeAutocomplete}
+              onLocationActiveIndexChange={setLocationActiveIndex}
+              onLocationChange={handleLocationChange}
+              onLocationFocus={() => {
+                setOpenAutocomplete("location");
+              }}
+              onLocationSelect={(option) => {
+                selectLocationSuggestion(option.suggestion);
+              }}
+              onOccupationActiveIndexChange={setOccupationActiveIndex}
+              onOccupationFocus={() => {
+                if (activeCategory === "jobs") {
+                  setOpenAutocomplete("occupation");
+                }
+              }}
+              onOccupationSelect={(option) => {
+                selectOccupationSuggestion(option.suggestion);
+              }}
+              onQueryChange={handleQueryChange}
+              onSubmit={submitSearch}
+              onTabChange={selectSearchCategory}
+              openAutocomplete={openAutocomplete}
+              occupationActiveIndex={occupationActiveIndex}
+              occupationError={occupationError}
+              occupationLoading={occupationLoading}
+              occupationOptions={occupationOptions}
+              query={query}
+              reduceMotionEnabled={reduceMotionEnabled}
+              searchMode={activeSearchModeCopy}
+            />
           </View>
+        </View>
+
+        <View style={[styles.sectionsGrid, isCompact && styles.sectionsGridCompact]}>
+          <PublicSectionCard
+            actionDisabled={false}
+            actionLabel={copy.sections.viewJobs}
+            emptyText={copy.sections.jobsEmpty}
+            onAction={() => {
+              navigate("/jobs");
+            }}
+            title={copy.sections.jobsTitle}
+          />
+          <PublicSectionCard
+            actionDisabled
+            actionLabel={copy.sections.viewCourses}
+            disabledLabel={copy.auth.soon}
+            emptyText={copy.sections.coursesEmpty}
+            title={copy.sections.coursesTitle}
+          />
         </View>
 
         {isAuthenticated ? (
@@ -856,105 +1370,18 @@ export default function RabaiHomePage({
           </View>
         ) : null}
 
-        <View style={[styles.searchCard, isCompact && styles.searchCardCompact]}>
-          <View style={styles.tabs}>
-            {searchTabs.map((tab) => {
-              const active = activeTab === tab.key;
-
-              return (
-                <Pressable
-                  accessibilityRole="tab"
-                  accessibilityState={{
-                    selected: active,
-                    disabled: !tab.enabled,
-                  }}
-                  disabled={!tab.enabled}
-                  key={tab.key}
-                  onPress={() => {
-                    setActiveTab(tab.key);
-                  }}
-                  style={[
-                    styles.tab,
-                    active && styles.tabActive,
-                    !tab.enabled && styles.tabDisabled,
-                  ]}
-                >
-                  <Text numberOfLines={1} style={[styles.tabText, active && styles.tabTextActive]}>
-                    {copy.search.tabs[tab.key]}
-                  </Text>
-                  {!tab.enabled ? (
-                    <Text numberOfLines={1} style={styles.tabSoon}>
-                      {copy.auth.soon}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <View style={[styles.searchFields, isCompact && styles.searchFieldsCompact]}>
-            <SearchField
-              label={copy.search.what}
-              onChangeText={setQuery}
-              placeholder={copy.search.whatPlaceholder}
-              value={query}
-            />
-            <SearchField
-              label={copy.search.location}
-              onChangeText={setLocation}
-              placeholder={copy.search.locationPlaceholder}
-              value={location}
-            />
-            <SearchField
-              label={copy.search.category}
-              onChangeText={setCategory}
-              placeholder={copy.search.categoryPlaceholder}
-              value={category}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !activeSearchEnabled }}
-              disabled={!activeSearchEnabled}
-              onPress={submitSearch}
-              style={[
-                styles.searchButton,
-                !activeSearchEnabled && styles.searchButtonDisabled,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.searchButtonText,
-                  !activeSearchEnabled && styles.searchButtonTextDisabled,
-                ]}
-              >
-                {copy.search.button}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={[styles.sectionsGrid, isCompact && styles.sectionsGridCompact]}>
-          <PublicSectionCard
-            actionDisabled={false}
-            actionLabel={copy.sections.viewJobs}
-            emptyText={copy.sections.jobsEmpty}
-            onAction={() => {
-              navigate("/jobs");
-            }}
-            title={copy.sections.jobsTitle}
-          />
-          <PublicSectionCard
-            actionDisabled
-            actionLabel={copy.sections.viewCourses}
-            disabledLabel={copy.auth.soon}
-            emptyText={copy.sections.coursesEmpty}
-            title={copy.sections.coursesTitle}
-          />
-        </View>
-
         <View style={styles.supportStrip}>
           {supportItems.map((item) => (
-            <View key={item.key} style={styles.supportItem}>
+            <View
+              key={item.key}
+              style={[
+                styles.supportItem,
+                item.tone === "blue" && styles.supportItemBlue,
+                item.tone === "violet" && styles.supportItemViolet,
+                item.tone === "cyan" && styles.supportItemCyan,
+                item.tone === "rose" && styles.supportItemRose,
+              ]}
+            >
               <View
                 style={[
                   styles.supportIcon,
@@ -978,28 +1405,190 @@ export default function RabaiHomePage({
   );
 }
 
-function SearchField({
-  label,
-  onChangeText,
-  placeholder,
-  value,
+function HeroSearchControls({
+  activeCategory,
+  copy,
+  isCompact,
+  isPhone,
+  location,
+  locationActiveIndex,
+  locationError,
+  locationLoading,
+  locationOptions,
+  occupationActiveIndex,
+  occupationError,
+  occupationLoading,
+  occupationOptions,
+  onAutocompleteClose,
+  onLocationActiveIndexChange,
+  onLocationChange,
+  onLocationFocus,
+  onLocationSelect,
+  onOccupationActiveIndexChange,
+  onOccupationFocus,
+  onOccupationSelect,
+  onQueryChange,
+  onSubmit,
+  onTabChange,
+  openAutocomplete,
+  query,
+  reduceMotionEnabled,
+  searchMode,
 }: {
-  label: string;
-  onChangeText: (text: string) => void;
-  placeholder: string;
-  value: string;
+  activeCategory: SearchTabKey;
+  copy: HomeCopy;
+  isCompact: boolean;
+  isPhone: boolean;
+  location: string;
+  locationActiveIndex: number;
+  locationError: string | null;
+  locationLoading: boolean;
+  locationOptions: LocationAutocompleteOption[];
+  occupationActiveIndex: number;
+  occupationError: string | null;
+  occupationLoading: boolean;
+  occupationOptions: OccupationAutocompleteOption[];
+  onAutocompleteClose: () => void;
+  onLocationActiveIndexChange: (index: number) => void;
+  onLocationChange: (text: string) => void;
+  onLocationFocus: () => void;
+  onLocationSelect: (option: LocationAutocompleteOption) => void;
+  onOccupationActiveIndexChange: (index: number) => void;
+  onOccupationFocus: () => void;
+  onOccupationSelect: (option: OccupationAutocompleteOption) => void;
+  onQueryChange: (text: string) => void;
+  onSubmit: () => void;
+  onTabChange: (tab: SearchTabKey) => void;
+  openAutocomplete: AutocompleteTarget;
+  query: string;
+  reduceMotionEnabled: boolean;
+  searchMode: {
+    whatPlaceholder: string;
+    locationPlaceholder: string;
+    button: string;
+  };
 }) {
   return (
-    <View style={styles.searchField}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        autoCapitalize="none"
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={palette.faint}
-        style={styles.input}
-        value={value}
-      />
+    <View style={[styles.heroSearchPanel, isPhone && styles.heroSearchPanelPhone]}>
+      <View
+        style={[
+          styles.heroSearchFields,
+          glassPanelWebStyle,
+          isCompact && styles.heroSearchFieldsCompact,
+          isPhone && styles.heroSearchFieldsPhone,
+        ]}
+      >
+        <HeroAutocompleteField
+          activeIndex={occupationActiveIndex}
+          emptyMessage="Nu am gasit rezultate"
+          errorMessage={occupationError}
+          fieldId="hero-occupation-search"
+          isOpen={
+            activeCategory === "jobs" &&
+            openAutocomplete === "occupation" &&
+            query.trim().length >= 2
+          }
+          label={copy.search.what}
+          loading={occupationLoading}
+          onActiveIndexChange={onOccupationActiveIndexChange}
+          onChangeText={onQueryChange}
+          onFocus={onOccupationFocus}
+          onRequestClose={onAutocompleteClose}
+          onSelect={onOccupationSelect}
+          placeholder={searchMode.whatPlaceholder}
+          queryText={query}
+          suggestions={activeCategory === "jobs" ? occupationOptions : []}
+          value={query}
+        />
+        <HeroAutocompleteField
+          activeIndex={locationActiveIndex}
+          emptyMessage="Nu am gasit rezultate"
+          errorMessage={locationError}
+          fieldId="hero-location-search"
+          isOpen={openAutocomplete === "location" && location.trim().length >= 2}
+          label={copy.search.location}
+          loading={locationLoading}
+          onActiveIndexChange={onLocationActiveIndexChange}
+          onChangeText={onLocationChange}
+          onFocus={onLocationFocus}
+          onRequestClose={onAutocompleteClose}
+          onSelect={onLocationSelect}
+          placeholder={searchMode.locationPlaceholder}
+          queryText={location}
+          suggestions={locationOptions}
+          value={location}
+        />
+        <Pressable
+          accessibilityRole="button"
+          onPress={onSubmit}
+          style={(state) => {
+            const webState = state as WebPressableState;
+
+            return [
+              styles.searchButton,
+              styles.heroSearchButton,
+              searchButtonWebStyle,
+              isPhone && styles.heroSearchButtonPhone,
+              !reduceMotionEnabled &&
+                webState.hovered &&
+                styles.heroSearchButtonHover,
+              webState.hovered && searchButtonHoverWebStyle,
+              webState.focused && styles.heroSearchButtonFocus,
+              webState.focused && focusRingWebStyle,
+              webState.pressed && styles.heroSearchButtonPressed,
+            ];
+          }}
+        >
+          <Text style={styles.searchButtonText}>{searchMode.button}</Text>
+        </Pressable>
+      </View>
+
+      <View style={[styles.heroCategories, isPhone && styles.heroCategoriesPhone]}>
+        {searchTabs.map((tab) => {
+          const active = activeCategory === tab.key;
+
+          return (
+            <Pressable
+              aria-selected={active}
+              accessibilityRole="tab"
+              accessibilityState={{
+                selected: active,
+              }}
+              focusable
+              key={tab.key}
+              onPress={() => {
+                onTabChange(tab.key);
+              }}
+              style={(state) => {
+                const webState = state as WebPressableState;
+
+                return [
+                  styles.heroCategory,
+                  categoryGlassWebStyle,
+                  isPhone && styles.heroCategoryPhone,
+                  active && styles.heroCategoryActive,
+                  webState.hovered && styles.heroCategoryHover,
+                  !reduceMotionEnabled &&
+                    webState.hovered &&
+                    styles.heroCategoryHoverLift,
+                  webState.focused && styles.heroCategoryFocus,
+                  webState.focused && focusRingWebStyle,
+                ];
+              }}
+            >
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.heroCategoryText,
+                  active && styles.heroCategoryTextActive,
+                ]}
+              >
+                {copy.search.tabs[tab.key]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -1255,57 +1844,107 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignSelf: "center",
-    borderRadius: Radius.xxl,
-    height: 360,
+    borderRadius: 28,
     marginTop: Spacing.four,
     maxWidth: layout.contentMaxWidth,
-    overflow: "hidden",
+    minHeight: 680,
+    overflow: "visible",
     position: "relative",
     width: "100%",
   },
   heroCompact: {
-    height: 310,
+    minHeight: 620,
+  },
+  heroPhone: {
+    minHeight: 690,
+  },
+  heroBackgroundClip: {
+    bottom: 0,
+    borderRadius: 28,
+    left: 0,
+    overflow: "hidden",
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
   heroCoverImage: {
-    height: "100%",
+    bottom: 0,
+    left: 0,
     position: "absolute",
-    width: "100%",
+    right: 0,
+    top: 0,
   },
   heroCoverOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(4, 12, 34, 0.52)",
+    backgroundColor: "rgba(6, 10, 25, 0.34)",
   },
-  heroCenter: {
-    alignItems: "flex-start",
+  heroLeftOverlay: {
+    backgroundColor: "rgba(6, 10, 25, 0.36)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    top: 0,
+    width: "62%",
+  },
+  heroCenterOverlay: {
+    backgroundColor: "rgba(6, 10, 25, 0.32)",
+    borderRadius: 420,
+    height: 760,
+    left: "12%",
+    position: "absolute",
+    top: -34,
+    width: 840,
+  },
+  heroContent: {
+    alignItems: "center",
     alignSelf: "stretch",
     flex: 1,
     justifyContent: "center",
+    minHeight: 680,
     paddingHorizontal: Spacing.eight,
-    paddingVertical: Spacing.four,
+    paddingVertical: 72,
     zIndex: 1,
   },
-  heroCenterCompact: {
+  heroContentCompact: {
+    minHeight: 620,
     paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.eight,
+  },
+  heroContentPhone: {
+    minHeight: 690,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.four,
+  },
+  heroTextBlock: {
+    alignItems: "center",
+    maxWidth: 900,
+    width: "100%",
   },
   heroEyebrow: {
     color: palette.surfaceSoft,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
     letterSpacing: 1.5,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.lg,
+    textAlign: "center",
     textTransform: "uppercase",
   },
   heroTitle: {
     color: palette.surface,
-    fontSize: 44,
+    fontSize: 64,
     fontWeight: Typography.fontWeight.black,
-    letterSpacing: -0.6,
-    lineHeight: 48,
-    maxWidth: 760,
+    letterSpacing: 0,
+    lineHeight: 72,
+    maxWidth: 900,
+    textAlign: "center",
+  },
+  heroTitleCompact: {
+    fontSize: 52,
+    lineHeight: 58,
   },
   heroTitlePhone: {
-    fontSize: 32,
-    lineHeight: 36,
+    fontSize: 36,
+    lineHeight: 42,
   },
   heroTitleAccent: {
     color: palette.cyan,
@@ -1315,8 +1954,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.medium,
     lineHeight: 28,
-    marginTop: Spacing.lg,
-    maxWidth: 680,
+    marginTop: Spacing.three,
+    maxWidth: 720,
+    textAlign: "center",
   },
   heroSubtitlePhone: {
     fontSize: Typography.body,
@@ -1481,6 +2121,137 @@ const styles = StyleSheet.create({
   roleCardButtonTextDisabled: {
     color: palette.text,
   },
+  heroSearchPanel: {
+    alignItems: "center",
+    marginTop: 34,
+    maxWidth: 1000,
+    overflow: "visible",
+    width: "100%",
+    zIndex: 20,
+  },
+  heroSearchPanelPhone: {
+    marginTop: Spacing.screen,
+  },
+  heroSearchFields: {
+    alignItems: "flex-end",
+    backgroundColor: "rgba(255, 255, 255, 0.80)",
+    borderColor: "rgba(118, 111, 255, 0.28)",
+    borderRadius: 22,
+    borderWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    padding: Spacing.md,
+    shadowColor: palette.violet,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.16,
+    shadowRadius: 34,
+    overflow: "visible",
+    width: "100%",
+    zIndex: 30,
+    elevation: 6,
+  },
+  heroSearchFieldsCompact: {
+    alignItems: "stretch",
+  },
+  heroSearchFieldsPhone: {
+    flexDirection: "column",
+  },
+  heroSearchButton: {
+    backgroundColor: palette.blue,
+    borderColor: "rgba(255, 255, 255, 0.36)",
+    borderWidth: 1,
+    minHeight: 54,
+    minWidth: 148,
+    shadowColor: palette.blue,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  heroSearchButtonHover: {
+    transform: [{ translateY: -2 }],
+  },
+  heroSearchButtonFocus: {
+    borderColor: "rgba(24, 199, 223, 0.86)",
+  },
+  heroSearchButtonPressed: {
+    transform: [{ translateY: 0 }],
+  },
+  heroSearchButtonPhone: {
+    alignSelf: "stretch",
+    width: "100%",
+  },
+  heroCategories: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    justifyContent: "center",
+    marginTop: Spacing.three,
+    maxWidth: 720,
+    width: "100%",
+  },
+  heroCategoriesPhone: {
+    alignSelf: "stretch",
+  },
+  heroCategory: {
+    alignItems: "center",
+    backgroundColor: "rgba(8, 14, 34, 0.34)",
+    borderColor: "rgba(255, 255, 255, 0.20)",
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    flexBasis: 138,
+    flexGrow: 1,
+    justifyContent: "center",
+    maxWidth: 170,
+    minHeight: 50,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 0,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+  },
+  heroCategoryPhone: {
+    flexBasis: "47%",
+    maxWidth: "100%",
+    minWidth: 0,
+  },
+  heroCategoryActive: {
+    backgroundColor: "rgba(20, 92, 255, 0.28)",
+    borderColor: "rgba(170, 209, 255, 0.56)",
+  },
+  heroCategoryHover: {
+    backgroundColor: "rgba(12, 24, 54, 0.42)",
+    borderColor: "rgba(255, 255, 255, 0.34)",
+  },
+  heroCategoryHoverLift: {
+    transform: [{ translateY: -1 }],
+  },
+  heroCategoryFocus: {
+    borderColor: "rgba(24, 199, 223, 0.78)",
+  },
+  heroCategoryDisabled: {
+    opacity: 0.76,
+  },
+  heroCategoryText: {
+    color: palette.surface,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.extraBold,
+    letterSpacing: 0,
+    textAlign: "center",
+  },
+  heroCategoryTextActive: {
+    color: palette.surface,
+  },
+  heroCategorySoon: {
+    color: "rgba(255, 255, 255, 0.70)",
+    fontSize: 10,
+    fontWeight: Typography.fontWeight.bold,
+    letterSpacing: 0,
+    marginTop: 2,
+    textAlign: "center",
+  },
   searchCard: {
     alignSelf: "center",
     backgroundColor: palette.surface,
@@ -1547,7 +2318,8 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   searchField: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     minWidth: 180,
   },
   fieldLabel: {
@@ -1557,12 +2329,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   input: {
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.borderSoft,
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
+    borderColor: "rgba(214, 224, 245, 0.86)",
     borderRadius: Radius.lg,
     borderWidth: 1,
     color: palette.ink,
-    minHeight: 46,
+    minHeight: 54,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
@@ -1592,7 +2364,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.md,
-    marginTop: Spacing.three,
+    marginTop: Spacing.xl,
     maxWidth: layout.contentMaxWidth,
     width: "100%",
   },
@@ -1601,12 +2373,17 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: palette.surface,
-    borderColor: palette.borderSoft,
-    borderRadius: Radius.xxl,
+    borderColor: "rgba(218, 227, 245, 0.78)",
+    borderRadius: 24,
     borderWidth: 1,
     flex: 1,
     minWidth: 280,
     padding: Spacing.four,
+    shadowColor: palette.shadow,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.06,
+    shadowRadius: 26,
+    elevation: 2,
   },
   sectionCardHeader: {
     alignItems: "center",
@@ -1646,8 +2423,10 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: "center",
-    backgroundColor: palette.surfaceSoft,
+    backgroundColor: "rgba(243, 247, 255, 0.78)",
+    borderColor: "rgba(218, 227, 245, 0.62)",
     borderRadius: Radius.xl,
+    borderWidth: 1,
     marginTop: Spacing.lg,
     minHeight: 124,
     padding: Spacing.lg,
@@ -1674,15 +2453,33 @@ const styles = StyleSheet.create({
   },
   supportItem: {
     alignItems: "flex-start",
-    backgroundColor: palette.surface,
-    borderColor: palette.borderSoft,
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    borderColor: "rgba(218, 227, 245, 0.76)",
     borderRadius: Radius.xl,
     borderWidth: 1,
     flex: 1,
     flexDirection: "row",
     gap: Spacing.md,
+    minHeight: 132,
     minWidth: 240,
     padding: Spacing.lg,
+    shadowColor: palette.shadow,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.045,
+    shadowRadius: 22,
+    elevation: 1,
+  },
+  supportItemBlue: {
+    borderColor: "rgba(20, 92, 255, 0.16)",
+  },
+  supportItemViolet: {
+    borderColor: "rgba(110, 29, 255, 0.16)",
+  },
+  supportItemCyan: {
+    borderColor: "rgba(24, 199, 223, 0.18)",
+  },
+  supportItemRose: {
+    borderColor: "rgba(240, 19, 99, 0.14)",
   },
   supportIcon: {
     alignItems: "center",
