@@ -11,6 +11,7 @@ import {
   fetchCourseDetails,
   type CourseDetails,
 } from "@/services/courses/courseService";
+import { buildLoginPath } from "@/services/auth/authNavigation";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -89,7 +90,7 @@ export default function CourseDetailsScreen() {
     }
 
     if (!session) {
-      router.push("/login" as any);
+      router.push(buildLoginPath(`/courses/${courseId}`) as any);
       return;
     }
 

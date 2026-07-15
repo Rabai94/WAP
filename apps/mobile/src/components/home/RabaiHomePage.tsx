@@ -7,6 +7,7 @@ import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
 import { Screen } from "@/components/ui";
 import type { AuthRole } from "@/domain/auth/auth.types";
 import { getLanguageNationalIdentity } from "@/domain/nationality/nationalities";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { LanguageCode, languages } from "@/i18n/translations";
 import {
@@ -34,13 +35,19 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    useWindowDimensions,
     View,
     type ViewStyle,
 } from "react-native";
 
-type NavKey = "home" | "jobs" | "companies" | "courses" | "freelancers";
-type SearchTabKey = "jobs" | "companies" | "courses" | "freelancers";
+type NavKey =
+  | "home"
+  | "jobs"
+  | "tasks"
+  | "services"
+  | "courses"
+  | "messages"
+  | "profile";
+type SearchTabKey = "jobs" | "tasks" | "services" | "courses";
 type EcosystemNodeKey =
   | "student"
   | "courses"
@@ -59,7 +66,9 @@ type LocationAutocompleteOption = HeroAutocompleteOption & {
 type HomeCopy = {
   nav: Record<NavKey, string>;
   auth: {
+    applications: string;
     login: string;
+    organizations: string;
     register: string;
     soon: string;
     logout: string;
@@ -120,111 +129,119 @@ type HomeCopy = {
 const copyByLanguage = {
   ro: {
     nav: {
-      home: "Acasă",
-      jobs: "Joburi",
-      companies: "Firme",
+      home: "Acasa",
+      jobs: "Locuri de munca",
+      tasks: "Lucrari punctuale",
+      services: "Servicii",
       courses: "Cursuri",
-      freelancers: "Freelanceri",
+      messages: "Mesaje",
+      profile: "Profil",
     },
     auth: {
+      applications: "Aplicatiile mele",
       login: "Login",
-      register: "Înregistrează-te",
-      soon: "În curând",
+      organizations: "Organizatiile mele",
+      register: "Inregistreaza-te",
+      soon: "In curand",
       logout: "Logout",
     },
     hero: {
-      title: "Motorul tău pentru",
+      title: "Motorul tau pentru",
       titleAccent: "viitorul",
       titleEnd: "profesional.",
       subtitle:
-        "Caută locuri de muncă, firme, cursuri și freelanceri într-un singur ecosistem profesional.",
+        "Cauta locuri de munca, lucrari punctuale, servicii si cursuri intr-un singur ecosistem profesional.",
       ecosystem: "Ecosistem profesional conectat",
     },
     nodes: {
       student: {
-        title: "Student",
-        label: "Înveți",
+        title: "Cont personal",
+        label: "Explorezi",
       },
       courses: {
         title: "Cursuri",
-        label: "Te dezvolți",
+        label: "Te dezvolti",
       },
       workers: {
-        title: "Muncitori",
-        label: "Îți construiești cariera",
+        title: "Joburi",
+        label: "Iti construiesti cariera",
       },
       companies: {
-        title: "Firme",
-        label: "Cresc și inovează",
+        title: "Organizatii",
+        label: "Publica oportunitati",
       },
       freelancers: {
-        title: "Freelanceri",
-        label: "Lucrezi liber",
+        title: "Servicii",
+        label: "Oferi sau soliciti",
       },
     },
     search: {
       tabs: {
-        jobs: "Joburi",
-        companies: "Firme",
+        jobs: "Locuri de munca",
+        tasks: "Lucrari punctuale",
+        services: "Servicii",
         courses: "Cursuri",
-        freelancers: "Freelanceri",
       },
-      what: "Ce cauți?",
-      whatPlaceholder: "ex: lucrător depozit",
-      location: "Locație",
-      locationPlaceholder: "ex: München",
+      what: "Ce cauti?",
+      whatPlaceholder: "ex: logistica depozit",
+      location: "Locatie",
+      locationPlaceholder: "ex: Munchen",
       category: "Categorie",
       categoryPlaceholder: "Toate categoriile",
-      button: "Caută",
+      button: "Cauta",
     },
     sections: {
       jobsTitle: "Joburi postate",
       coursesTitle: "Cursuri active",
       viewJobs: "Vezi joburile",
       viewCourses: "Vezi cursurile",
-      jobsEmpty: "Momentan nu există joburi publicate.",
-      coursesEmpty: "Momentan nu există cursuri active.",
+      jobsEmpty: "Momentan nu exista joburi publicate.",
+      coursesEmpty: "Momentan nu exista cursuri active.",
     },
     support: {
-      unified: "Totul într-un singur loc",
-      unifiedText: "Joburi, firme, cursuri și freelanceri.",
-      trusted: "De încredere",
-      trustedText: "Profil verificat, anunțuri reale.",
-      fast: "Găsește mai rapid",
-      fastText: "Caută, filtrează și aplică simplu.",
-      support: "Sprijin pentru reușita ta",
-      supportText: "Resurse și oportunități utile.",
+      unified: "Totul intr-un singur loc",
+      unifiedText: "Locuri de munca, lucrari punctuale, servicii si cursuri.",
+      trusted: "De incredere",
+      trustedText: "Profil verificat, anunturi reale.",
+      fast: "Gaseste mai rapid",
+      fastText: "Cauta, filtreaza si aplica simplu.",
+      support: "Sprijin pentru reusita ta",
+      supportText: "Resurse si oportunitati utile.",
     },
     preview: {
       adminBarTitle: "Admin activ",
       adminBarSubtitle: "Vezi platforma ca:",
-      roleButtonLabel: "Vezi experiența",
+      roleButtonLabel: "Vezi experienta",
       roleLabel: {
-        worker: "Muncitor",
-        student: "Student",
-        business: "Firmă",
-        freelancer: "Freelancer",
+        worker: "Cont personal",
+        student: "Cursuri",
+        business: "Organizatie",
+        freelancer: "Servicii",
       },
       roleDescription: {
-        worker: "Joburi, carieră și aplicații",
-        student: "Profil studențesc, cursuri și oportunități",
-        business: "Joburi, candidați și panou companie",
-        freelancer: "Servicii independente și proiecte",
+        worker: "Joburi, taskuri, servicii si profil profesional",
+        student: "Cursuri si dezvoltare profesionala",
+        business: "Organizatii, joburi si candidati",
+        freelancer: "Servicii si proiecte",
       },
-      roleHighlightsTitle: "Experiență de previzualizare",
-      roleHighlightsSubtitle: "Explorează cum arată platforma pentru fiecare rol.",
+      roleHighlightsTitle: "Experienta de previzualizare",
+      roleHighlightsSubtitle: "Exploreaza platforma pe activitati.",
     },
   },
   en: {
     nav: {
       home: "Home",
       jobs: "Jobs",
-      companies: "Companies",
+      tasks: "Tasks",
+      services: "Services",
       courses: "Courses",
-      freelancers: "Freelancers",
+      messages: "Messages",
+      profile: "Profile",
     },
     auth: {
+      applications: "My applications",
       login: "Login",
+      organizations: "My organizations",
       register: "Register",
       soon: "Coming soon",
       logout: "Logout",
@@ -234,40 +251,40 @@ const copyByLanguage = {
       titleAccent: "professional",
       titleEnd: "future.",
       subtitle:
-        "Search jobs, companies, courses and freelancers in one professional ecosystem.",
+        "Search jobs, one-time tasks, services and courses in one professional ecosystem.",
       ecosystem: "Connected professional ecosystem",
     },
     nodes: {
       student: {
-        title: "Student",
-        label: "Learn",
+        title: "Personal Account",
+        label: "Explore",
       },
       courses: {
         title: "Courses",
         label: "Grow",
       },
       workers: {
-        title: "Workers",
+        title: "Jobs",
         label: "Build your career",
       },
       companies: {
-        title: "Companies",
-        label: "Grow and innovate",
+        title: "Organizations",
+        label: "Publish opportunities",
       },
       freelancers: {
-        title: "Freelancers",
-        label: "Work freely",
+        title: "Services",
+        label: "Offer or request",
       },
     },
     search: {
       tabs: {
         jobs: "Jobs",
-        companies: "Companies",
+        tasks: "Tasks",
+        services: "Services",
         courses: "Courses",
-        freelancers: "Freelancers",
       },
       what: "What are you looking for?",
-      whatPlaceholder: "ex: warehouse worker",
+      whatPlaceholder: "ex: warehouse logistics",
       location: "Location",
       locationPlaceholder: "ex: Munich",
       category: "Category",
@@ -284,7 +301,7 @@ const copyByLanguage = {
     },
     support: {
       unified: "Everything in one place",
-      unifiedText: "Jobs, companies, courses and freelancers.",
+      unifiedText: "Jobs, tasks, services and courses.",
       trusted: "Trusted",
       trustedText: "Verified profile, real listings.",
       fast: "Find faster",
@@ -297,133 +314,141 @@ const copyByLanguage = {
       adminBarSubtitle: "Preview the platform as:",
       roleButtonLabel: "See experience",
       roleLabel: {
-        worker: "Worker",
-        student: "Student",
-        business: "Company",
-        freelancer: "Freelancer",
+        worker: "Personal Account",
+        student: "Courses",
+        business: "Organization",
+        freelancer: "Services",
       },
       roleDescription: {
-        worker: "Jobs, career and applications",
-        student: "Student profile, courses and opportunities",
-        business: "Jobs, candidates and company dashboard",
-        freelancer: "Independent services and projects",
+        worker: "Jobs, tasks, services and professional profile",
+        student: "Courses and professional development",
+        business: "Organizations, jobs and candidates",
+        freelancer: "Services and projects",
       },
       roleHighlightsTitle: "Preview experience",
-      roleHighlightsSubtitle: "Explore how the homepage looks for each role.",
+      roleHighlightsSubtitle: "Explore the platform by activity.",
     },
   },
   de: {
     nav: {
       home: "Start",
       jobs: "Jobs",
-      companies: "Firmen",
+      tasks: "Auftraege",
+      services: "Dienstleistungen",
       courses: "Kurse",
-      freelancers: "Freelancer",
+      messages: "Nachrichten",
+      profile: "Profil",
     },
     auth: {
+      applications: "Meine Bewerbungen",
       login: "Login",
+      organizations: "Meine Organisationen",
       register: "Registrieren",
       soon: "Bald",
       logout: "Logout",
     },
     hero: {
-      title: "Dein Motor für die",
+      title: "Dein Motor fuer die",
       titleAccent: "berufliche",
       titleEnd: "Zukunft.",
       subtitle:
-        "Suche Jobs, Firmen, Kurse und Freelancer in einem professionellen Ökosystem.",
-      ecosystem: "Verbundenes professionelles Ökosystem",
+        "Suche Jobs, Auftraege, Dienstleistungen und Kurse in einem professionellen Oekosystem.",
+      ecosystem: "Verbundenes professionelles Oekosystem",
     },
     nodes: {
       student: {
-        title: "Student",
-        label: "Lernen",
+        title: "Persoenliches Konto",
+        label: "Entdecken",
       },
       courses: {
         title: "Kurse",
         label: "Entwickeln",
       },
       workers: {
-        title: "Arbeiter",
+        title: "Jobs",
         label: "Karriere aufbauen",
       },
       companies: {
-        title: "Firmen",
-        label: "Wachsen und innovieren",
+        title: "Organisationen",
+        label: "Chancen veroeffentlichen",
       },
       freelancers: {
-        title: "Freelancer",
-        label: "Frei arbeiten",
+        title: "Dienstleistungen",
+        label: "Anbieten oder suchen",
       },
     },
     search: {
       tabs: {
         jobs: "Jobs",
-        companies: "Firmen",
+        tasks: "Auftraege",
+        services: "Dienstleistungen",
         courses: "Kurse",
-        freelancers: "Freelancer",
       },
       what: "Was suchst du?",
-      whatPlaceholder: "z. B. Lagerarbeiter",
+      whatPlaceholder: "z. B. Lagerlogistik",
       location: "Standort",
-      locationPlaceholder: "z. B. München",
+      locationPlaceholder: "z. B. Muenchen",
       category: "Kategorie",
       categoryPlaceholder: "Alle Kategorien",
       button: "Suchen",
     },
     sections: {
-      jobsTitle: "Veröffentlichte Jobs",
+      jobsTitle: "Veroeffentlichte Jobs",
       coursesTitle: "Aktive Kurse",
       viewJobs: "Jobs ansehen",
       viewCourses: "Kurse ansehen",
-      jobsEmpty: "Derzeit sind keine Jobs veröffentlicht.",
+      jobsEmpty: "Derzeit sind keine Jobs veroeffentlicht.",
       coursesEmpty: "Derzeit sind keine Kurse aktiv.",
     },
     support: {
       unified: "Alles an einem Ort",
-      unifiedText: "Jobs, Firmen, Kurse und Freelancer.",
+      unifiedText: "Jobs, Auftraege, Dienstleistungen und Kurse.",
       trusted: "Vertrauen",
       trustedText: "Verifiziertes Profil, echte Anzeigen.",
       fast: "Schneller finden",
       fastText: "Suchen, filtern und einfach bewerben.",
-      support: "Unterstützung für deinen Erfolg",
-      supportText: "Nützliche Ressourcen und Chancen.",
+      support: "Unterstuetzung fuer deinen Erfolg",
+      supportText: "Nuetzliche Ressourcen und Chancen.",
     },
     preview: {
       adminBarTitle: "Admin aktiv",
       adminBarSubtitle: "Sieh die Plattform als:",
       roleButtonLabel: "Erlebnis ansehen",
       roleLabel: {
-        worker: "Arbeiter",
-        student: "Student",
-        business: "Firma",
-        freelancer: "Freelancer",
+        worker: "Persoenliches Konto",
+        student: "Kurse",
+        business: "Organisation",
+        freelancer: "Dienstleistungen",
       },
       roleDescription: {
-        worker: "Jobs, Karriere und Bewerbungen",
-        student: "Studentenprofil, Kurse und Chancen",
-        business: "Jobs, Kandidaten und Firmen-Dashboard",
-        freelancer: "Unabhängige Dienste und Projekte",
+        worker: "Jobs, Auftraege, Dienstleistungen und Berufsprofil",
+        student: "Kurse und berufliche Entwicklung",
+        business: "Organisationen, Jobs und Bewerbungen",
+        freelancer: "Dienstleistungen und Projekte",
       },
       roleHighlightsTitle: "Vorschau-Erlebnis",
-      roleHighlightsSubtitle: "Erkunde, wie die Startseite für jede Rolle aussieht.",
+      roleHighlightsSubtitle: "Erkunde die Plattform nach Aktivitaeten.",
     },
   },
 } satisfies Record<LanguageCode, HomeCopy>;
 
 const navItems: { key: NavKey; enabled: boolean; route?: string }[] = [
-  { key: "home", enabled: true, route: "/engine" },
+  { key: "home", enabled: true, route: "/" },
   { key: "jobs", enabled: true, route: "/jobs" },
-  { key: "companies", enabled: false },
+  { key: "tasks", enabled: true, route: "/tasks" },
+  { key: "services", enabled: true, route: "/services" },
   { key: "courses", enabled: true, route: "/courses" },
-  { key: "freelancers", enabled: false },
+  { key: "messages", enabled: true, route: "/messages" },
+  { key: "profile", enabled: true, route: "/profile" },
 ];
+
+const publicNavKeys: NavKey[] = ["home", "jobs", "tasks", "services", "courses"];
 
 const searchTabs: { key: SearchTabKey }[] = [
   { key: "jobs" },
-  { key: "companies" },
+  { key: "tasks" },
+  { key: "services" },
   { key: "courses" },
-  { key: "freelancers" },
 ];
 
 const supportItems = [
@@ -463,76 +488,76 @@ const layout = {
 
 const searchRoutes: Record<SearchTabKey, string> = {
   jobs: "/jobs",
-  companies: "/companies",
+  tasks: "/tasks",
+  services: "/services",
   courses: "/courses",
-  freelancers: "/freelancers",
 };
 
 const searchModeCopy = {
   ro: {
     jobs: {
-      whatPlaceholder: "ex: lucrător depozit",
-      locationPlaceholder: "ex: München",
-      button: "Caută joburi",
+      whatPlaceholder: "ex: logistica depozit",
+      locationPlaceholder: "ex: Munchen",
+      button: "Cauta joburi",
     },
-    companies: {
-      whatPlaceholder: "ex: Amazon",
+    tasks: {
+      whatPlaceholder: "ex: ajutor la mutare",
       locationPlaceholder: "ex: Augsburg",
-      button: "Caută firme",
+      button: "Cauta lucrari",
     },
     courses: {
-      whatPlaceholder: "ex: limba germană",
-      locationPlaceholder: "ex: online sau München",
-      button: "Caută cursuri",
+      whatPlaceholder: "ex: limba germana",
+      locationPlaceholder: "ex: online sau Munchen",
+      button: "Cauta cursuri",
     },
-    freelancers: {
+    services: {
       whatPlaceholder: "ex: electrician",
       locationPlaceholder: "ex: Augsburg",
-      button: "Caută freelanceri",
+      button: "Cauta servicii",
     },
   },
   en: {
     jobs: {
-      whatPlaceholder: "ex: warehouse worker",
+      whatPlaceholder: "ex: warehouse logistics",
       locationPlaceholder: "ex: Munich",
       button: "Search jobs",
     },
-    companies: {
-      whatPlaceholder: "ex: Amazon",
+    tasks: {
+      whatPlaceholder: "ex: moving help",
       locationPlaceholder: "ex: Augsburg",
-      button: "Search companies",
+      button: "Search tasks",
     },
     courses: {
       whatPlaceholder: "ex: German language",
       locationPlaceholder: "ex: online or Munich",
       button: "Search courses",
     },
-    freelancers: {
+    services: {
       whatPlaceholder: "ex: electrician",
       locationPlaceholder: "ex: Augsburg",
-      button: "Search freelancers",
+      button: "Search services",
     },
   },
   de: {
     jobs: {
-      whatPlaceholder: "z. B. Lagerarbeiter",
-      locationPlaceholder: "z. B. München",
+      whatPlaceholder: "z. B. Lagerlogistik",
+      locationPlaceholder: "z. B. Muenchen",
       button: "Jobs suchen",
     },
-    companies: {
-      whatPlaceholder: "z. B. Amazon",
+    tasks: {
+      whatPlaceholder: "z. B. Umzugshilfe",
       locationPlaceholder: "z. B. Augsburg",
-      button: "Firmen suchen",
+      button: "Auftraege suchen",
     },
     courses: {
       whatPlaceholder: "z. B. Deutschkurs",
-      locationPlaceholder: "z. B. online oder München",
+      locationPlaceholder: "z. B. online oder Muenchen",
       button: "Kurse suchen",
     },
-    freelancers: {
+    services: {
       whatPlaceholder: "z. B. Elektriker",
       locationPlaceholder: "z. B. Augsburg",
-      button: "Freelancer suchen",
+      button: "Dienstleistungen suchen",
     },
   },
 } satisfies Record<
@@ -546,7 +571,6 @@ const searchModeCopy = {
     }
   >
 >;
-
 const heroCoverImage = require("../../assets/hero/rabai-home-hero-background-v001.png");
 const heroBackgroundWebStyle =
   Platform.OS === "web"
@@ -631,8 +655,8 @@ export default function RabaiHomePage({
   onLogout,
 }: RabaiHomePageProps) {
   const router = useRouter();
-  const { language, setLanguage, t } = useLanguage();
-  const { width } = useWindowDimensions();
+  const responsive = useResponsiveLayout();
+  const { language, setLanguage } = useLanguage();
   const [activeCategory, setActiveCategory] = useState<SearchTabKey>("jobs");
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
@@ -654,7 +678,6 @@ export default function RabaiHomePage({
     useState<AutocompleteTarget>(null);
   const [occupationActiveIndex, setOccupationActiveIndex] = useState(-1);
   const [locationActiveIndex, setLocationActiveIndex] = useState(-1);
-  const [previewRole, setPreviewRole] = useState<PreviewRole>("worker");
   const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
   const [latestJobs, setLatestJobs] = useState<SearchJobResult[]>([]);
   const [latestJobsLoading, setLatestJobsLoading] = useState(true);
@@ -665,14 +688,16 @@ export default function RabaiHomePage({
   const occupationRequestId = useRef(0);
   const locationRequestId = useRef(0);
 
-  const isCompact = width < 860;
-  const isPhone = width < 620;
+  const isCompact = responsive.isMobile || responsive.isTablet;
+  const isPhone = responsive.isMobile;
+  const contentMaxWidth = responsive.contentMaxWidth;
   const copy = copyByLanguage[language];
   const activeSearchModeCopy = searchModeCopy[language][activeCategory];
   const isAuthenticated = authState === "authenticated";
-  const isAdmin = user?.isAdmin === true;
-  const effectivePreviewRole: PreviewRole =
-    isAdmin ? previewRole : user?.role && user.role !== "admin" ? user.role : "worker";
+  const isAdminUser = Boolean(user?.isAdmin);
+  const visibleNavItems = navItems.filter(
+    (item) => isAuthenticated || publicNavKeys.includes(item.key)
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -874,120 +899,6 @@ export default function RabaiHomePage({
     [locationSuggestions]
   );
 
-  const roleHighlights = useMemo(() => {
-    switch (effectivePreviewRole) {
-      case "worker":
-        return [
-          {
-            title: t("home.preview.worker.jobs.title"),
-            text: t("home.preview.worker.jobs.text"),
-            route: "/jobs",
-            actionLabel: copy.sections.viewJobs,
-            accent: palette.blue,
-            soft: palette.blueSoft,
-          },
-          {
-            title: t("home.preview.worker.profile.title"),
-            text: t("home.preview.worker.profile.text"),
-            route: "/worker-dashboard",
-            actionLabel: t("home.preview.worker.profile.action"),
-            accent: palette.violet,
-            soft: palette.violetSoft,
-          },
-          {
-            title: t("home.preview.worker.applications.title"),
-            text: t("home.preview.worker.applications.text"),
-            route: null,
-            actionLabel: copy.auth.soon,
-            accent: palette.rose,
-            soft: palette.roseSoft,
-          },
-        ];
-      case "student":
-        return [
-          {
-            title: t("home.preview.student.profile.title"),
-            text: t("home.preview.student.profile.text"),
-            route: "/student-profile",
-            actionLabel: t("home.preview.student.profile.action"),
-            accent: palette.violet,
-            soft: palette.violetSoft,
-          },
-          {
-            title: t("home.preview.student.jobs.title"),
-            text: t("home.preview.student.jobs.text"),
-            route: "/jobs",
-            actionLabel: copy.sections.viewJobs,
-            accent: palette.blue,
-            soft: palette.blueSoft,
-          },
-          {
-            title: t("home.preview.student.courses.title"),
-            text: t("home.preview.student.courses.text"),
-            route: null,
-            actionLabel: copy.auth.soon,
-            accent: palette.cyan,
-            soft: palette.cyanSoft,
-          },
-        ];
-      case "business":
-        return [
-          {
-            title: t("home.preview.business.dashboard.title"),
-            text: t("home.preview.business.dashboard.text"),
-            route: "/business-dashboard",
-            actionLabel: t("home.preview.business.dashboard.action"),
-            accent: palette.rose,
-            soft: palette.roseSoft,
-          },
-          {
-            title: t("home.preview.business.createJob.title"),
-            text: t("home.preview.business.createJob.text"),
-            route: "/create-job",
-            actionLabel: t("home.preview.business.createJob.action"),
-            accent: palette.blue,
-            soft: palette.blueSoft,
-          },
-          {
-            title: t("home.preview.business.candidates.title"),
-            text: t("home.preview.business.candidates.text"),
-            route: "/applications",
-            actionLabel: t("home.preview.business.candidates.action"),
-            accent: palette.violet,
-            soft: palette.violetSoft,
-          },
-        ];
-      case "freelancer":
-      default:
-        return [
-          {
-            title: t("home.preview.freelancer.services.title"),
-            text: t("home.preview.freelancer.services.text"),
-            route: null,
-            actionLabel: copy.auth.soon,
-            accent: palette.violet,
-            soft: palette.violetSoft,
-          },
-          {
-            title: t("home.preview.freelancer.contracts.title"),
-            text: t("home.preview.freelancer.contracts.text"),
-            route: null,
-            actionLabel: copy.auth.soon,
-            accent: palette.cyan,
-            soft: palette.cyanSoft,
-          },
-          {
-            title: t("home.preview.freelancer.jobs.title"),
-            text: t("home.preview.freelancer.jobs.text"),
-            route: "/jobs",
-            actionLabel: copy.sections.viewJobs,
-            accent: palette.blue,
-            soft: palette.blueSoft,
-          },
-        ];
-    }
-  }, [copy.auth.soon, copy.sections.viewJobs, effectivePreviewRole, t]);
-
   function navigate(route?: string) {
     if (!route) {
       return;
@@ -1135,14 +1046,23 @@ export default function RabaiHomePage({
   return (
     <Screen centered={false} style={[styles.screen, pageBackgroundWebStyle]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: responsive.horizontalPadding },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.header, isCompact && styles.headerCompact]}>
+        <View
+          style={[
+            styles.header,
+            { maxWidth: contentMaxWidth },
+            isCompact && styles.headerCompact,
+          ]}
+        >
           <Pressable
             accessibilityRole="button"
             onPress={() => {
-              navigate("/engine");
+              navigate("/");
             }}
             style={styles.brand}
           >
@@ -1153,7 +1073,7 @@ export default function RabaiHomePage({
           </Pressable>
 
           <View style={[styles.nav, isPhone && styles.navPhone]}>
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const enabled = item.enabled;
               const active = item.key === "home";
 
@@ -1220,19 +1140,45 @@ export default function RabaiHomePage({
               <View style={styles.authSummary}>
                 <View style={styles.authSummaryTextWrap}>
                   <Text style={styles.authSummaryName}>
-                    {user?.fullName || user?.email || "RabAI account"}
+                    {user?.fullName ||
+                      user?.email ||
+                      (isAdminUser ? "RabAI admin" : "RabAI account")}
                   </Text>
                   {user?.email ? (
                     <Text style={styles.authSummaryEmail}>{user.email}</Text>
                   ) : null}
                 </View>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={handleLogout}
-                  style={styles.loginButton}
-                >
-                  <Text style={styles.loginText}>{copy.auth.logout}</Text>
-                </Pressable>
+                <View style={styles.authSummaryActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      navigate("/applications");
+                    }}
+                    style={styles.accountActionButton}
+                  >
+                    <Text style={styles.accountActionText}>
+                      {copy.auth.applications}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      navigate("/organizations");
+                    }}
+                    style={styles.accountActionButton}
+                  >
+                    <Text style={styles.accountActionText}>
+                      {copy.auth.organizations}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={handleLogout}
+                    style={styles.loginButton}
+                  >
+                    <Text style={styles.loginText}>{copy.auth.logout}</Text>
+                  </Pressable>
+                </View>
               </View>
             ) : (
               <>
@@ -1249,7 +1195,7 @@ export default function RabaiHomePage({
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
-                    navigate("/role");
+                    navigate("/login?mode=signup");
                   }}
                   style={styles.registerButton}
                 >
@@ -1260,43 +1206,10 @@ export default function RabaiHomePage({
           </View>
         </View>
 
-        {isAuthenticated && isAdmin ? (
-          <View style={styles.adminBar}>
-            <View style={styles.adminBarTextWrap}>
-              <Text style={styles.adminBarTitle}>{copy.preview.adminBarTitle}</Text>
-              <Text style={styles.adminBarSubtitle}>
-                {copy.preview.adminBarSubtitle}
-              </Text>
-            </View>
-            <View style={styles.adminButtonRow}>
-              {(["worker", "student", "business", "freelancer"] as PreviewRole[]).map((role) => {
-                const active = effectivePreviewRole === role;
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: active }}
-                    key={role}
-                    onPress={() => {
-                      setPreviewRole(role);
-                    }}
-                    style={[styles.adminButton, active && styles.adminButtonActive]}
-                  >
-                    <Text
-                      style={[styles.adminButtonText, active && styles.adminButtonTextActive]}
-                      numberOfLines={1}
-                    >
-                      {copy.preview.roleLabel[role]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ) : null}
-
         <View
           style={[
             styles.hero,
+            { maxWidth: contentMaxWidth },
             isCompact && styles.heroCompact,
             isPhone && styles.heroPhone,
             heroBackgroundWebStyle,
@@ -1377,11 +1290,18 @@ export default function RabaiHomePage({
               query={query}
               reduceMotionEnabled={reduceMotionEnabled}
               searchMode={activeSearchModeCopy}
+              searchMaxWidth={contentMaxWidth}
             />
           </View>
         </View>
 
-        <View style={[styles.sectionsGrid, isCompact && styles.sectionsGridCompact]}>
+        <View
+          style={[
+            styles.sectionsGrid,
+            { maxWidth: contentMaxWidth },
+            isCompact && styles.sectionsGridCompact,
+          ]}
+        >
           <PublicSectionCard
             actionDisabled={false}
             actionLabel={copy.sections.viewJobs}
@@ -1405,7 +1325,7 @@ export default function RabaiHomePage({
                     job={job}
                     key={job.job_id}
                     language={language}
-                    returnLabel="Înapoi la pagina principală"
+                    returnLabel="Inapoi la pagina principala"
                     returnTo="/engine"
                     variant="compact"
                   />
@@ -1436,7 +1356,7 @@ export default function RabaiHomePage({
                     course={course}
                     key={course.course_id}
                     language={language}
-                    returnLabel="Înapoi la pagina principală"
+                    returnLabel="Inapoi la pagina principala"
                     returnTo="/engine"
                     variant="compact"
                   />
@@ -1446,60 +1366,7 @@ export default function RabaiHomePage({
           </PublicSectionCard>
         </View>
 
-        {isAuthenticated ? (
-          <View style={styles.previewCard}>
-            <View style={styles.previewCardHeader}>
-              <View>
-                <Text style={styles.previewCardTitle}>{copy.preview.roleHighlightsTitle}</Text>
-                <Text style={styles.previewCardSubtitle}>
-                  {copy.preview.roleHighlightsSubtitle}
-                </Text>
-              </View>
-              <View style={styles.previewBadge}>
-                <Text style={styles.previewBadgeText}>{copy.preview.roleLabel[effectivePreviewRole]}</Text>
-              </View>
-            </View>
-            <View style={styles.previewGrid}>
-              {roleHighlights.map((item) => (
-                <View key={item.title} style={styles.roleCard}>
-                  <View style={[styles.roleCardSignal, { backgroundColor: item.soft }]}> 
-                    <View style={[styles.roleSignalDot, { backgroundColor: item.accent }]} />
-                    <Text numberOfLines={1} style={[styles.roleCardLabel, { color: item.accent }]}>
-                      {item.title}
-                    </Text>
-                  </View>
-                  <Text style={styles.roleCardText}>{item.text}</Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: !item.route }}
-                    disabled={!item.route}
-                    onPress={() => {
-                      if (item.route) {
-                        navigate(item.route);
-                      }
-                    }}
-                    style={[
-                      styles.roleCardButton,
-                      { backgroundColor: item.route ? item.accent : palette.disabled },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.roleCardButtonText,
-                        !item.route && styles.roleCardButtonTextDisabled,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {item.actionLabel}
-                    </Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.supportStrip}>
+        <View style={[styles.supportStrip, { maxWidth: contentMaxWidth }]}>
           {supportItems.map((item) => (
             <View
               key={item.key}
@@ -1563,6 +1430,7 @@ function HeroSearchControls({
   query,
   reduceMotionEnabled,
   searchMode,
+  searchMaxWidth,
 }: {
   activeCategory: SearchTabKey;
   copy: HomeCopy;
@@ -1596,9 +1464,16 @@ function HeroSearchControls({
     locationPlaceholder: string;
     button: string;
   };
+  searchMaxWidth: number;
 }) {
   return (
-    <View style={[styles.heroSearchPanel, isPhone && styles.heroSearchPanelPhone]}>
+    <View
+      style={[
+        styles.heroSearchPanel,
+        { maxWidth: Math.min(searchMaxWidth, 1120) },
+        isPhone && styles.heroSearchPanelPhone,
+      ]}
+    >
       <View
         style={[
           styles.heroSearchFields,
@@ -1968,6 +1843,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
@@ -1984,6 +1860,28 @@ const styles = StyleSheet.create({
     color: palette.muted,
     fontSize: 12,
     marginTop: 2,
+  },
+  authSummaryActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
+  },
+  accountActionButton: {
+    alignItems: "center",
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 42,
+    paddingHorizontal: Spacing.md,
+  },
+  accountActionText: {
+    color: palette.ink,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.extraBold,
+    letterSpacing: 0,
   },
   loginButton: {
     alignItems: "center",
@@ -2745,3 +2643,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
+
+

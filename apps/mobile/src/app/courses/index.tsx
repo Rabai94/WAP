@@ -315,7 +315,7 @@ export default function CoursesScreen() {
             <Pressable accessibilityRole="button" onPress={() => router.push("/login" as any)} style={styles.publicPrimaryButton}>
               <Text style={styles.publicPrimaryButtonText}>{t("common.login")}</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => router.push("/role" as any)} style={styles.publicSecondaryButton}>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/login?mode=signup" as any)} style={styles.publicSecondaryButton}>
               <Text style={styles.publicSecondaryButtonText}>{t("common.register")}</Text>
             </Pressable>
           </View>

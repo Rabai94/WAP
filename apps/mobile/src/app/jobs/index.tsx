@@ -3,6 +3,7 @@ import HeroAutocompleteField, {
 } from "@/components/home/HeroAutocompleteField";
 import JobSummaryCard from "@/components/jobs/JobSummaryCard";
 import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -61,6 +62,7 @@ type SelectedLocationFilter = {
 
 export default function JobsScreen() {
   const router = useRouter();
+  const responsive = useResponsiveLayout();
   const params = useLocalSearchParams<{
     employmentType?: string | string[];
     lat?: string | string[];
@@ -414,7 +416,16 @@ export default function JobsScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            maxWidth: responsive.contentMaxWidth,
+            paddingHorizontal: responsive.horizontalPadding,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
         {isAuthenticated ? (
           <AuthenticatedHeader active="jobs" />
         ) : (
@@ -425,7 +436,7 @@ export default function JobsScreen() {
             <Pressable accessibilityRole="button" onPress={() => router.push("/login" as any)} style={styles.publicPrimaryButton}>
               <Text style={styles.publicPrimaryButtonText}>{t("common.login")}</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => router.push("/role" as any)} style={styles.publicSecondaryButton}>
+            <Pressable accessibilityRole="button" onPress={() => router.push("/login?mode=signup" as any)} style={styles.publicSecondaryButton}>
               <Text style={styles.publicSecondaryButtonText}>{t("common.register")}</Text>
             </Pressable>
           </View>
@@ -439,8 +450,19 @@ export default function JobsScreen() {
 
         <View style={styles.filterCard}>
           <Text style={styles.filterTitle}>{t("jobs.filterTitle")}</Text>
-          <View style={styles.filterGrid}>
-            <View style={[styles.inputWrap, styles.occupationAutocompleteWrap]}>
+          <View
+            style={[
+              styles.filterGrid,
+              responsive.isMobile && styles.filterGridMobile,
+            ]}
+          >
+            <View
+              style={[
+                styles.inputWrap,
+                styles.occupationAutocompleteWrap,
+                { flexBasis: responsive.isMobile ? "100%" : 240 },
+              ]}
+            >
               <HeroAutocompleteField
                 activeIndex={occupationActiveIndex}
                 emptyMessage="Nu am gasit rezultate"
@@ -466,7 +488,13 @@ export default function JobsScreen() {
                 value={occupation}
               />
             </View>
-            <View style={[styles.inputWrap, styles.locationAutocompleteWrap]}>
+            <View
+              style={[
+                styles.inputWrap,
+                styles.locationAutocompleteWrap,
+                { flexBasis: responsive.isMobile ? "100%" : 240 },
+              ]}
+            >
               <HeroAutocompleteField
                 activeIndex={locationActiveIndex}
                 emptyMessage="Nu am gasit rezultate"
@@ -492,7 +520,12 @@ export default function JobsScreen() {
                 value={location}
               />
             </View>
-            <View style={styles.inputWrap}>
+            <View
+              style={[
+                styles.inputWrap,
+                { flexBasis: responsive.isMobile ? "100%" : 220 },
+              ]}
+            >
               <Text style={styles.inputLabel}>Salariu minim</Text>
               <TextInput
                 keyboardType="numeric"
@@ -532,7 +565,14 @@ export default function JobsScreen() {
             })}
           </View>
 
-          <Pressable accessibilityRole="button" onPress={() => submitFilters(1)} style={styles.searchButton}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => submitFilters(1)}
+            style={[
+              styles.searchButton,
+              responsive.isMobile && styles.searchButtonMobile,
+            ]}
+          >
             <Text style={styles.searchButtonText}>{t("jobs.search.button")}</Text>
           </Pressable>
         </View>
@@ -561,7 +601,12 @@ export default function JobsScreen() {
           </View>
         ) : (
           <View style={styles.resultsCard}>
-            <View style={styles.resultsHeader}>
+            <View
+              style={[
+                styles.resultsHeader,
+                responsive.isMobile && styles.resultsHeaderMobile,
+              ]}
+            >
               <Text style={styles.resultsTitle}>Joburi gasite</Text>
               <Text style={styles.resultsCount}>{totalCount} rezultate</Text>
             </View>
@@ -671,7 +716,6 @@ const styles = StyleSheet.create({
   content: {
     alignSelf: "center",
     gap: Spacing.lg,
-    maxWidth: 1080,
     padding: Spacing.four,
     paddingBottom: Spacing.five,
     width: "100%",
@@ -776,6 +820,9 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: Spacing.md,
   },
+  filterGridMobile: {
+    flexDirection: "column",
+  },
   inputWrap: {
     flexBasis: 240,
     flexGrow: 1,
@@ -834,6 +881,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
+  searchButtonMobile: {
+    alignSelf: "stretch",
+  },
   searchButtonText: {
     color: Colors.white,
     fontSize: Typography.body,
@@ -851,6 +901,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: Spacing.md,
+  },
+  resultsHeaderMobile: {
+    alignItems: "flex-start",
+    flexDirection: "column",
+    gap: Spacing.xs,
   },
   resultsTitle: {
     color: Colors.text,

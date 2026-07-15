@@ -1,5 +1,5 @@
-import SearchPlaceholderPage from "@/components/home/SearchPlaceholderPage";
+import { Redirect } from "expo-router";
 
-export default function FreelancersScreen() {
-  return <SearchPlaceholderPage title="Freelanceri" />;
+export default function LegacyFreelancersRedirect() {
+  return <Redirect href={"/services" as any} />;
 }

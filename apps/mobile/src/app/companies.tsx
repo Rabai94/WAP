@@ -1,5 +1,5 @@
-import SearchPlaceholderPage from "@/components/home/SearchPlaceholderPage";
+import { Redirect } from "expo-router";
 
-export default function CompaniesScreen() {
-  return <SearchPlaceholderPage title="Firme" />;
+export default function LegacyCompaniesRedirect() {
+  return <Redirect href={"/organizations" as any} />;
 }

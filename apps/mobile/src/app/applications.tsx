@@ -19,7 +19,7 @@ const statusActions = [
 
 export default function ApplicationsScreen() {
   return (
-    <RequireAuth requiredRole="business">
+    <RequireAuth>
       <ApplicationsContent />
     </RequireAuth>
   );
@@ -98,10 +98,10 @@ function ApplicationsContent() {
         <View style={styles.topBar}>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.replace("/business-dashboard" as any)}
+            onPress={() => router.replace("/organizations" as any)}
             style={styles.homeButton}
           >
-            <Text style={styles.homeButtonText}>Dashboard business</Text>
+            <Text style={styles.homeButtonText}>Organizații</Text>
           </Pressable>
         </View>
 
@@ -110,7 +110,7 @@ function ApplicationsContent() {
           subtitle={
             requestedJobId
               ? "Sunt afisate aplicatiile pentru jobul selectat."
-              : "Candidatii sunt afisati doar pentru joburile companiei tale."
+              : "Candidatii sunt afisati doar pentru joburile organizatiei tale."
           }
         />
 
@@ -125,7 +125,7 @@ function ApplicationsContent() {
         {!loading && groupedApplications.length === 0 ? (
           <Card title="Momentan nu exista aplicatii">
             <Text style={styles.emptyText}>
-              Aplicatiile trimise de worker-i la joburile tale vor aparea aici.
+              Aplicatiile trimise la joburile tale vor aparea aici.
             </Text>
           </Card>
         ) : null}
@@ -211,9 +211,9 @@ function ApplicationsContent() {
         ))}
 
         <Button
-          title="Inapoi la dashboard"
+          title="Inapoi la organizatii"
           variant="ghost"
-          onPress={() => router.replace("/business-dashboard" as any)}
+          onPress={() => router.replace("/organizations" as any)}
         />
       </ScrollView>
     </Screen>

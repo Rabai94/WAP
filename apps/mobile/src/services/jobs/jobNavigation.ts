@@ -3,6 +3,8 @@ export const DEFAULT_JOB_RETURN_PATH = "/jobs";
 export const ALLOWED_JOB_RETURN_PATH_PREFIXES = [
   "/engine",
   "/jobs",
+  "/profile",
+  "/organizations",
   "/worker-dashboard",
   "/business-dashboard",
   "/applications",
@@ -89,25 +91,33 @@ export function getJobReturnLabel(returnPath?: string | null) {
   const pathname = getPathname(safePath);
 
   if (pathname === "/engine") {
-    return "Înapoi la pagina principală";
+    return "Inapoi la pagina principala";
   }
 
   if (pathname === "/jobs" || pathname.startsWith("/jobs/")) {
-    return "Înapoi la joburi";
+    return "Inapoi la joburi";
+  }
+
+  if (pathname === "/profile" || pathname.startsWith("/profile/")) {
+    return "Inapoi la profil";
+  }
+
+  if (pathname === "/organizations" || pathname.startsWith("/organizations/")) {
+    return "Inapoi la organizatii";
   }
 
   if (
     pathname === "/worker-dashboard" ||
     pathname === "/business-dashboard"
   ) {
-    return "Înapoi la dashboard";
+    return "Inapoi la dashboard";
   }
 
   if (pathname === "/applications" || pathname.startsWith("/applications/")) {
-    return "Înapoi la aplicații";
+    return "Inapoi la aplicatii";
   }
 
-  return "Înapoi la joburi";
+  return "Inapoi la joburi";
 }
 
 function addQueryParam(query: URLSearchParams, key: string, value?: string) {

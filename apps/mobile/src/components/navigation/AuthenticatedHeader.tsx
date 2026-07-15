@@ -1,11 +1,17 @@
-import { hasRole, isAdmin } from "@/domain/auth/roleAccess";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-type ActiveTab = "home" | "jobs" | "courses" | "profile";
+type ActiveTab =
+  | "home"
+  | "jobs"
+  | "tasks"
+  | "services"
+  | "courses"
+  | "messages"
+  | "profile";
 
 type AuthenticatedHeaderProps = {
   active?: ActiveTab;
@@ -13,9 +19,8 @@ type AuthenticatedHeaderProps = {
 
 export default function AuthenticatedHeader({ active = "home" }: AuthenticatedHeaderProps) {
   const router = useRouter();
-  const { signOut, user } = useAuth();
+  const { signOut } = useAuth();
   const { t } = useLanguage();
-  const canOpenWorkerProfile = hasRole(user, "worker") || isAdmin(user);
 
   async function handleLogout() {
     await signOut();
@@ -37,13 +42,36 @@ export default function AuthenticatedHeader({ active = "home" }: AuthenticatedHe
       <View style={styles.navLinks}>
         <NavLink label={t("common.home")} active={active === "home"} onPress={() => router.replace("/engine" as any)} />
         <NavLink label={t("home.nav.jobs")} active={active === "jobs"} onPress={() => router.push("/jobs" as any)} />
+        <NavLink label={t("home.nav.tasks")} active={active === "tasks"} onPress={() => router.push("/tasks" as any)} />
+        <NavLink label={t("home.nav.services")} active={active === "services"} onPress={() => router.push("/services" as any)} />
         <NavLink label={t("home.nav.courses")} active={active === "courses"} onPress={() => router.push("/courses" as any)} />
-        {canOpenWorkerProfile ? <NavLink label={t("common.profile")} active={active === "profile"} onPress={() => router.push("/worker-dashboard" as any)} /> : null}
+        <NavLink label={t("home.nav.messages")} active={active === "messages"} onPress={() => router.push("/messages" as any)} />
+        <NavLink label={t("common.profile")} active={active === "profile"} onPress={() => router.push("/profile" as any)} />
       </View>
 
-      <Pressable accessibilityRole="button" onPress={handleLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutButtonText}>{t("common.logout")}</Text>
-      </Pressable>
+      <View style={styles.accountActions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/applications" as any)}
+          style={styles.accountButton}
+        >
+          <Text style={styles.accountButtonText}>
+            {t("common.myApplications")}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push("/organizations" as any)}
+          style={styles.accountButton}
+        >
+          <Text style={styles.accountButtonText}>
+            {t("common.myOrganizations")}
+          </Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={handleLogout} style={styles.logoutButton}>
+          <Text style={styles.logoutButtonText}>{t("common.logout")}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -123,6 +151,23 @@ const styles = StyleSheet.create({
   },
   navLinkTextActive: {
     color: "#145CFF",
+  },
+  accountActions: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+  },
+  accountButton: {
+    backgroundColor: "#F2F6FF",
+    borderRadius: Radius.round,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  accountButtonText: {
+    color: "#145CFF",
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.bold,
   },
   logoutButton: {
     backgroundColor: "#FFF1F6",

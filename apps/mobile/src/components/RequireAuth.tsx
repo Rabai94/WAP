@@ -1,9 +1,10 @@
 import { ReactNode, useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import type { AuthRole } from "@/domain/auth/auth.types";
 import { canAccessRole } from "@/domain/auth/roleAccess";
 import { useAuth } from "@/providers/AuthProvider";
+import { buildLoginPath } from "@/services/auth/authNavigation";
 import { Colors, Spacing, Typography } from "@/theme";
 
 type RequireAuthProps = {
@@ -16,6 +17,7 @@ export default function RequireAuth({
   requiredRole,
 }: RequireAuthProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { loading, session, user } = useAuth();
 
   useEffect(() => {
@@ -24,14 +26,14 @@ export default function RequireAuth({
     }
 
     if (!session) {
-      router.replace("/login" as any);
+      router.replace(buildLoginPath(pathname) as any);
       return;
     }
 
     if (requiredRole && !canAccessRole(user, requiredRole)) {
       router.replace("/engine" as any);
     }
-  }, [loading, requiredRole, router, session, user]);
+  }, [loading, pathname, requiredRole, router, session, user]);
 
   if (loading) {
     return (

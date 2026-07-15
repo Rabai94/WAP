@@ -15,12 +15,12 @@ export default function ApplicationSentScreen() {
   const jobId = readParam(params.jobId);
 
   return (
-    <RequireAuth requiredRole="worker">
+    <RequireAuth>
       <Screen>
         <Header
           icon="OK"
           title="Aplicatia a fost trimisa"
-          subtitle="Compania va vedea aplicatia in dashboard-ul business."
+          subtitle="Organizatia va vedea aplicatia in lista de aplicatii."
           hero
         />
 
@@ -29,7 +29,7 @@ export default function ApplicationSentScreen() {
             Aplicatia este inregistrata cu statusul trimisa.
           </Text>
           <Text style={styles.item}>
-            Poti urmari statusul din dashboard-ul tau worker.
+            Poti urmari oportunitatile din profilul tau RabAI.
           </Text>
           {applicationId ? (
             <Text style={styles.reference}>ID aplicatie: {applicationId}</Text>
@@ -37,9 +37,9 @@ export default function ApplicationSentScreen() {
         </Card>
 
         <Button
-          title="Vezi dashboard worker"
+          title="Vezi profilul"
           onPress={() => {
-            router.replace("/worker-dashboard" as any);
+            router.replace("/profile" as any);
           }}
         />
 
@@ -50,7 +50,7 @@ export default function ApplicationSentScreen() {
             style={styles.secondaryButton}
             onPress={() => {
               router.replace(
-                buildJobDetailsPath(jobId, "/worker-dashboard") as any
+                buildJobDetailsPath(jobId, "/profile") as any
               );
             }}
           />

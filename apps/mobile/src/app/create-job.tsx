@@ -83,7 +83,7 @@ const languageOptions = [
 
 export default function CreateJobScreen() {
   return (
-    <RequireAuth requiredRole="business">
+    <RequireAuth>
       <CreateJobContent />
     </RequireAuth>
   );
@@ -356,6 +356,11 @@ function CreateJobContent() {
       return;
     }
 
+    if (!selectedLocation?.id || !selectedOccupationId) {
+      setLoadError("Selecteaza o locatie si o ocupatie valida.");
+      return;
+    }
+
     setSubmitting(true);
     setLoadError("");
 
@@ -367,7 +372,7 @@ function CreateJobContent() {
         experienceLevel,
         expiresAt: normalizeDate(expiresAt),
         language: jobLanguage,
-        locationId: selectedLocation?.id ?? "",
+        locationId: selectedLocation.id,
         occupationId: selectedOccupationId,
         salaryFrom: salaryFromValue,
         salaryTo: salaryToValue,
@@ -385,7 +390,7 @@ function CreateJobContent() {
 
       router.replace(
         isEditMode
-          ? ("/business-dashboard" as any)
+          ? ("/organizations" as any)
           : (`/job-published?jobId=${encodeURIComponent(jobId)}` as any)
       );
     } catch (error) {
@@ -613,7 +618,7 @@ function CreateJobContent() {
             if (router.canGoBack()) {
               router.back();
             } else {
-              router.replace("/business-dashboard" as any);
+              router.replace("/organizations" as any);
             }
           }}
         />

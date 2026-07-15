@@ -13,6 +13,7 @@ import type {
   SignInInput,
   SignUpInput,
 } from "@/domain/auth/auth.types";
+import type { OnboardingIntent } from "@/domain/account/types";
 import { authService } from "@/services/auth";
 
 type AuthContextValue = {
@@ -34,6 +35,9 @@ type AuthContextValue = {
     email: string,
     token: string
   ) => Promise<{ session: AuthSession | null; user: AuthUser | null }>;
+  updateOnboardingIntent: (
+    onboardingIntent: OnboardingIntent
+  ) => Promise<AuthSession | null>;
   signOut: () => Promise<void>;
 };
 
@@ -116,6 +120,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(result.session?.user ?? result.user);
 
         return result;
+      },
+      async updateOnboardingIntent(onboardingIntent) {
+        const nextSession =
+          await authService.updateOnboardingIntent(onboardingIntent);
+
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+
+        return nextSession;
       },
       async signOut() {
         await authService.signOut();

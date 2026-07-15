@@ -1,14 +1,16 @@
 import { Button, Card, Header, Screen } from "@/components/ui";
-import { canAccessRole } from "@/domain/auth/roleAccess";
+import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
   DEFAULT_JOB_RETURN_PATH,
   getJobReturnLabel,
   sanitizeReturnPath,
 } from "@/services/jobs/jobNavigation";
+import { buildLoginPath } from "@/services/auth/authNavigation";
 import {
   applyToJob,
   fetchJobDetails,
+  fetchOwnWorkerProfile,
   type JobDetails,
 } from "@/services/worker/workerService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
@@ -22,7 +24,8 @@ export default function JobDetailsScreen() {
     from?: string | string[];
     id?: string | string[];
   }>();
-  const { session, user } = useAuth();
+  const { t } = useLanguage();
+  const { session } = useAuth();
   const jobId = Array.isArray(id) ? id[0] : id;
   const returnPath = useMemo(
     () => sanitizeReturnPath(from) ?? DEFAULT_JOB_RETURN_PATH,
@@ -37,6 +40,8 @@ export default function JobDetailsScreen() {
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState("");
+  const [requiresProfileCompletion, setRequiresProfileCompletion] =
+    useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -87,19 +92,23 @@ export default function JobDetailsScreen() {
     }
 
     if (!session) {
-      router.push("/login" as any);
-      return;
-    }
-
-    if (!canAccessRole(user, "worker")) {
-      setApplyError("Doar conturile worker pot aplica la joburi.");
+      router.push(buildLoginPath(`/jobs/${jobId}`) as any);
       return;
     }
 
     setApplying(true);
     setApplyError("");
+    setRequiresProfileCompletion(false);
 
     try {
+      const workerProfile = await fetchOwnWorkerProfile(session.user.id);
+
+      if (!workerProfile) {
+        setApplyError(t("jobs.apply.legacyProfileRequired"));
+        setRequiresProfileCompletion(true);
+        return;
+      }
+
       const applicationId = await applyToJob(jobId);
       router.replace(
         `/application-sent?applicationId=${applicationId}&jobId=${jobId}` as any
@@ -168,6 +177,13 @@ export default function JobDetailsScreen() {
             </Card>
 
             {applyError ? <Text style={styles.errorText}>{applyError}</Text> : null}
+            {requiresProfileCompletion ? (
+              <Button
+                title={t("jobs.apply.completeProfileAction")}
+                variant="secondary"
+                onPress={() => router.push("/profile/edit" as any)}
+              />
+            ) : null}
 
             {session ? (
               <Button

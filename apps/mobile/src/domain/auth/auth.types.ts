@@ -1,9 +1,17 @@
-export type AuthRole =
+import type {
+  AccountType,
+  OnboardingIntent,
+  PersonalInterest,
+} from "@/domain/account/types";
+
+export type LegacyAuthRole =
   | "admin"
   | "student"
   | "worker"
   | "business"
   | "freelancer";
+
+export type AuthRole = LegacyAuthRole;
 
 export type PublicAuthRole = Exclude<AuthRole, "admin">;
 
@@ -12,16 +20,24 @@ export type AppUser = {
   email: string | null;
   role: AuthRole;
   roles: AuthRole[];
+  accountType?: AccountType;
+  onboardingIntent?: OnboardingIntent;
+  interests?: PersonalInterest[];
   isAdmin: boolean;
   fullName?: string;
   phone?: string;
   location?: string;
+  nationality?: string;
   workCategory?: string;
   skills?: string;
   language?: string;
+  languages?: string[];
   experience?: string;
+  education?: string;
+  qualifications?: string;
   availability?: string;
   preferredWorkType?: string;
+  servicePreferences?: string;
   hourlyRate?: string;
   emailVerified?: boolean;
 };
@@ -37,7 +53,8 @@ export type AuthSession = {
 export type SignUpInput = {
   email: string;
   password: string;
-  role: PublicAuthRole;
+  role?: PublicAuthRole;
+  onboardingIntent: OnboardingIntent;
   fullName: string;
   phone?: string;
   location?: string;

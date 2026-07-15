@@ -117,6 +117,14 @@ export type SearchJobResult = {
   total_count: number;
 };
 
+function requireNonEmptyString(value: unknown, fieldName: string) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${fieldName} is required.`);
+  }
+
+  return value.trim();
+}
+
 export async function fetchJobCategories() {
   const { data, error } = await supabase
     .from("job_categories")
@@ -230,24 +238,36 @@ export async function fetchOwnJobForEdit(jobId: string) {
 }
 
 export async function updateOwnJob(input: UpdateJobInput) {
+  if (!input) {
+    throw new Error("Job update input is required.");
+  }
+
+  const categoryId = requireNonEmptyString(input.categoryId, "Job category");
+  const jobId = requireNonEmptyString(input.jobId, "Job id");
+  const locationId = requireNonEmptyString(input.locationId, "Job location");
+  const occupationId = requireNonEmptyString(
+    input.occupationId,
+    "Job occupation"
+  );
+
   const { data, error } = await supabase
     .from("jobs")
     .update({
-      category_id: input.categoryId,
+      category_id: categoryId,
       description: input.description,
       employment_type: input.employmentType,
       experience_level: input.experienceLevel,
       expires_at: input.expiresAt,
       language: input.language,
-      location_id: input.locationId,
-      occupation_id: input.occupationId,
+      location_id: locationId,
+      occupation_id: occupationId,
       salary_from: input.salaryFrom,
       salary_to: input.salaryTo,
       salary_type: input.salaryType,
       title: input.title,
       working_hours: input.workingHours,
     })
-    .eq("id", input.jobId)
+    .eq("id", jobId)
     .select("id")
     .maybeSingle()
     .returns<{ id: string } | null>();

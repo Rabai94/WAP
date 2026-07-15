@@ -4,6 +4,12 @@ import type {
     AuthUser,
     PublicAuthRole,
 } from "@/domain/auth/auth.types";
+import type {
+  AccountType,
+  LegacyAccountType,
+  OnboardingIntent,
+  PersonalInterest,
+} from "@/domain/account/types";
 import type { AuthService } from "@/services/auth/authService";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
@@ -16,6 +22,19 @@ const publicAuthRoles: PublicAuthRole[] = [
 ];
 
 const profileSelect = "id,email,full_name,phone,role" as const;
+const legacyAccountTypes: LegacyAccountType[] = ["personal", "organization"];
+const onboardingIntents: OnboardingIntent[] = [
+  "personal",
+  "create_organization",
+];
+const personalInterests: PersonalInterest[] = [
+  "find_jobs",
+  "find_tasks",
+  "offer_services",
+  "request_service",
+  "find_courses",
+  "explore_only",
+];
 
 type ProfileRow = {
   id: string;
@@ -38,6 +57,28 @@ function mapPublicRoles(roles: unknown): PublicAuthRole[] {
     const mappedRole = mapPublicRole(role);
     return mappedRole ? [mappedRole] : [];
   });
+}
+
+function mapLegacyAccountType(value: unknown): LegacyAccountType | undefined {
+  return legacyAccountTypes.includes(value as LegacyAccountType)
+    ? (value as LegacyAccountType)
+    : undefined;
+}
+
+function mapOnboardingIntent(value: unknown): OnboardingIntent | undefined {
+  return onboardingIntents.includes(value as OnboardingIntent)
+    ? (value as OnboardingIntent)
+    : undefined;
+}
+
+function getOnboardingIntentFromLegacyAccountType(
+  legacyAccountType: LegacyAccountType | undefined
+): OnboardingIntent | undefined {
+  if (legacyAccountType === "organization") {
+    return "create_organization";
+  }
+
+  return legacyAccountType;
 }
 
 function uniqueRoles(roles: AuthRole[]) {
@@ -63,6 +104,29 @@ function getMetadataString(metadata: Record<string, unknown>, key: string) {
   }
 
   return undefined;
+}
+
+function getMetadataStringArray(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+
+  if (Array.isArray(value)) {
+    return value.filter(
+      (item): item is string =>
+        typeof item === "string" && item.trim().length > 0
+    );
+  }
+
+  const stringValue = getMetadataString(metadata, key);
+
+  return stringValue ? [stringValue] : [];
+}
+
+function mapPersonalInterests(value: unknown): PersonalInterest[] {
+  const values = Array.isArray(value) ? value : [];
+
+  return values.filter((item): item is PersonalInterest =>
+    personalInterests.includes(item as PersonalInterest)
+  );
 }
 
 function getFallbackPublicRole(user: User) {
@@ -94,6 +158,13 @@ function mapSupabaseUser(
   const userMetadata = user.user_metadata ?? {};
   const trustedAdmin = isAdminFromAppMetadata(appMetadata);
   const profileRole = mapPublicRole(profile?.role);
+  const legacyAccountType =
+    mapLegacyAccountType(userMetadata.account_type) ??
+    mapLegacyAccountType(userMetadata.accountType);
+  const onboardingIntent =
+    mapOnboardingIntent(userMetadata.onboarding_intent) ??
+    mapOnboardingIntent(userMetadata.onboardingIntent) ??
+    getOnboardingIntentFromLegacyAccountType(legacyAccountType);
 
   const publicRoles = uniqueRoles([
     ...(profileRole ? [profileRole] : []),
@@ -116,6 +187,9 @@ function mapSupabaseUser(
     email: profile?.email ?? user.email ?? null,
     role,
     roles,
+    accountType: "personal",
+    onboardingIntent,
+    interests: mapPersonalInterests(userMetadata.interests),
     isAdmin: trustedAdmin,
     fullName:
       profile?.full_name ??
@@ -124,18 +198,24 @@ function mapSupabaseUser(
       undefined,
     phone: profile?.phone ?? getMetadataString(userMetadata, "phone") ?? undefined,
     location: getMetadataString(userMetadata, "location") ?? undefined,
+    nationality: getMetadataString(userMetadata, "nationality") ?? undefined,
     workCategory:
       getMetadataString(userMetadata, "workCategory") ??
       getMetadataString(userMetadata, "category") ??
       undefined,
     skills: getMetadataString(userMetadata, "skills") ?? undefined,
     language: getMetadataString(userMetadata, "language") ?? undefined,
+    languages: getMetadataStringArray(userMetadata, "languages"),
     experience: getMetadataString(userMetadata, "experience") ?? undefined,
+    education: getMetadataString(userMetadata, "education") ?? undefined,
+    qualifications: getMetadataString(userMetadata, "qualifications") ?? undefined,
     availability: getMetadataString(userMetadata, "availability") ?? undefined,
     preferredWorkType:
       getMetadataString(userMetadata, "preferredWorkType") ??
       getMetadataString(userMetadata, "workType") ??
       undefined,
+    servicePreferences:
+      getMetadataString(userMetadata, "servicePreferences") ?? undefined,
     hourlyRate: getMetadataString(userMetadata, "hourlyRate") ?? undefined,
     emailVerified: typeof user.email_confirmed_at === "string" && user.email_confirmed_at.length > 0,
   };
@@ -173,7 +253,10 @@ async function createMissingProfile(user: User) {
   const profile = {
     id: user.id,
     email: user.email ?? null,
-    full_name: getMetadataString(userMetadata, "full_name") ?? null,
+    full_name:
+      getMetadataString(userMetadata, "fullName") ??
+      getMetadataString(userMetadata, "full_name") ??
+      null,
     phone: getMetadataString(userMetadata, "phone") ?? null,
     role: getFallbackPublicRole(user),
   };
@@ -237,10 +320,15 @@ export const supabaseAuthService: AuthService = {
   },
 
   async signUp(input) {
-    const publicRole = mapPublicRole(input.role);
+    const publicRole = input.role ? mapPublicRole(input.role) : undefined;
+    const onboardingIntent = mapOnboardingIntent(input.onboardingIntent);
 
-    if (!publicRole) {
+    if (input.role && !publicRole) {
       throw new Error("RabAI admin accounts must be assigned server-side.");
+    }
+
+    if (!onboardingIntent) {
+      throw new Error("Invalid RabAI onboarding intent.");
     }
 
     const { data, error } = await supabase.auth.signUp({
@@ -248,18 +336,10 @@ export const supabaseAuthService: AuthService = {
       password: input.password,
       options: {
         data: {
-          role: publicRole,
-          full_name: input.fullName,
           fullName: input.fullName,
           phone: input.phone,
-          location: input.location,
-          workCategory: input.workCategory,
-          skills: input.skills,
-          language: input.language,
-          experience: input.experience,
-          availability: input.availability,
-          preferredWorkType: input.preferredWorkType,
-          hourlyRate: input.hourlyRate,
+          accountType: "personal" satisfies AccountType,
+          onboardingIntent,
         },
       },
     });
@@ -350,6 +430,25 @@ export const supabaseAuthService: AuthService = {
       session,
       user: session?.user ?? (data.user ? mapSupabaseUser(data.user) : null),
     };
+  },
+
+  async updateOnboardingIntent(onboardingIntent) {
+    if (!mapOnboardingIntent(onboardingIntent)) {
+      throw new Error("Invalid RabAI onboarding intent.");
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        account_type: "personal" satisfies AccountType,
+        onboarding_intent: onboardingIntent,
+      },
+    });
+
+    if (error) {
+      throw new Error(error.message || "RabAI onboarding update failed.");
+    }
+
+    return this.getSession();
   },
 
   async signOut() {

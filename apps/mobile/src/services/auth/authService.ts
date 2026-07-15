@@ -5,6 +5,7 @@ import type {
   SignInInput,
   SignUpInput,
 } from "@/domain/auth/auth.types";
+import type { OnboardingIntent } from "@/domain/account/types";
 
 export type AuthService = {
   getSession(): Promise<AuthSession | null>;
@@ -23,6 +24,9 @@ export type AuthService = {
     email: string,
     token: string
   ): Promise<{ session: AuthSession | null; user: AuthUser | null }>;
+  updateOnboardingIntent(
+    onboardingIntent: OnboardingIntent
+  ): Promise<AuthSession | null>;
   signOut(): Promise<void>;
   onAuthStateChange(
     callback: (session: AuthSession | null) => void
