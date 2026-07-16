@@ -1,13 +1,25 @@
 export const DEFAULT_COURSE_RETURN_PATH = "/courses";
 
 export const ALLOWED_COURSE_RETURN_PATH_PREFIXES = [
+  "/",
   "/engine",
   "/courses",
-  "/worker-dashboard",
-  "/business-dashboard",
-  "/student-profile",
+  "/profile",
+  "/organizations",
   "/application-sent",
 ] as const;
+
+const LEGACY_COURSE_RETURN_PATHS: Record<string, string> = {
+  "/business": "/organizations",
+  "/business-dashboard": "/organizations",
+  "/business-form": "/organizations/create",
+  "/freelancers": "/services",
+  "/role": "/account-type",
+  "/student-profile": "/profile",
+  "/worker": "/profile",
+  "/worker-dashboard": "/profile",
+  "/worker-form": "/profile/edit",
+};
 
 type SearchParamValue = string | string[] | undefined;
 
@@ -74,6 +86,16 @@ export function sanitizeCourseReturnPath(value?: string | string[] | null) {
     return null;
   }
 
+  if (pathname === "/") {
+    return "/";
+  }
+
+  const legacyPath = LEGACY_COURSE_RETURN_PATHS[pathname];
+
+  if (legacyPath) {
+    return legacyPath;
+  }
+
   const isAllowed = ALLOWED_COURSE_RETURN_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
@@ -86,16 +108,20 @@ export function getCourseReturnLabel(returnPath?: string | null) {
     sanitizeCourseReturnPath(returnPath) ?? DEFAULT_COURSE_RETURN_PATH;
   const pathname = getPathname(safePath);
 
+  if (pathname === "/profile" || pathname.startsWith("/profile/")) {
+    return "Înapoi la profil";
+  }
+
+  if (pathname === "/organizations" || pathname.startsWith("/organizations/")) {
+    return "Înapoi la organizații";
+  }
+
   if (pathname === "/engine") {
     return "Înapoi la pagina principală";
   }
 
-  if (pathname === "/worker-dashboard" || pathname === "/business-dashboard") {
-    return "Înapoi la dashboard";
-  }
-
-  if (pathname === "/student-profile") {
-    return "Înapoi la profil";
+  if (pathname === "/") {
+    return "Înapoi la RabAI";
   }
 
   return "Înapoi la cursuri";

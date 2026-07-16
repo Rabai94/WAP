@@ -27,6 +27,7 @@ const onboardingIntents: OnboardingIntent[] = [
   "personal",
   "create_organization",
 ];
+const accountTypes: AccountType[] = ["personal", "organization"];
 const personalInterests: PersonalInterest[] = [
   "find_jobs",
   "find_tasks",
@@ -65,6 +66,12 @@ function mapLegacyAccountType(value: unknown): LegacyAccountType | undefined {
     : undefined;
 }
 
+function mapAccountType(value: unknown): AccountType | undefined {
+  return accountTypes.includes(value as AccountType)
+    ? (value as AccountType)
+    : undefined;
+}
+
 function mapOnboardingIntent(value: unknown): OnboardingIntent | undefined {
   return onboardingIntents.includes(value as OnboardingIntent)
     ? (value as OnboardingIntent)
@@ -79,6 +86,16 @@ function getOnboardingIntentFromLegacyAccountType(
   }
 
   return legacyAccountType;
+}
+
+function getAccountTypeFromOnboardingIntent(
+  onboardingIntent: OnboardingIntent | undefined
+): AccountType | undefined {
+  if (onboardingIntent === "create_organization") {
+    return "organization";
+  }
+
+  return onboardingIntent;
 }
 
 function uniqueRoles(roles: AuthRole[]) {
@@ -165,6 +182,11 @@ function mapSupabaseUser(
     mapOnboardingIntent(userMetadata.onboarding_intent) ??
     mapOnboardingIntent(userMetadata.onboardingIntent) ??
     getOnboardingIntentFromLegacyAccountType(legacyAccountType);
+  const accountType =
+    mapAccountType(userMetadata.accountType) ??
+    mapAccountType(userMetadata.account_type) ??
+    getAccountTypeFromOnboardingIntent(onboardingIntent) ??
+    "personal";
 
   const publicRoles = uniqueRoles([
     ...(profileRole ? [profileRole] : []),
@@ -187,7 +209,7 @@ function mapSupabaseUser(
     email: profile?.email ?? user.email ?? null,
     role,
     roles,
-    accountType: "personal",
+    accountType,
     onboardingIntent,
     interests: mapPersonalInterests(userMetadata.interests),
     isAdmin: trustedAdmin,
@@ -322,6 +344,9 @@ export const supabaseAuthService: AuthService = {
   async signUp(input) {
     const publicRole = input.role ? mapPublicRole(input.role) : undefined;
     const onboardingIntent = mapOnboardingIntent(input.onboardingIntent);
+    const accountType =
+      mapAccountType(input.accountType) ??
+      getAccountTypeFromOnboardingIntent(onboardingIntent);
 
     if (input.role && !publicRole) {
       throw new Error("RabAI admin accounts must be assigned server-side.");
@@ -331,6 +356,10 @@ export const supabaseAuthService: AuthService = {
       throw new Error("Invalid RabAI onboarding intent.");
     }
 
+    if (!accountType) {
+      throw new Error("Invalid RabAI account type.");
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email: input.email,
       password: input.password,
@@ -338,7 +367,7 @@ export const supabaseAuthService: AuthService = {
         data: {
           fullName: input.fullName,
           phone: input.phone,
-          accountType: "personal" satisfies AccountType,
+          accountType,
           onboardingIntent,
         },
       },
@@ -437,9 +466,13 @@ export const supabaseAuthService: AuthService = {
       throw new Error("Invalid RabAI onboarding intent.");
     }
 
+    const accountType =
+      getAccountTypeFromOnboardingIntent(onboardingIntent) ?? "personal";
+
     const { error } = await supabase.auth.updateUser({
       data: {
-        account_type: "personal" satisfies AccountType,
+        account_type: accountType,
+        accountType,
         onboarding_intent: onboardingIntent,
       },
     });

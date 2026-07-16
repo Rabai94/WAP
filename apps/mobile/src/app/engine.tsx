@@ -9,7 +9,7 @@ export default function EngineScreen() {
 
   async function handleLogout() {
     await signOut();
-    router.replace("/login" as never);
+    router.replace("/" as never);
   }
 
   return (

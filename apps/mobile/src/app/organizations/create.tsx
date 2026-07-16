@@ -25,9 +25,10 @@ type FormErrors = Partial<
 type CompanyCapability = "publish_jobs" | "publish_tasks" | "offer_services";
 type CourseDeliveryMode = "online" | "onsite" | "hybrid";
 
-const organizationTypes: Exclude<OrganizationType, "institution">[] = [
+const organizationTypes: OrganizationType[] = [
   "company",
   "academy",
+  "institution",
 ];
 
 const employeeCountOptions = ["1-10", "11-50", "51-200", "201-500", "500+"];
@@ -219,17 +220,20 @@ function OrganizationCreateContent() {
           <View style={styles.optionGrid}>
             {organizationTypes.map((type) => {
               const active = organizationType === type;
+              const disabled = type === "institution";
 
               return (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
+                  accessibilityState={{ disabled, selected: active }}
+                  disabled={disabled}
                   key={type}
                   onPress={() => setOrganizationType(type)}
                   style={[
                     styles.typeButton,
                     responsive.isMobile && styles.fullWidthItem,
                     active && styles.typeButtonActive,
+                    disabled && styles.typeButtonDisabled,
                   ]}
                 >
                   <Text
@@ -240,7 +244,11 @@ function OrganizationCreateContent() {
                   >
                     {t(`organizations.type.${type}`)}
                   </Text>
-                  {type === "academy" ? (
+                  {type === "institution" ? (
+                    <Text style={styles.comingSoonText}>
+                      {t("organizations.institutionLater")}
+                    </Text>
+                  ) : type === "academy" ? (
                     <Text style={styles.comingSoonText}>
                       {t("organizations.academyPrepared")}
                     </Text>
@@ -778,6 +786,9 @@ const styles = StyleSheet.create({
   typeButtonActive: {
     backgroundColor: "#EAF1FF",
     borderColor: "#145CFF",
+  },
+  typeButtonDisabled: {
+    opacity: 0.56,
   },
   typeButtonText: {
     color: Colors.textBody,

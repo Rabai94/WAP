@@ -1,19 +1,30 @@
 export const DEFAULT_JOB_RETURN_PATH = "/jobs";
 
 export const ALLOWED_JOB_RETURN_PATH_PREFIXES = [
+  "/",
   "/engine",
   "/jobs",
   "/profile",
   "/organizations",
-  "/worker-dashboard",
-  "/business-dashboard",
   "/applications",
   "/application-sent",
   "/job-published",
   "/create-job",
-  "/business-form",
-  "/worker-form",
+  "/tasks",
+  "/services",
 ] as const;
+
+const LEGACY_JOB_RETURN_PATHS: Record<string, string> = {
+  "/business": "/organizations",
+  "/business-dashboard": "/organizations",
+  "/business-form": "/organizations/create",
+  "/freelancers": "/services",
+  "/role": "/account-type",
+  "/student-profile": "/profile",
+  "/worker": "/profile",
+  "/worker-dashboard": "/profile",
+  "/worker-form": "/profile/edit",
+};
 
 type SearchParamValue = string | string[] | undefined;
 
@@ -79,6 +90,16 @@ export function sanitizeReturnPath(value?: string | string[] | null) {
     return null;
   }
 
+  if (pathname === "/") {
+    return "/";
+  }
+
+  const legacyPath = LEGACY_JOB_RETURN_PATHS[pathname];
+
+  if (legacyPath) {
+    return legacyPath;
+  }
+
   const isAllowed = ALLOWED_JOB_RETURN_PATH_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
@@ -94,6 +115,10 @@ export function getJobReturnLabel(returnPath?: string | null) {
     return "Inapoi la pagina principala";
   }
 
+  if (pathname === "/") {
+    return "Inapoi la RabAI";
+  }
+
   if (pathname === "/jobs" || pathname.startsWith("/jobs/")) {
     return "Inapoi la joburi";
   }
@@ -104,13 +129,6 @@ export function getJobReturnLabel(returnPath?: string | null) {
 
   if (pathname === "/organizations" || pathname.startsWith("/organizations/")) {
     return "Inapoi la organizatii";
-  }
-
-  if (
-    pathname === "/worker-dashboard" ||
-    pathname === "/business-dashboard"
-  ) {
-    return "Inapoi la dashboard";
   }
 
   if (pathname === "/applications" || pathname.startsWith("/applications/")) {

@@ -10,7 +10,7 @@ type HeaderProps = {
 
 export default function Header({ title, subtitle, icon, hero = false }: HeaderProps) {
   return (
-    <View>
+    <View style={styles.wrap}>
       {icon ? <Text style={styles.icon}>{icon}</Text> : null}
       <Text style={[styles.title, hero && styles.heroTitle]}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -19,6 +19,12 @@ export default function Header({ title, subtitle, icon, hero = false }: HeaderPr
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    alignSelf: "center",
+    maxWidth: 840,
+    width: "100%",
+  },
+
   icon: {
     fontSize: Typography.icon,
     textAlign: "center",
@@ -41,7 +47,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
     color: Colors.textSecondary,
     textAlign: "center",
-    marginBottom: Spacing.screen,
+    marginBottom: Spacing.five,
     lineHeight: Typography.lineHeight.subtitle,
   },
 });

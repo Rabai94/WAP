@@ -1,6 +1,6 @@
-export type AccountType = "personal";
+export type AccountType = "personal" | "organization";
 
-export type LegacyAccountType = AccountType | "organization";
+export type LegacyAccountType = AccountType;
 
 export type OnboardingIntent = "personal" | "create_organization";
 

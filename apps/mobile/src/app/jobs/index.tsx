@@ -3,6 +3,7 @@ import HeroAutocompleteField, {
 } from "@/components/home/HeroAutocompleteField";
 import JobSummaryCard from "@/components/jobs/JobSummaryCard";
 import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
+import PublicHeader from "@/components/navigation/PublicHeader";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
@@ -429,17 +430,7 @@ export default function JobsScreen() {
         {isAuthenticated ? (
           <AuthenticatedHeader active="jobs" />
         ) : (
-          <View style={styles.publicHeader}>
-            <Pressable accessibilityRole="button" onPress={() => router.replace("/" as any)} style={styles.publicLink}>
-              <Text style={styles.publicLinkText}>{t("common.home")}</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => router.push("/login" as any)} style={styles.publicPrimaryButton}>
-              <Text style={styles.publicPrimaryButtonText}>{t("common.login")}</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => router.push("/login?mode=signup" as any)} style={styles.publicSecondaryButton}>
-              <Text style={styles.publicSecondaryButtonText}>{t("common.register")}</Text>
-            </Pressable>
-          </View>
+          <PublicHeader active="jobs" />
         )}
 
         <View style={styles.heroCard}>

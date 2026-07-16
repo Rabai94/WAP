@@ -2,7 +2,6 @@ import { Button, Card, Header, Screen } from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
-  DEFAULT_JOB_RETURN_PATH,
   getJobReturnLabel,
   sanitizeReturnPath,
 } from "@/services/jobs/jobNavigation";
@@ -27,9 +26,10 @@ export default function JobDetailsScreen() {
   const { t } = useLanguage();
   const { session } = useAuth();
   const jobId = Array.isArray(id) ? id[0] : id;
+  const fallbackReturnPath = session ? "/engine" : "/";
   const returnPath = useMemo(
-    () => sanitizeReturnPath(from) ?? DEFAULT_JOB_RETURN_PATH,
-    [from]
+    () => sanitizeReturnPath(from) ?? fallbackReturnPath,
+    [fallbackReturnPath, from]
   );
   const returnLabel = useMemo(
     () => getJobReturnLabel(returnPath),

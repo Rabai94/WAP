@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
 
 type CardVariant = "default" | "muted" | "warning";
 
@@ -25,14 +25,23 @@ export default function Card({
   );
 }
 
+export function FeatureCard(props: CardProps) {
+  return <Card {...props} />;
+}
+
+export function SectionCard(props: CardProps) {
+  return <Card {...props} />;
+}
+
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
-    borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: Radius.xl,
-    padding: Spacing.four,
+    borderRadius: Radius.xxl,
+    borderWidth: 1,
     marginBottom: Spacing.three,
+    padding: Spacing.four,
+    ...Shadows.card,
   },
 
   default: {},
@@ -40,13 +49,15 @@ const styles = StyleSheet.create({
   muted: {
     backgroundColor: Colors.surfaceMuted,
     borderColor: Colors.borderNeutral,
+    ...Shadows.none,
   },
 
   warning: {
     backgroundColor: Colors.warningSurface,
     borderColor: Colors.warningBorder,
-    padding: Spacing.three,
     marginBottom: Spacing.five,
+    padding: Spacing.three,
+    ...Shadows.none,
   },
 
   title: {

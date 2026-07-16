@@ -31,8 +31,8 @@ export default function Screen({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: Colors.background,
+    flex: 1,
     padding: Spacing.screen,
   },
 

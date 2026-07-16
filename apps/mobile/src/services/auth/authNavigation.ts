@@ -12,6 +12,18 @@ const ALLOWED_AUTH_RETURN_PATH_PREFIXES = [
   "/tasks",
 ] as const;
 
+const LEGACY_AUTH_RETURN_PATHS: Record<string, string> = {
+  "/business": "/organizations",
+  "/business-dashboard": "/organizations",
+  "/business-form": "/organizations/create",
+  "/freelancers": "/services",
+  "/role": "/account-type",
+  "/student-profile": "/profile",
+  "/worker": "/profile",
+  "/worker-dashboard": "/profile",
+  "/worker-form": "/profile/edit",
+};
+
 export function buildLoginPath(returnTo?: string | null) {
   const safeReturnTo = sanitizeAuthReturnPath(returnTo);
 
@@ -60,6 +72,12 @@ export function sanitizeAuthReturnPath(value?: string | string[] | null) {
 
   if (pathname === "/") {
     return "/";
+  }
+
+  const legacyPath = LEGACY_AUTH_RETURN_PATHS[pathname];
+
+  if (legacyPath) {
+    return legacyPath;
   }
 
   const isAllowed = ALLOWED_AUTH_RETURN_PATH_PREFIXES.some(

@@ -187,9 +187,7 @@ function UnifiedProfileContent() {
             />
             <InfoItem
               label={t("profileUnified.verificationLevel")}
-              value={`${t("verification.level0.short")} - ${t(
-                "verification.status.verified"
-              )}`}
+              value={`${t("verification.level0.short")} - ${missingValue}`}
             />
           </View>
         </Card>
@@ -210,6 +208,14 @@ function UnifiedProfileContent() {
             style={styles.cardButton}
             onPress={() => router.push("/onboarding/interests" as any)}
           />
+        </Card>
+
+        <Card title={t("profileUnified.aboutTitle")}>
+          {profile?.professional_summary ? (
+            <Text style={styles.summaryText}>{profile.professional_summary}</Text>
+          ) : (
+            <Text style={styles.mutedText}>{t("profileUnified.summaryMissing")}</Text>
+          )}
         </Card>
 
         <Card title={t("profileUnified.professionalTitle")}>
@@ -267,17 +273,11 @@ function UnifiedProfileContent() {
               value={user?.servicePreferences ?? missingValue}
             />
           </View>
-
-          {profile?.professional_summary ? (
-            <Text style={styles.summaryText}>{profile.professional_summary}</Text>
-          ) : (
-            <Text style={styles.mutedText}>{t("profileUnified.summaryMissing")}</Text>
-          )}
         </Card>
 
         <Card title={t("profileUnified.verificationTitle")}>
           <View style={styles.infoGrid}>
-            <InfoItem label={t("verification.level0.short")} value={t("verification.status.verified")} />
+            <InfoItem label={t("verification.level0.short")} value={t("verification.status.notStarted")} />
             <InfoItem label={t("verification.level1.short")} value={t("verification.status.notStarted")} />
             <InfoItem label={t("verification.level2.short")} value={t("verification.status.notStarted")} />
             <InfoItem label={t("verification.level3.title")} value={t("verification.status.notStarted")} />

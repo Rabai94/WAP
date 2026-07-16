@@ -277,7 +277,7 @@ function formatVerificationStatus(value: string, t: (key: string) => string) {
     return t("organizations.verification.rejected");
   }
 
-  return t("verification.status.pending");
+  return t("organizations.unverifiedStatus");
 }
 
 function formatCompanyStatus(value: string, t: (key: string) => string) {

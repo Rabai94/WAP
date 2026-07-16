@@ -1,4 +1,5 @@
 import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
+import PublicHeader from "@/components/navigation/PublicHeader";
 import { Button, Card, Header, Screen } from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -32,7 +33,11 @@ export default function TasksScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {session ? <AuthenticatedHeader active="tasks" /> : null}
+        {session ? (
+          <AuthenticatedHeader active="tasks" />
+        ) : (
+          <PublicHeader active="tasks" />
+        )}
 
         <Header title={t("tasks.title")} subtitle={t("tasks.subtitle")} />
 

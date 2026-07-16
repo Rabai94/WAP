@@ -2,7 +2,6 @@ import { Button, Card, Header, Screen } from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
-  DEFAULT_COURSE_RETURN_PATH,
   getCourseReturnLabel,
   sanitizeCourseReturnPath,
 } from "@/services/courses/courseNavigation";
@@ -26,9 +25,10 @@ export default function CourseDetailsScreen() {
   const { language } = useLanguage();
   const { session } = useAuth();
   const courseId = Array.isArray(id) ? id[0] : id;
+  const fallbackReturnPath = session ? "/engine" : "/";
   const returnPath = useMemo(
-    () => sanitizeCourseReturnPath(from) ?? DEFAULT_COURSE_RETURN_PATH,
-    [from]
+    () => sanitizeCourseReturnPath(from) ?? fallbackReturnPath,
+    [fallbackReturnPath, from]
   );
   const returnLabel = useMemo(
     () => getCourseReturnLabel(returnPath),

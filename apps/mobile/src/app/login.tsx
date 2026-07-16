@@ -23,9 +23,9 @@ const palette = {
   muted: "#667085",
   line: "#D9E2F4",
   violet: "#6D28D9",
-  violetDark: "#2E1065",
-  red: "#E11D48",
-  redSoft: "#FFE7EF",
+  violetDark: "#145CFF",
+  red: "#145CFF",
+  redSoft: "#EAF1FF",
   shadow: "#182033",
 } as const;
 
@@ -125,6 +125,10 @@ export default function LoginScreen() {
     try {
       const result = await signUp({
         email: email.trim(),
+        accountType:
+          selectedOnboardingIntent === "create_organization"
+            ? "organization"
+            : "personal",
         fullName: fullName.trim(),
         onboardingIntent: selectedOnboardingIntent,
         password,
@@ -556,9 +560,9 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
-    backgroundColor: palette.redSoft,
+    backgroundColor: "#FFF1F6",
     borderRadius: Radius.lg,
-    color: palette.red,
+    color: Colors.danger,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
     lineHeight: Typography.lineHeight.body,
@@ -638,7 +642,7 @@ function buildLoginModePath(
 function getPostSignupRoute(onboardingIntent: OnboardingIntent) {
   return onboardingIntent === "create_organization"
     ? "/organizations/create"
-    : "/onboarding/interests";
+    : "/engine";
 }
 
 function getPostAuthRoute(

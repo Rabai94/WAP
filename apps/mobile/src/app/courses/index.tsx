@@ -3,6 +3,7 @@ import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
 import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
+import PublicHeader from "@/components/navigation/PublicHeader";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -74,10 +75,9 @@ export default function CoursesScreen() {
     page?: string | string[];
     search?: string | string[];
   }>();
-  const { language, t } = useLanguage();
+  const { language } = useLanguage();
   const { session } = useAuth();
   const isAuthenticated = Boolean(session);
-  const homeRoute = isAuthenticated ? "/engine" : "/";
   const page = Math.max(parseIntegerParam(params.page, 1), 1);
   const coursesReturnPath = useMemo(
     () => buildCourseReturnPath("/courses", params),
@@ -308,17 +308,7 @@ export default function CoursesScreen() {
         {isAuthenticated ? (
           <AuthenticatedHeader active="courses" />
         ) : (
-          <View style={styles.publicHeader}>
-            <Pressable accessibilityRole="button" onPress={() => router.replace(homeRoute as any)} style={styles.publicLink}>
-              <Text style={styles.publicLinkText}>{t("common.home")}</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => router.push("/login" as any)} style={styles.publicPrimaryButton}>
-              <Text style={styles.publicPrimaryButtonText}>{t("common.login")}</Text>
-            </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => router.push("/login?mode=signup" as any)} style={styles.publicSecondaryButton}>
-              <Text style={styles.publicSecondaryButtonText}>{t("common.register")}</Text>
-            </Pressable>
-          </View>
+          <PublicHeader active="courses" />
         )}
 
         <View style={styles.heroCard}>

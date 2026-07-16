@@ -35,12 +35,14 @@ const styles = StyleSheet.create({
 
   input: {
     backgroundColor: Colors.surface,
-    borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: Radius.lg,
-    padding: Spacing.xxl,
-    fontSize: Typography.body,
+    borderWidth: 1,
     color: Colors.text,
+    fontSize: Typography.body,
     marginBottom: Spacing.xxl,
+    minHeight: 50,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.xl,
   },
 });

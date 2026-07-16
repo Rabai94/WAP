@@ -1,5 +1,5 @@
 import { Pressable, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from "react-native";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "success" | "ghost";
 
@@ -46,22 +46,38 @@ export default function Button({
   );
 }
 
+export function PrimaryButton(props: Omit<ButtonProps, "variant">) {
+  return <Button {...props} variant="primary" />;
+}
+
+export function SecondaryButton(props: Omit<ButtonProps, "variant">) {
+  return <Button {...props} variant="secondary" />;
+}
+
+export function DisabledButton(props: Omit<ButtonProps, "disabled">) {
+  return <Button {...props} disabled />;
+}
+
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: Spacing.xxl,
-    borderRadius: Radius.lg,
     alignItems: "center",
+    borderRadius: Radius.lg,
     justifyContent: "center",
+    minHeight: 48,
+    minWidth: 148,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 0,
   },
 
   primaryButton: {
     backgroundColor: Colors.brand,
+    ...Shadows.button,
   },
 
   secondaryButton: {
     backgroundColor: Colors.surface,
-    borderWidth: 1,
     borderColor: Colors.brand,
+    borderWidth: 1,
   },
 
   dangerButton: {
@@ -74,16 +90,20 @@ const styles = StyleSheet.create({
 
   ghostButton: {
     backgroundColor: "transparent",
-    padding: Spacing.xl,
+    minWidth: 0,
+    paddingHorizontal: Spacing.xl,
   },
 
   disabledButton: {
-    opacity: 0.6,
+    backgroundColor: Colors.borderMuted,
+    borderColor: Colors.borderNeutral,
+    opacity: 1,
   },
 
   text: {
     fontSize: Typography.button,
     fontWeight: Typography.fontWeight.extraBold,
+    textAlign: "center",
   },
 
   primaryText: {

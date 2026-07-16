@@ -53,6 +53,7 @@ export type AuthSession = {
 export type SignUpInput = {
   email: string;
   password: string;
+  accountType?: AccountType;
   role?: PublicAuthRole;
   onboardingIntent: OnboardingIntent;
   fullName: string;

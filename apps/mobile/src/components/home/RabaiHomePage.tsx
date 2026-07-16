@@ -1,8 +1,6 @@
 import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
-import CourseSummaryCard from "@/components/courses/CourseSummaryCard";
-import JobSummaryCard from "@/components/jobs/JobSummaryCard";
 import NationalInsigniaBadge from "@/components/NationalInsigniaBadge";
 import { Screen } from "@/components/ui";
 import type { AuthRole } from "@/domain/auth/auth.types";
@@ -18,6 +16,8 @@ import {
   fetchLatestPublishedJobs,
   type SearchJobResult,
 } from "@/services/jobs/jobFlowService";
+import { buildCourseDetailsPath } from "@/services/courses/courseNavigation";
+import { buildJobDetailsPath } from "@/services/jobs/jobNavigation";
 import {
   searchLocationSuggestions,
   searchOccupationSuggestions,
@@ -54,7 +54,16 @@ type EcosystemNodeKey =
   | "workers"
   | "companies"
   | "freelancers";
-type PreviewRole = Exclude<AuthRole, "admin">;
+type AdminPreviewKey =
+  | "personal"
+  | "organization"
+  | "jobs"
+  | "tasks"
+  | "services"
+  | "courses"
+  | "messages";
+type AdminGroupKey = "platform" | "accounts" | "communication";
+type QuickActionKey = "profile" | "organization" | "jobs" | "task";
 type AutocompleteTarget = "occupation" | "location" | null;
 type OccupationAutocompleteOption = HeroAutocompleteOption & {
   suggestion: OccupationSuggestion;
@@ -98,12 +107,16 @@ type HomeCopy = {
     button: string;
   };
   sections: {
+    activityTitle: string;
+    activityEmpty: string;
     jobsTitle: string;
     coursesTitle: string;
     viewJobs: string;
     viewCourses: string;
     jobsEmpty: string;
     coursesEmpty: string;
+    quickTitle: string;
+    quickActions: Record<QuickActionKey, string>;
   };
   support: {
     unified: string;
@@ -118,31 +131,28 @@ type HomeCopy = {
   preview: {
     adminBarTitle: string;
     adminBarSubtitle: string;
-    roleButtonLabel: string;
-    roleLabel: Record<PreviewRole, string>;
-    roleDescription: Record<PreviewRole, string>;
-    roleHighlightsTitle: string;
-    roleHighlightsSubtitle: string;
+    groupLabel: Record<AdminGroupKey, string>;
+    previewLabel: Record<AdminPreviewKey, string>;
   };
 };
 
 const copyByLanguage = {
   ro: {
     nav: {
-      home: "Acasa",
-      jobs: "Locuri de munca",
-      tasks: "Lucrari punctuale",
+      home: "Acasă",
+      jobs: "Locuri de muncă",
+      tasks: "Lucrări punctuale",
       services: "Servicii",
       courses: "Cursuri",
       messages: "Mesaje",
       profile: "Profil",
     },
     auth: {
-      applications: "Aplicatiile mele",
+      applications: "Aplicările mele",
       login: "Login",
-      organizations: "Organizatiile mele",
-      register: "Inregistreaza-te",
-      soon: "In curand",
+      organizations: "Organizațiile mele",
+      register: "Înregistrează-te",
+      soon: "În curând",
       logout: "Logout",
     },
     hero: {
@@ -191,12 +201,21 @@ const copyByLanguage = {
       button: "Cauta",
     },
     sections: {
+      activityTitle: "Activitate recenta",
+      activityEmpty: "Nu exista activitate recenta disponibila.",
       jobsTitle: "Joburi postate",
       coursesTitle: "Cursuri active",
       viewJobs: "Vezi joburile",
       viewCourses: "Vezi cursurile",
       jobsEmpty: "Momentan nu exista joburi publicate.",
       coursesEmpty: "Momentan nu exista cursuri active.",
+      quickTitle: "Continua rapid",
+      quickActions: {
+        profile: "Completeaza profilul",
+        organization: "Creeaza organizatie",
+        jobs: "Vezi joburi",
+        task: "Publica lucrare",
+      },
     },
     support: {
       unified: "Totul intr-un singur loc",
@@ -210,22 +229,21 @@ const copyByLanguage = {
     },
     preview: {
       adminBarTitle: "Admin activ",
-      adminBarSubtitle: "Vezi platforma ca:",
-      roleButtonLabel: "Vezi experienta",
-      roleLabel: {
-        worker: "Cont personal",
-        student: "Cursuri",
-        business: "Organizatie",
-        freelancer: "Servicii",
+      adminBarSubtitle: "Ai acces rapid la zonele principale RabAI.",
+      groupLabel: {
+        platform: "Platforma",
+        accounts: "Conturi",
+        communication: "Comunicare",
       },
-      roleDescription: {
-        worker: "Joburi, taskuri, servicii si profil profesional",
-        student: "Cursuri si dezvoltare profesionala",
-        business: "Organizatii, joburi si candidati",
-        freelancer: "Servicii si proiecte",
+      previewLabel: {
+        personal: "Profil personal",
+        organization: "Organizațiile mele",
+        jobs: "Joburi",
+        tasks: "Lucrări punctuale",
+        services: "Servicii",
+        courses: "Cursuri",
+        messages: "Mesaje",
       },
-      roleHighlightsTitle: "Experienta de previzualizare",
-      roleHighlightsSubtitle: "Exploreaza platforma pe activitati.",
     },
   },
   en: {
@@ -292,12 +310,21 @@ const copyByLanguage = {
       button: "Search",
     },
     sections: {
+      activityTitle: "Recent activity",
+      activityEmpty: "There is no recent activity available yet.",
       jobsTitle: "Posted jobs",
       coursesTitle: "Active courses",
       viewJobs: "View jobs",
       viewCourses: "View courses",
       jobsEmpty: "There are no published jobs yet.",
       coursesEmpty: "There are no active courses yet.",
+      quickTitle: "Continue quickly",
+      quickActions: {
+        profile: "Complete profile",
+        organization: "Create organization",
+        jobs: "View jobs",
+        task: "Publish task",
+      },
     },
     support: {
       unified: "Everything in one place",
@@ -311,29 +338,28 @@ const copyByLanguage = {
     },
     preview: {
       adminBarTitle: "Admin active",
-      adminBarSubtitle: "Preview the platform as:",
-      roleButtonLabel: "See experience",
-      roleLabel: {
-        worker: "Personal Account",
-        student: "Courses",
-        business: "Organization",
-        freelancer: "Services",
+      adminBarSubtitle: "Quickly access the main RabAI areas.",
+      groupLabel: {
+        platform: "Platform",
+        accounts: "Accounts",
+        communication: "Communication",
       },
-      roleDescription: {
-        worker: "Jobs, tasks, services and professional profile",
-        student: "Courses and professional development",
-        business: "Organizations, jobs and candidates",
-        freelancer: "Services and projects",
+      previewLabel: {
+        personal: "Personal profile",
+        organization: "My organizations",
+        jobs: "Jobs",
+        tasks: "Tasks",
+        services: "Services",
+        courses: "Courses",
+        messages: "Messages",
       },
-      roleHighlightsTitle: "Preview experience",
-      roleHighlightsSubtitle: "Explore the platform by activity.",
     },
   },
   de: {
     nav: {
       home: "Start",
       jobs: "Jobs",
-      tasks: "Auftraege",
+      tasks: "Aufträge",
       services: "Dienstleistungen",
       courses: "Kurse",
       messages: "Nachrichten",
@@ -393,12 +419,21 @@ const copyByLanguage = {
       button: "Suchen",
     },
     sections: {
+      activityTitle: "Aktuelle Aktivitaet",
+      activityEmpty: "Es gibt noch keine aktuelle Aktivitaet.",
       jobsTitle: "Veroeffentlichte Jobs",
       coursesTitle: "Aktive Kurse",
       viewJobs: "Jobs ansehen",
       viewCourses: "Kurse ansehen",
       jobsEmpty: "Derzeit sind keine Jobs veroeffentlicht.",
       coursesEmpty: "Derzeit sind keine Kurse aktiv.",
+      quickTitle: "Schnell fortfahren",
+      quickActions: {
+        profile: "Profil vervollstaendigen",
+        organization: "Organisation erstellen",
+        jobs: "Jobs ansehen",
+        task: "Auftrag veroeffentlichen",
+      },
     },
     support: {
       unified: "Alles an einem Ort",
@@ -412,22 +447,21 @@ const copyByLanguage = {
     },
     preview: {
       adminBarTitle: "Admin aktiv",
-      adminBarSubtitle: "Sieh die Plattform als:",
-      roleButtonLabel: "Erlebnis ansehen",
-      roleLabel: {
-        worker: "Persoenliches Konto",
-        student: "Kurse",
-        business: "Organisation",
-        freelancer: "Dienstleistungen",
+      adminBarSubtitle: "Greife schnell auf die wichtigsten RabAI-Bereiche zu.",
+      groupLabel: {
+        platform: "Plattform",
+        accounts: "Konten",
+        communication: "Kommunikation",
       },
-      roleDescription: {
-        worker: "Jobs, Auftraege, Dienstleistungen und Berufsprofil",
-        student: "Kurse und berufliche Entwicklung",
-        business: "Organisationen, Jobs und Bewerbungen",
-        freelancer: "Dienstleistungen und Projekte",
+      previewLabel: {
+        personal: "Persönliches Profil",
+        organization: "Meine Organisationen",
+        jobs: "Jobs",
+        tasks: "Aufträge",
+        services: "Dienstleistungen",
+        courses: "Kurse",
+        messages: "Nachrichten",
       },
-      roleHighlightsTitle: "Vorschau-Erlebnis",
-      roleHighlightsSubtitle: "Erkunde die Plattform nach Aktivitaeten.",
     },
   },
 } satisfies Record<LanguageCode, HomeCopy>;
@@ -444,19 +478,54 @@ const navItems: { key: NavKey; enabled: boolean; route?: string }[] = [
 
 const publicNavKeys: NavKey[] = ["home", "jobs", "tasks", "services", "courses"];
 
-const searchTabs: { key: SearchTabKey }[] = [
-  { key: "jobs" },
-  { key: "tasks" },
-  { key: "services" },
-  { key: "courses" },
+const adminPreviewGroups: {
+  key: AdminGroupKey;
+  items: { key: AdminPreviewKey; route: string }[];
+}[] = [
+  {
+    key: "platform",
+    items: [
+      { key: "jobs", route: "/jobs" },
+      { key: "tasks", route: "/tasks" },
+      { key: "services", route: "/services" },
+      { key: "courses", route: "/courses" },
+    ],
+  },
+  {
+    key: "accounts",
+    items: [
+      { key: "personal", route: "/profile" },
+      { key: "organization", route: "/organizations" },
+    ],
+  },
+  {
+    key: "communication",
+    items: [{ key: "messages", route: "/messages" }],
+  },
 ];
 
-const supportItems = [
-  { key: "unified", tone: "blue", icon: "01" },
-  { key: "trusted", tone: "violet", icon: "02" },
-  { key: "fast", tone: "cyan", icon: "03" },
-  { key: "support", tone: "rose", icon: "04" },
-] as const;
+const quickActionItems: { key: QuickActionKey; route: string }[] = [
+  { key: "profile", route: "/profile" },
+  { key: "organization", route: "/organizations/create" },
+  { key: "jobs", route: "/jobs" },
+  { key: "task", route: "/tasks/create" },
+];
+
+const legacyListingLabels = new Set([
+  "worker",
+  "worker profile",
+  "worker dashboard",
+  "student",
+  "student profile",
+  "freelancer",
+  "freelancer mode",
+  "business",
+  "business account",
+  "business dashboard",
+  "muncitor",
+  "muncitor dashboard",
+  "profil muncitor",
+]);
 
 const palette = {
   page: "#F7FAFF",
@@ -482,16 +551,9 @@ const palette = {
 } as const;
 
 const layout = {
-  headerMaxWidth: 1280,
-  contentMaxWidth: 1200,
+  headerMaxWidth: 1240,
+  contentMaxWidth: 1240,
 } as const;
-
-const searchRoutes: Record<SearchTabKey, string> = {
-  jobs: "/jobs",
-  tasks: "/tasks",
-  services: "/services",
-  courses: "/courses",
-};
 
 const searchModeCopy = {
   ro: {
@@ -576,7 +638,7 @@ const heroBackgroundWebStyle =
   Platform.OS === "web"
     ? ({
         backgroundImage:
-          "radial-gradient(circle at 45% 46%, rgba(6,10,25,0.84) 0%, rgba(6,10,25,0.70) 32%, rgba(6,10,25,0.38) 66%, rgba(6,10,25,0.20) 100%), linear-gradient(90deg, rgba(6,10,25,0.82) 0%, rgba(6,10,25,0.66) 42%, rgba(6,10,25,0.34) 78%, rgba(6,10,25,0.24) 100%), url('/images/rabai-home-hero-background-v001.png')",
+          "linear-gradient(180deg, rgba(5,9,24,0.34) 0%, rgba(5,9,24,0.72) 100%), linear-gradient(90deg, rgba(5,9,24,0.84) 0%, rgba(9,20,48,0.70) 45%, rgba(9,20,48,0.34) 100%), url('/images/rabai-home-hero-background-v001.png')",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
         backgroundSize: "cover",
@@ -587,17 +649,17 @@ const pageBackgroundWebStyle =
     ? ({
         backgroundColor: palette.page,
         backgroundImage:
-          "radial-gradient(circle at 12% 18%, rgba(20,92,255,0.075) 0%, rgba(20,92,255,0.035) 18%, rgba(20,92,255,0) 34%), radial-gradient(circle at 86% 30%, rgba(110,29,255,0.068) 0%, rgba(110,29,255,0.032) 16%, rgba(110,29,255,0) 32%), radial-gradient(circle at 52% 92%, rgba(24,199,223,0.055) 0%, rgba(24,199,223,0.026) 18%, rgba(24,199,223,0) 38%)",
+          "linear-gradient(180deg, #F7FAFF 0%, #EEF4FF 48%, #F8FBFF 100%)",
         backgroundRepeat: "no-repeat",
       } as unknown as ViewStyle)
     : null;
 const glassPanelWebStyle =
   Platform.OS === "web"
     ? ({
-        WebkitBackdropFilter: "blur(14px)",
-        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(18px)",
+        backdropFilter: "blur(18px)",
         boxShadow:
-          "0 26px 70px rgba(25, 35, 95, 0.16), 0 0 42px rgba(110, 29, 255, 0.10)",
+          "0 26px 70px rgba(8, 16, 42, 0.22), 0 1px 0 rgba(255, 255, 255, 0.22) inset",
       } as unknown as ViewStyle)
     : null;
 const searchButtonWebStyle =
@@ -615,6 +677,21 @@ const searchButtonHoverWebStyle =
           "0 18px 34px rgba(20, 92, 255, 0.28), 0 0 30px rgba(110, 29, 255, 0.18)",
       } as unknown as ViewStyle)
     : null;
+const adminBarWebStyle =
+  Platform.OS === "web"
+    ? ({
+        backgroundImage:
+          "linear-gradient(135deg, rgba(7,13,32,0.98) 0%, rgba(10,32,78,0.96) 55%, rgba(16,71,158,0.90) 100%)",
+        boxShadow:
+          "0 22px 58px rgba(10, 16, 40, 0.22), 0 1px 0 rgba(255,255,255,0.14) inset",
+      } as unknown as ViewStyle)
+    : null;
+const adminButtonWebStyle =
+  Platform.OS === "web"
+    ? ({
+        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.18)",
+      } as unknown as ViewStyle)
+    : null;
 const focusRingWebStyle =
   Platform.OS === "web"
     ? ({
@@ -624,14 +701,6 @@ const focusRingWebStyle =
         outlineWidth: 2,
       } as unknown as ViewStyle)
     : null;
-const categoryGlassWebStyle =
-  Platform.OS === "web"
-    ? ({
-        WebkitBackdropFilter: "blur(10px)",
-        backdropFilter: "blur(10px)",
-      } as unknown as ViewStyle)
-    : null;
-
 type WebPressableState = {
   focused?: boolean;
   hovered?: boolean;
@@ -657,7 +726,6 @@ export default function RabaiHomePage({
   const router = useRouter();
   const responsive = useResponsiveLayout();
   const { language, setLanguage } = useLanguage();
-  const [activeCategory, setActiveCategory] = useState<SearchTabKey>("jobs");
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
   const [selectedOccupation, setSelectedOccupation] =
@@ -690,14 +758,27 @@ export default function RabaiHomePage({
 
   const isCompact = responsive.isMobile || responsive.isTablet;
   const isPhone = responsive.isMobile;
-  const contentMaxWidth = responsive.contentMaxWidth;
+  const contentMaxWidth = Math.min(
+    responsive.isLaptop
+      ? Math.max(responsive.contentMaxWidth, 1180)
+      : responsive.contentMaxWidth,
+    layout.contentMaxWidth
+  );
   const copy = copyByLanguage[language];
-  const activeSearchModeCopy = searchModeCopy[language][activeCategory];
+  const activeSearchModeCopy = searchModeCopy[language].jobs;
   const isAuthenticated = authState === "authenticated";
   const isAdminUser = Boolean(user?.isAdmin);
   const visibleNavItems = navItems.filter(
     (item) => isAuthenticated || publicNavKeys.includes(item.key)
   );
+  const recentJobs = latestJobs.slice(0, 2);
+  const recentCourses = latestCourses.slice(0, 2);
+  const hasRecentActivity = recentJobs.length > 0 || recentCourses.length > 0;
+  const recentActivityLoading =
+    !hasRecentActivity && (latestJobsLoading || latestCoursesLoading);
+  const recentActivityError = hasRecentActivity
+    ? ""
+    : latestJobsError || latestCoursesError;
 
   useEffect(() => {
     let mounted = true;
@@ -755,7 +836,7 @@ export default function RabaiHomePage({
     occupationRequestId.current += 1;
     const requestId = occupationRequestId.current;
 
-    if (activeCategory !== "jobs" || trimmedQuery.length < 2) {
+    if (trimmedQuery.length < 2) {
       return;
     }
 
@@ -791,7 +872,7 @@ export default function RabaiHomePage({
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [activeCategory, language, query]);
+  }, [language, query]);
 
   useEffect(() => {
     let mounted = true;
@@ -919,7 +1000,7 @@ export default function RabaiHomePage({
       setSelectedOccupation(null);
     }
 
-    if (activeCategory !== "jobs" || text.trim().length < 2) {
+    if (text.trim().length < 2) {
       occupationRequestId.current += 1;
       setOccupationSuggestions([]);
       setOccupationLoading(false);
@@ -985,53 +1066,28 @@ export default function RabaiHomePage({
       }
     }
 
-    if (activeCategory === "jobs") {
-      if (selectedOccupation) {
-        addParam("occupation", selectedOccupation.slug);
-        addParam("occupationId", selectedOccupation.id);
-      } else {
-        addParam("occupation", trimmedQuery);
-      }
-
-      if (selectedLocation) {
-        addParam("location", selectedLocation.label);
-        addParam("locationId", selectedLocation.id);
-        addParam("lat", selectedLocation.latitude);
-        addParam("lng", selectedLocation.longitude);
-      } else {
-        addParam("location", trimmedLocation);
-      }
+    if (selectedOccupation) {
+      addParam("occupation", selectedOccupation.slug);
+      addParam("occupationId", selectedOccupation.id);
     } else {
-      addParam("search", trimmedQuery);
-      if (selectedLocation) {
-        addParam("location", selectedLocation.label);
-        addParam("locationId", selectedLocation.id);
-      } else {
-        addParam("location", trimmedLocation);
-      }
+      addParam("occupation", trimmedQuery);
+    }
+
+    if (selectedLocation) {
+      addParam("location", selectedLocation.label);
+      addParam("locationId", selectedLocation.id);
+      addParam("lat", selectedLocation.latitude);
+      addParam("lng", selectedLocation.longitude);
+    } else {
+      addParam("location", trimmedLocation);
     }
 
     const queryString = params
       .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
       .join("&");
-    const searchRoute = `${searchRoutes[activeCategory]}${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const searchRoute = `/jobs${queryString ? `?${queryString}` : ""}`;
 
     router.push(searchRoute as never);
-  }
-
-  function selectSearchCategory(categoryKey: SearchTabKey) {
-    if (categoryKey !== activeCategory) {
-      setActiveCategory(categoryKey);
-      setOpenAutocomplete(null);
-
-      if (categoryKey !== "jobs") {
-        setSelectedOccupation(null);
-        setOccupationSuggestions([]);
-        setOccupationActiveIndex(-1);
-      }
-    }
   }
 
   function handleLogout() {
@@ -1040,7 +1096,7 @@ export default function RabaiHomePage({
       return;
     }
 
-    router.replace("/login" as never);
+    router.replace("/" as never);
   }
 
   return (
@@ -1072,7 +1128,7 @@ export default function RabaiHomePage({
             <Text style={styles.logo}>RabAI</Text>
           </Pressable>
 
-          <View style={[styles.nav, isPhone && styles.navPhone]}>
+          <View style={[styles.nav, isCompact && styles.navCompact]}>
             {visibleNavItems.map((item) => {
               const enabled = item.enabled;
               const active = item.key === "home";
@@ -1112,7 +1168,12 @@ export default function RabaiHomePage({
             })}
           </View>
 
-          <View style={[styles.headerActions, isPhone && styles.headerActionsPhone]}>
+          <View
+            style={[
+              styles.headerActions,
+              isCompact && styles.headerActionsCompact,
+            ]}
+          >
             <View style={styles.languageSelector}>
               {languages.map((item) => (
                 <Pressable
@@ -1139,44 +1200,26 @@ export default function RabaiHomePage({
             {isAuthenticated ? (
               <View style={styles.authSummary}>
                 <View style={styles.authSummaryTextWrap}>
-                  <Text style={styles.authSummaryName}>
+                  <Text numberOfLines={1} style={styles.authSummaryName}>
                     {user?.fullName ||
                       user?.email ||
                       (isAdminUser ? "RabAI admin" : "RabAI account")}
                   </Text>
                   {user?.email ? (
-                    <Text style={styles.authSummaryEmail}>{user.email}</Text>
+                    <Text numberOfLines={1} style={styles.authSummaryEmail}>
+                      {user.email}
+                    </Text>
                   ) : null}
                 </View>
                 <View style={styles.authSummaryActions}>
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => {
-                      navigate("/applications");
-                    }}
-                    style={styles.accountActionButton}
-                  >
-                    <Text style={styles.accountActionText}>
-                      {copy.auth.applications}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => {
-                      navigate("/organizations");
-                    }}
-                    style={styles.accountActionButton}
-                  >
-                    <Text style={styles.accountActionText}>
-                      {copy.auth.organizations}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
                     onPress={handleLogout}
-                    style={styles.loginButton}
+                    style={styles.logoutButton}
                   >
-                    <Text style={styles.loginText}>{copy.auth.logout}</Text>
+                    <Text numberOfLines={1} style={styles.logoutText}>
+                      {copy.auth.logout}
+                    </Text>
                   </Pressable>
                 </View>
               </View>
@@ -1252,7 +1295,6 @@ export default function RabaiHomePage({
             </View>
 
             <HeroSearchControls
-              activeCategory={activeCategory}
               copy={copy}
               isCompact={isCompact}
               isPhone={isPhone}
@@ -1272,16 +1314,13 @@ export default function RabaiHomePage({
               }}
               onOccupationActiveIndexChange={setOccupationActiveIndex}
               onOccupationFocus={() => {
-                if (activeCategory === "jobs") {
-                  setOpenAutocomplete("occupation");
-                }
+                setOpenAutocomplete("occupation");
               }}
               onOccupationSelect={(option) => {
                 selectOccupationSuggestion(option.suggestion);
               }}
               onQueryChange={handleQueryChange}
               onSubmit={submitSearch}
-              onTabChange={selectSearchCategory}
               openAutocomplete={openAutocomplete}
               occupationActiveIndex={occupationActiveIndex}
               occupationError={occupationError}
@@ -1295,6 +1334,14 @@ export default function RabaiHomePage({
           </View>
         </View>
 
+        {isAdminUser ? (
+          <AdminPreviewBar
+            copy={copy}
+            isCompact={isCompact}
+            onNavigate={navigate}
+          />
+        ) : null}
+
         <View
           style={[
             styles.sectionsGrid,
@@ -1303,106 +1350,114 @@ export default function RabaiHomePage({
           ]}
         >
           <PublicSectionCard
-            actionDisabled={false}
-            actionLabel={copy.sections.viewJobs}
-            emptyText={copy.sections.jobsEmpty}
-            errorText={latestJobsError}
-            loading={latestJobsLoading}
-            onAction={() => {
-              navigate("/jobs");
-            }}
-            title={copy.sections.jobsTitle}
+            emptyText={copy.sections.activityEmpty}
+            errorText={recentActivityError}
+            loading={recentActivityLoading}
+            title={copy.sections.activityTitle}
           >
-            {latestJobs.length > 0 ? (
-              <View
-                style={[
-                  styles.latestJobsGrid,
-                  latestJobs.length === 1 && styles.latestJobsGridSingle,
-                ]}
-              >
-                {latestJobs.map((job) => (
-                  <JobSummaryCard
+            {hasRecentActivity ? (
+              <View style={styles.activityStack}>
+                {recentJobs.map((job) => (
+                  <HomepageJobCard
                     job={job}
                     key={job.job_id}
                     language={language}
-                    returnLabel="Inapoi la pagina principala"
-                    returnTo="/engine"
-                    variant="compact"
+                    onPress={() => {
+                      router.push(buildJobDetailsPath(job.job_id, "/engine") as never);
+                    }}
                   />
                 ))}
-              </View>
-            ) : null}
-          </PublicSectionCard>
-          <PublicSectionCard
-            actionDisabled={false}
-            actionLabel={copy.sections.viewCourses}
-            emptyText={copy.sections.coursesEmpty}
-            errorText={latestCoursesError}
-            loading={latestCoursesLoading}
-            onAction={() => {
-              navigate("/courses");
-            }}
-            title={copy.sections.coursesTitle}
-          >
-            {latestCourses.length > 0 ? (
-              <View
-                style={[
-                  styles.latestJobsGrid,
-                  latestCourses.length === 1 && styles.latestJobsGridSingle,
-                ]}
-              >
-                {latestCourses.map((course) => (
-                  <CourseSummaryCard
+                {recentCourses.map((course) => (
+                  <HomepageCourseCard
                     course={course}
                     key={course.course_id}
                     language={language}
-                    returnLabel="Inapoi la pagina principala"
-                    returnTo="/engine"
-                    variant="compact"
+                    onPress={() => {
+                      router.push(
+                        buildCourseDetailsPath(course.course_id, "/engine") as never
+                      );
+                    }}
                   />
                 ))}
               </View>
             ) : null}
           </PublicSectionCard>
-        </View>
-
-        <View style={[styles.supportStrip, { maxWidth: contentMaxWidth }]}>
-          {supportItems.map((item) => (
-            <View
-              key={item.key}
-              style={[
-                styles.supportItem,
-                item.tone === "blue" && styles.supportItemBlue,
-                item.tone === "violet" && styles.supportItemViolet,
-                item.tone === "cyan" && styles.supportItemCyan,
-                item.tone === "rose" && styles.supportItemRose,
-              ]}
-            >
-              <View
-                style={[
-                  styles.supportIcon,
-                  item.tone === "blue" && styles.supportIconBlue,
-                  item.tone === "violet" && styles.supportIconViolet,
-                  item.tone === "cyan" && styles.supportIconCyan,
-                  item.tone === "rose" && styles.supportIconRose,
-                ]}
-              >
-                <Text style={styles.supportIconText}>{item.icon}</Text>
-              </View>
-              <View style={styles.supportCopy}>
-                <Text style={styles.supportTitle}>{copy.support[item.key]}</Text>
-                <Text style={styles.supportText}>{copy.support[`${item.key}Text`]}</Text>
-              </View>
-            </View>
-          ))}
+          <QuickContinuePanel copy={copy} onNavigate={navigate} />
         </View>
       </ScrollView>
     </Screen>
   );
 }
 
+function AdminPreviewBar({
+  copy,
+  isCompact,
+  onNavigate,
+}: {
+  copy: HomeCopy;
+  isCompact: boolean;
+  onNavigate: (route: string) => void;
+}) {
+  return (
+    <View
+      style={[
+        styles.adminBar,
+        adminBarWebStyle,
+        isCompact && styles.adminBarCompact,
+      ]}
+    >
+      <View style={styles.adminBarTextWrap}>
+        <View style={styles.adminBarTitleRow}>
+          <Text style={styles.adminBarTitle}>{copy.preview.adminBarTitle}</Text>
+          <View style={styles.adminBadge}>
+            <Text style={styles.adminBadgeText}>Administrator</Text>
+          </View>
+        </View>
+        <Text style={styles.adminBarSubtitle}>
+          {copy.preview.adminBarSubtitle}
+        </Text>
+      </View>
+
+      <View style={styles.adminConsoleGroups}>
+        {adminPreviewGroups.map((group) => (
+          <View key={group.key} style={styles.adminConsoleGroup}>
+            <Text numberOfLines={1} style={styles.adminConsoleGroupTitle}>
+              {copy.preview.groupLabel[group.key]}
+            </Text>
+            <View style={styles.adminConsoleLinks}>
+              {group.items.map((item) => (
+                <Pressable
+                  accessibilityRole="button"
+                  key={item.key}
+                  onPress={() => onNavigate(item.route)}
+                  style={(state) => {
+                    const webState = state as WebPressableState;
+
+                    return [
+                      styles.adminButton,
+                      adminButtonWebStyle,
+                      isCompact && styles.adminButtonCompact,
+                      webState.hovered && styles.adminButtonHover,
+                      webState.focused && styles.adminButtonFocus,
+                      webState.focused && focusRingWebStyle,
+                      webState.pressed && styles.adminButtonPressed,
+                    ];
+                  }}
+                >
+                  <Text numberOfLines={1} style={styles.adminButtonText}>
+                    {copy.preview.previewLabel[item.key]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function HeroSearchControls({
-  activeCategory,
   copy,
   isCompact,
   isPhone,
@@ -1425,14 +1480,12 @@ function HeroSearchControls({
   onOccupationSelect,
   onQueryChange,
   onSubmit,
-  onTabChange,
   openAutocomplete,
   query,
   reduceMotionEnabled,
   searchMode,
   searchMaxWidth,
 }: {
-  activeCategory: SearchTabKey;
   copy: HomeCopy;
   isCompact: boolean;
   isPhone: boolean;
@@ -1455,7 +1508,6 @@ function HeroSearchControls({
   onOccupationSelect: (option: OccupationAutocompleteOption) => void;
   onQueryChange: (text: string) => void;
   onSubmit: () => void;
-  onTabChange: (tab: SearchTabKey) => void;
   openAutocomplete: AutocompleteTarget;
   query: string;
   reduceMotionEnabled: boolean;
@@ -1488,7 +1540,6 @@ function HeroSearchControls({
           errorMessage={occupationError}
           fieldId="hero-occupation-search"
           isOpen={
-            activeCategory === "jobs" &&
             openAutocomplete === "occupation" &&
             query.trim().length >= 2
           }
@@ -1501,7 +1552,7 @@ function HeroSearchControls({
           onSelect={onOccupationSelect}
           placeholder={searchMode.whatPlaceholder}
           queryText={query}
-          suggestions={activeCategory === "jobs" ? occupationOptions : []}
+          suggestions={occupationOptions}
           value={query}
         />
         <HeroAutocompleteField
@@ -1543,55 +1594,53 @@ function HeroSearchControls({
             ];
           }}
         >
-          <Text style={styles.searchButtonText}>{searchMode.button}</Text>
+          <Text style={styles.searchButtonText}>{copy.search.button}</Text>
         </Pressable>
       </View>
+    </View>
+  );
+}
 
-      <View style={[styles.heroCategories, isPhone && styles.heroCategoriesPhone]}>
-        {searchTabs.map((tab) => {
-          const active = activeCategory === tab.key;
+function QuickContinuePanel({
+  copy,
+  onNavigate,
+}: {
+  copy: HomeCopy;
+  onNavigate: (route: string) => void;
+}) {
+  return (
+    <View style={[styles.sectionCard, styles.quickPanel]}>
+      <View style={styles.sectionCardHeader}>
+        <View style={styles.sectionTitleWrap}>
+          <Text style={styles.sectionTitle}>{copy.sections.quickTitle}</Text>
+        </View>
+      </View>
 
-          return (
-            <Pressable
-              aria-selected={active}
-              accessibilityRole="tab"
-              accessibilityState={{
-                selected: active,
-              }}
-              focusable
-              key={tab.key}
-              onPress={() => {
-                onTabChange(tab.key);
-              }}
-              style={(state) => {
-                const webState = state as WebPressableState;
+      <View style={styles.quickActionGrid}>
+        {quickActionItems.map((item) => (
+          <Pressable
+            accessibilityRole="button"
+            key={item.key}
+            onPress={() => {
+              onNavigate(item.route);
+            }}
+            style={(state) => {
+              const webState = state as WebPressableState;
 
-                return [
-                  styles.heroCategory,
-                  categoryGlassWebStyle,
-                  isPhone && styles.heroCategoryPhone,
-                  active && styles.heroCategoryActive,
-                  webState.hovered && styles.heroCategoryHover,
-                  !reduceMotionEnabled &&
-                    webState.hovered &&
-                    styles.heroCategoryHoverLift,
-                  webState.focused && styles.heroCategoryFocus,
-                  webState.focused && focusRingWebStyle,
-                ];
-              }}
-            >
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.heroCategoryText,
-                  active && styles.heroCategoryTextActive,
-                ]}
-              >
-                {copy.search.tabs[tab.key]}
-              </Text>
-            </Pressable>
-          );
-        })}
+              return [
+                styles.quickActionCard,
+                webState.hovered && styles.quickActionCardHover,
+                webState.focused && styles.quickActionCardFocus,
+                webState.focused && focusRingWebStyle,
+                webState.pressed && styles.quickActionCardPressed,
+              ];
+            }}
+          >
+            <Text numberOfLines={2} style={styles.quickActionText}>
+              {copy.sections.quickActions[item.key]}
+            </Text>
+          </Pressable>
+        ))}
       </View>
     </View>
   );
@@ -1609,7 +1658,7 @@ function PublicSectionCard({
   title,
 }: {
   actionDisabled?: boolean;
-  actionLabel: string;
+  actionLabel?: string;
   children?: ReactNode;
   disabledLabel?: string;
   emptyText: string;
@@ -1627,26 +1676,30 @@ function PublicSectionCard({
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: Boolean(actionDisabled) }}
-          disabled={actionDisabled}
-          onPress={onAction}
-          style={styles.sectionAction}
-        >
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.sectionActionText,
-              actionDisabled && styles.disabledText,
-            ]}
+        {actionLabel ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: Boolean(actionDisabled) }}
+            disabled={actionDisabled}
+            onPress={onAction}
+            style={styles.sectionAction}
           >
-            {actionLabel}
-          </Text>
-          {actionDisabled && disabledLabel ? (
-            <Text numberOfLines={1} style={styles.sectionSoon}>{disabledLabel}</Text>
-          ) : null}
-        </Pressable>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.sectionActionText,
+                actionDisabled && styles.disabledText,
+              ]}
+            >
+              {actionLabel}
+            </Text>
+            {actionDisabled && disabledLabel ? (
+              <Text numberOfLines={1} style={styles.sectionSoon}>
+                {disabledLabel}
+              </Text>
+            ) : null}
+          </Pressable>
+        ) : null}
       </View>
 
       {loading ? (
@@ -1663,6 +1716,155 @@ function PublicSectionCard({
           <Text style={styles.emptyStateText}>{emptyText}</Text>
         </View>
       )}
+    </View>
+  );
+}
+
+function HomepageJobCard({
+  job,
+  language,
+  onPress,
+}: {
+  job: SearchJobResult;
+  language: LanguageCode;
+  onPress: () => void;
+}) {
+  const salary = formatJobSalary(job);
+  const contract = formatEmploymentType(job.employment_type);
+  const locationLabel =
+    job.location_label || [job.postal_code, job.city, job.state].filter(Boolean).join(" ");
+  const title = sanitizeLegacyWorkerLabel(job.title, "Rol profesional");
+  const date = formatDateLabel(job.published_at, language);
+
+  return (
+    <Pressable
+      accessibilityLabel={`Vezi jobul ${title}`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={(state) => {
+        const webState = state as WebPressableState;
+
+        return [
+          styles.listingCard,
+          webState.hovered && styles.listingCardHover,
+          webState.focused && styles.listingCardFocus,
+          webState.focused && focusRingWebStyle,
+          webState.pressed && styles.listingCardPressed,
+        ];
+      }}
+    >
+      <View style={styles.listingCardBody}>
+        <View style={styles.listingCardHeader}>
+          <Text numberOfLines={2} style={styles.listingTitle}>
+            {title}
+          </Text>
+          {date ? (
+            <Text numberOfLines={1} style={styles.listingDate}>
+              {date}
+            </Text>
+          ) : null}
+        </View>
+
+        <Text numberOfLines={1} style={styles.listingPrimaryMeta}>
+          {job.company_name}
+        </Text>
+        {locationLabel ? (
+          <Text numberOfLines={1} style={styles.listingSecondaryMeta}>
+            {locationLabel}
+          </Text>
+        ) : null}
+
+        <View style={styles.listingMetaRow}>
+          {salary ? <ListingPill value={salary} /> : null}
+          {contract ? <ListingPill value={contract} /> : null}
+        </View>
+      </View>
+
+      <View style={styles.listingFooter}>
+        <View style={styles.listingButton}>
+          <Text numberOfLines={1} style={styles.listingButtonText}>
+            Vezi jobul
+          </Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function HomepageCourseCard({
+  course,
+  language,
+  onPress,
+}: {
+  course: SearchCourseResult;
+  language: LanguageCode;
+  onPress: () => void;
+}) {
+  const date = formatDateLabel(course.start_date, language);
+  const deliveryMode = formatDeliveryMode(course.delivery_mode);
+  const price = formatCoursePrice(course);
+
+  return (
+    <Pressable
+      accessibilityLabel={`Vezi cursul ${course.title}`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={(state) => {
+        const webState = state as WebPressableState;
+
+        return [
+          styles.listingCard,
+          webState.hovered && styles.listingCardHover,
+          webState.focused && styles.listingCardFocus,
+          webState.focused && focusRingWebStyle,
+          webState.pressed && styles.listingCardPressed,
+        ];
+      }}
+    >
+      <View style={styles.listingCardBody}>
+        <View style={styles.listingCardHeader}>
+          <Text numberOfLines={2} style={styles.listingTitle}>
+            {sanitizeLegacyWorkerLabel(course.title, "Curs profesional")}
+          </Text>
+          {date ? (
+            <Text numberOfLines={1} style={styles.listingDate}>
+              {date}
+            </Text>
+          ) : null}
+        </View>
+
+        <Text numberOfLines={1} style={styles.listingPrimaryMeta}>
+          {course.provider_name}
+        </Text>
+        {course.location_label ? (
+          <Text numberOfLines={1} style={styles.listingSecondaryMeta}>
+            {course.location_label}
+          </Text>
+        ) : null}
+
+        <View style={styles.listingMetaRow}>
+          {deliveryMode ? <ListingPill value={deliveryMode} /> : null}
+          {price ? <ListingPill value={price} /> : null}
+        </View>
+      </View>
+
+      <View style={styles.listingFooter}>
+        <View style={styles.listingButton}>
+          <Text numberOfLines={1} style={styles.listingButtonText}>
+            Vezi cursul
+          </Text>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function ListingPill({ value }: { value: string }) {
+  return (
+    <View style={styles.listingPill}>
+      <Text numberOfLines={1} style={styles.listingPillText}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -1693,6 +1895,129 @@ function readLatestCoursesError(error: unknown) {
     : "Nu am putut incarca cursurile active.";
 }
 
+function sanitizeLegacyWorkerLabel(value: string | null | undefined, fallback: string) {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  return legacyListingLabels.has(normalized.toLocaleLowerCase("en-US"))
+    ? fallback
+    : normalized;
+}
+
+function formatJobSalary(job: SearchJobResult) {
+  if (job.salary_from === null && job.salary_to === null) {
+    return "";
+  }
+
+  const suffix = formatSalaryType(job.salary_type);
+
+  if (job.salary_from !== null && job.salary_to !== null) {
+    return `${formatNumber(job.salary_from)}-${formatNumber(job.salary_to)} EUR ${suffix}`;
+  }
+
+  if (job.salary_from !== null) {
+    return `de la ${formatNumber(job.salary_from)} EUR ${suffix}`;
+  }
+
+  return `pana la ${formatNumber(job.salary_to)} EUR ${suffix}`;
+}
+
+function formatSalaryType(value: string) {
+  if (value === "hourly") {
+    return "/ ora";
+  }
+
+  if (value === "yearly") {
+    return "/ an";
+  }
+
+  if (value === "fixed") {
+    return "fix";
+  }
+
+  return "/ luna";
+}
+
+function formatEmploymentType(value: string | null) {
+  if (value === "full_time") {
+    return "Full-time";
+  }
+
+  if (value === "part_time") {
+    return "Part-time";
+  }
+
+  if (value === "mini_job") {
+    return "Mini job";
+  }
+
+  if (value === "temporary") {
+    return "Temporar";
+  }
+
+  if (value === "freelance") {
+    return "Freelance";
+  }
+
+  return "";
+}
+
+function formatDeliveryMode(value: string | null) {
+  if (value === "online") {
+    return "Online";
+  }
+
+  if (value === "onsite") {
+    return "La locatie";
+  }
+
+  if (value === "hybrid") {
+    return "Hibrid";
+  }
+
+  return "";
+}
+
+function formatCoursePrice(course: SearchCourseResult) {
+  if (course.price_amount === null) {
+    return "";
+  }
+
+  return `${formatNumber(course.price_amount)} ${course.currency_code ?? "EUR"}`;
+}
+
+function formatNumber(value: number | null) {
+  return value === null
+    ? ""
+    : new Intl.NumberFormat("ro-RO", {
+        maximumFractionDigits: 0,
+      }).format(value);
+}
+
+function formatDateLabel(value: string | null, language: LanguageCode) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const locale =
+    language === "de" ? "de-DE" : language === "en" ? "en-US" : "ro-RO";
+
+  return new Intl.DateTimeFormat(locale, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
 const styles = StyleSheet.create({
   screen: {
     backgroundColor: palette.page,
@@ -1700,51 +2025,55 @@ const styles = StyleSheet.create({
   },
   content: {
     alignSelf: "center",
-    paddingBottom: Spacing.five,
+    paddingBottom: Spacing.eight,
     width: "100%",
   },
   header: {
     alignItems: "center",
     alignSelf: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.96)",
-    borderBottomLeftRadius: Radius.xxl,
-    borderBottomRightRadius: Radius.xxl,
+    backgroundColor: "rgba(255, 255, 255, 0.97)",
+    borderRadius: Radius.xl,
     borderColor: palette.borderSoft,
     borderWidth: 1,
     flexDirection: "row",
-    gap: Spacing.three,
+    gap: Spacing.sm,
     justifyContent: "space-between",
     maxWidth: layout.headerMaxWidth,
-    paddingHorizontal: Spacing.eight,
-    paddingVertical: Spacing.xxl,
+    marginTop: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.sm,
     shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.08,
-    shadowRadius: 30,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.09,
+    shadowRadius: 34,
     width: "100%",
     elevation: 4,
   },
   headerCompact: {
     alignItems: "stretch",
     flexDirection: "column",
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
   },
   brand: {
     alignItems: "center",
     flexDirection: "row",
-    gap: Spacing.md,
+    flexShrink: 0,
+    gap: Spacing.sm,
   },
   brandMark: {
     alignItems: "center",
     backgroundColor: palette.blue,
-    borderRadius: Radius.md,
-    height: 34,
+    borderColor: "rgba(255, 255, 255, 0.70)",
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    height: 38,
     justifyContent: "center",
     shadowColor: palette.violet,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.22,
     shadowRadius: 14,
-    width: 34,
+    width: 38,
     elevation: 3,
   },
   brandMarkText: {
@@ -1755,40 +2084,48 @@ const styles = StyleSheet.create({
   },
   logo: {
     color: palette.ink,
-    fontSize: Typography.h3,
+    fontSize: Typography.body,
     fontWeight: Typography.fontWeight.black,
     letterSpacing: 0,
   },
   nav: {
     alignItems: "center",
+    flex: 1,
+    flexShrink: 1,
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
+    flexWrap: "nowrap",
+    gap: Spacing.xs,
     justifyContent: "center",
+    minWidth: 0,
   },
-  navPhone: {
+  navCompact: {
     alignItems: "stretch",
+    flexWrap: "wrap",
     justifyContent: "flex-start",
   },
   navButton: {
     alignItems: "center",
-    borderBottomColor: "transparent",
-    borderBottomWidth: 2,
-    height: 52,
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    flexShrink: 1,
+    height: 38,
     justifyContent: "center",
-    minWidth: 124,
+    minWidth: 0,
     paddingHorizontal: Spacing.md,
     paddingVertical: 0,
   },
   navButtonActive: {
-    borderBottomColor: palette.blue,
+    backgroundColor: palette.blueSoft,
+    borderColor: "rgba(20, 92, 255, 0.18)",
   },
   navButtonDisabled: {
     opacity: 0.74,
   },
   navText: {
     color: palette.text,
-    fontSize: Typography.bodySmall,
+    fontSize: 13,
     fontWeight: Typography.fontWeight.bold,
     letterSpacing: 0,
     textAlign: "center",
@@ -1810,76 +2147,87 @@ const styles = StyleSheet.create({
   headerActions: {
     alignItems: "center",
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
+    flexShrink: 0,
+    flexWrap: "nowrap",
+    gap: Spacing.sm,
     justifyContent: "flex-end",
   },
-  headerActionsPhone: {
+  headerActionsCompact: {
+    flexWrap: "wrap",
     justifyContent: "flex-start",
   },
   languageSelector: {
     alignItems: "center",
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: Spacing.xs,
   },
   languageButton: {
     alignItems: "center",
-    borderColor: "transparent",
+    backgroundColor: "rgba(255, 255, 255, 0.82)",
+    borderColor: palette.borderSoft,
     borderRadius: Radius.round,
-    borderWidth: 2,
-    height: 48,
+    borderWidth: 1,
+    height: 38,
     justifyContent: "center",
     padding: 0,
-    width: 76,
+    width: 54,
   },
   languageButtonActive: {
     borderColor: palette.blue,
+    shadowColor: palette.blue,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
   },
   authSummary: {
     alignItems: "center",
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.borderSoft,
-    borderRadius: Radius.lg,
+    backgroundColor: "rgba(247, 250, 255, 0.94)",
+    borderColor: "rgba(218, 227, 245, 0.90)",
+    borderRadius: Radius.xl,
     borderWidth: 1,
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    height: 42,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 0,
   },
   authSummaryTextWrap: {
     alignItems: "flex-start",
+    maxWidth: 146,
+    minWidth: 88,
   },
   authSummaryName: {
     color: palette.ink,
-    fontSize: Typography.bodySmall,
+    fontSize: 13,
     fontWeight: Typography.fontWeight.bold,
   },
   authSummaryEmail: {
     color: palette.muted,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 1,
   },
   authSummaryActions: {
     alignItems: "center",
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: Spacing.xs,
   },
   accountActionButton: {
     alignItems: "center",
     backgroundColor: palette.surface,
     borderColor: palette.border,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.round,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 42,
+    height: 34,
+    minWidth: 112,
     paddingHorizontal: Spacing.md,
   },
   accountActionText: {
     color: palette.ink,
-    fontSize: Typography.bodySmall,
+    fontSize: 12,
     fontWeight: Typography.fontWeight.extraBold,
     letterSpacing: 0,
   },
@@ -1887,9 +2235,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: palette.surface,
     borderColor: palette.border,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.round,
     borderWidth: 1,
     minHeight: 42,
+    minWidth: 106,
     paddingHorizontal: Spacing.three,
     justifyContent: "center",
   },
@@ -1902,8 +2251,9 @@ const styles = StyleSheet.create({
   registerButton: {
     alignItems: "center",
     backgroundColor: palette.rose,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.round,
     minHeight: 42,
+    minWidth: 132,
     paddingHorizontal: Spacing.three,
     justifyContent: "center",
   },
@@ -1913,21 +2263,38 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.extraBold,
     letterSpacing: 0,
   },
+  logoutButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(255, 241, 246, 0.92)",
+    borderColor: "rgba(240, 19, 99, 0.18)",
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    justifyContent: "center",
+    height: 34,
+    minWidth: 82,
+    paddingHorizontal: Spacing.md,
+  },
+  logoutText: {
+    color: palette.rose,
+    fontSize: 12,
+    fontWeight: Typography.fontWeight.extraBold,
+    letterSpacing: 0,
+  },
   hero: {
     alignSelf: "center",
     borderRadius: 28,
-    marginTop: Spacing.four,
+    marginTop: Spacing.three,
     maxWidth: layout.contentMaxWidth,
-    minHeight: 680,
+    minHeight: 540,
     overflow: "visible",
     position: "relative",
     width: "100%",
   },
   heroCompact: {
-    minHeight: 620,
+    minHeight: 520,
   },
   heroPhone: {
-    minHeight: 690,
+    minHeight: 600,
   },
   heroBackgroundClip: {
     bottom: 0,
@@ -1947,10 +2314,10 @@ const styles = StyleSheet.create({
   },
   heroCoverOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(6, 10, 25, 0.34)",
+    backgroundColor: "rgba(6, 10, 25, 0.46)",
   },
   heroLeftOverlay: {
-    backgroundColor: "rgba(6, 10, 25, 0.36)",
+    backgroundColor: "rgba(6, 10, 25, 0.42)",
     bottom: 0,
     left: 0,
     position: "absolute",
@@ -1958,7 +2325,7 @@ const styles = StyleSheet.create({
     width: "62%",
   },
   heroCenterOverlay: {
-    backgroundColor: "rgba(6, 10, 25, 0.32)",
+    backgroundColor: "rgba(6, 10, 25, 0.18)",
     borderRadius: 420,
     height: 760,
     left: "12%",
@@ -1971,18 +2338,18 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     flex: 1,
     justifyContent: "center",
-    minHeight: 680,
+    minHeight: 540,
     paddingHorizontal: Spacing.eight,
-    paddingVertical: 72,
+    paddingVertical: 56,
     zIndex: 1,
   },
   heroContentCompact: {
-    minHeight: 620,
+    minHeight: 520,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.eight,
+    paddingVertical: Spacing.six,
   },
   heroContentPhone: {
-    minHeight: 690,
+    minHeight: 600,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.four,
   },
@@ -1996,26 +2363,26 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
     letterSpacing: 1.5,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
     textAlign: "center",
     textTransform: "uppercase",
   },
   heroTitle: {
     color: palette.surface,
-    fontSize: 64,
+    fontSize: 52,
     fontWeight: Typography.fontWeight.black,
     letterSpacing: 0,
-    lineHeight: 72,
+    lineHeight: 60,
     maxWidth: 900,
     textAlign: "center",
   },
   heroTitleCompact: {
-    fontSize: 52,
-    lineHeight: 58,
+    fontSize: 44,
+    lineHeight: 52,
   },
   heroTitlePhone: {
-    fontSize: 36,
-    lineHeight: 42,
+    fontSize: 34,
+    lineHeight: 40,
   },
   heroTitleAccent: {
     color: palette.cyan,
@@ -2024,9 +2391,9 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.94)",
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.medium,
-    lineHeight: 28,
-    marginTop: Spacing.three,
-    maxWidth: 720,
+    lineHeight: 26,
+    marginTop: Spacing.xxl,
+    maxWidth: 680,
     textAlign: "center",
   },
   heroSubtitlePhone: {
@@ -2035,59 +2402,139 @@ const styles = StyleSheet.create({
   },
   adminBar: {
     alignSelf: "center",
-    backgroundColor: palette.surface,
-    borderColor: palette.borderSoft,
-    borderRadius: Radius.xl,
+    alignItems: "stretch",
+    backgroundColor: palette.ink,
+    borderColor: "rgba(255, 255, 255, 0.14)",
+    borderRadius: 22,
     borderWidth: 1,
     flexDirection: "row",
     gap: Spacing.lg,
     justifyContent: "space-between",
     marginTop: Spacing.three,
     maxWidth: layout.contentMaxWidth,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.lg,
+    padding: Spacing.lg,
+    shadowColor: palette.shadow,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.14,
+    shadowRadius: 30,
     width: "100%",
+    elevation: 5,
+  },
+  adminBarCompact: {
+    flexDirection: "column",
   },
   adminBarTextWrap: {
-    flex: 1,
+    flex: 0.68,
+    minWidth: 220,
+  },
+  adminBarTitleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
   },
   adminBarTitle: {
-    color: palette.ink,
+    color: palette.surface,
     fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.black,
+    letterSpacing: 0,
+  },
+  adminBadge: {
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    borderColor: "rgba(255, 255, 255, 0.18)",
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 26,
+    paddingHorizontal: Spacing.md,
+  },
+  adminBadgeText: {
+    color: "rgba(255, 255, 255, 0.92)",
+    fontSize: 11,
     fontWeight: Typography.fontWeight.extraBold,
+    letterSpacing: 0,
   },
   adminBarSubtitle: {
-    color: palette.muted,
-    fontSize: Typography.bodySmall,
-    marginTop: 4,
+    color: "rgba(255, 255, 255, 0.70)",
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: Spacing.xs,
   },
-  adminButtonRow: {
-    alignItems: "center",
+  adminConsoleGroups: {
+    alignItems: "stretch",
+    flex: 2,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
     justifyContent: "flex-end",
   },
+  adminConsoleGroup: {
+    backgroundColor: "rgba(255, 255, 255, 0.075)",
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    flexBasis: 218,
+    flexGrow: 1,
+    gap: Spacing.xs,
+    padding: Spacing.sm,
+  },
+  adminConsoleGroupTitle: {
+    color: "rgba(255, 255, 255, 0.66)",
+    fontSize: 11,
+    fontWeight: Typography.fontWeight.extraBold,
+    letterSpacing: 0,
+    paddingHorizontal: Spacing.xs,
+    textTransform: "uppercase",
+  },
+  adminConsoleLinks: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
+  },
+  adminButtonRow: {
+    alignItems: "center",
+    flex: 2,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
+    justifyContent: "flex-end",
+  },
   adminButton: {
     alignItems: "center",
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.borderSoft,
-    borderRadius: Radius.lg,
+    backgroundColor: "rgba(255, 255, 255, 0.10)",
+    borderColor: "rgba(255, 255, 255, 0.16)",
+    borderRadius: Radius.round,
     borderWidth: 1,
-    flexBasis: 132,
+    flexBasis: 112,
+    flexGrow: 1,
     justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: Spacing.md,
+    minHeight: 36,
+    paddingHorizontal: Spacing.sm,
     paddingVertical: 0,
+  },
+  adminButtonCompact: {
+    flexBasis: 118,
+    flexGrow: 1,
   },
   adminButtonActive: {
     backgroundColor: palette.blueSoft,
     borderColor: palette.blue,
   },
+  adminButtonHover: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderColor: "rgba(255, 255, 255, 0.26)",
+  },
+  adminButtonFocus: {
+    borderColor: "rgba(24, 199, 223, 0.82)",
+  },
+  adminButtonPressed: {
+    opacity: 0.88,
+  },
   adminButtonText: {
-    color: palette.text,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
+    color: palette.surface,
+    fontSize: 12,
+    fontWeight: Typography.fontWeight.extraBold,
     textAlign: "center",
   },
   adminButtonTextActive: {
@@ -2194,28 +2641,28 @@ const styles = StyleSheet.create({
   },
   heroSearchPanel: {
     alignItems: "center",
-    marginTop: 34,
+    marginTop: Spacing.six,
     maxWidth: 1000,
     overflow: "visible",
     width: "100%",
     zIndex: 20,
   },
   heroSearchPanelPhone: {
-    marginTop: Spacing.screen,
+    marginTop: Spacing.five,
   },
   heroSearchFields: {
     alignItems: "flex-end",
-    backgroundColor: "rgba(255, 255, 255, 0.80)",
-    borderColor: "rgba(118, 111, 255, 0.28)",
+    backgroundColor: "rgba(255, 255, 255, 0.90)",
+    borderColor: "rgba(255, 255, 255, 0.56)",
     borderRadius: 22,
     borderWidth: 1,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.lg,
     padding: Spacing.md,
-    shadowColor: palette.violet,
+    shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.16,
+    shadowOpacity: 0.18,
     shadowRadius: 34,
     overflow: "visible",
     width: "100%",
@@ -2232,8 +2679,8 @@ const styles = StyleSheet.create({
     backgroundColor: palette.blue,
     borderColor: "rgba(255, 255, 255, 0.36)",
     borderWidth: 1,
-    minHeight: 54,
-    minWidth: 148,
+    minHeight: 52,
+    minWidth: 158,
     shadowColor: palette.blue,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.22,
@@ -2241,13 +2688,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   heroSearchButtonHover: {
-    transform: [{ translateY: -2 }],
+    shadowOpacity: 0.30,
   },
   heroSearchButtonFocus: {
     borderColor: "rgba(24, 199, 223, 0.86)",
   },
   heroSearchButtonPressed: {
-    transform: [{ translateY: 0 }],
+    opacity: 0.92,
   },
   heroSearchButtonPhone: {
     alignSelf: "stretch",
@@ -2255,27 +2702,28 @@ const styles = StyleSheet.create({
   },
   heroCategories: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
+    flexWrap: "nowrap",
+    gap: Spacing.xs,
     justifyContent: "center",
-    marginTop: Spacing.three,
+    marginTop: Spacing.xxl,
     maxWidth: 720,
     width: "100%",
   },
   heroCategoriesPhone: {
     alignSelf: "stretch",
+    flexWrap: "wrap",
   },
   heroCategory: {
     alignItems: "center",
-    backgroundColor: "rgba(8, 14, 34, 0.34)",
-    borderColor: "rgba(255, 255, 255, 0.20)",
-    borderRadius: Radius.lg,
+    backgroundColor: "rgba(8, 14, 34, 0.48)",
+    borderColor: "rgba(255, 255, 255, 0.16)",
+    borderRadius: Radius.round,
     borderWidth: 1,
-    flexBasis: 138,
+    flexBasis: 0,
     flexGrow: 1,
     justifyContent: "center",
-    maxWidth: 170,
-    minHeight: 50,
+    minHeight: 48,
+    minWidth: 0,
     paddingHorizontal: Spacing.md,
     paddingVertical: 0,
     shadowColor: "#000000",
@@ -2285,19 +2733,21 @@ const styles = StyleSheet.create({
   },
   heroCategoryPhone: {
     flexBasis: "47%",
+    flexGrow: 1,
     maxWidth: "100%",
     minWidth: 0,
+    width: "47%",
   },
   heroCategoryActive: {
-    backgroundColor: "rgba(20, 92, 255, 0.28)",
-    borderColor: "rgba(170, 209, 255, 0.56)",
+    backgroundColor: "rgba(255, 255, 255, 0.90)",
+    borderColor: "rgba(255, 255, 255, 0.82)",
   },
   heroCategoryHover: {
     backgroundColor: "rgba(12, 24, 54, 0.42)",
     borderColor: "rgba(255, 255, 255, 0.34)",
   },
   heroCategoryHoverLift: {
-    transform: [{ translateY: -1 }],
+    shadowOpacity: 0.14,
   },
   heroCategoryFocus: {
     borderColor: "rgba(24, 199, 223, 0.78)",
@@ -2313,7 +2763,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   heroCategoryTextActive: {
-    color: palette.surface,
+    color: palette.blueDeep,
   },
   heroCategorySoon: {
     color: "rgba(255, 255, 255, 0.70)",
@@ -2413,7 +2863,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "flex-end",
     backgroundColor: palette.blue,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.round,
     justifyContent: "center",
     minHeight: 46,
     minWidth: 128,
@@ -2432,10 +2882,11 @@ const styles = StyleSheet.create({
   },
   sectionsGrid: {
     alignSelf: "center",
+    alignItems: "stretch",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
-    marginTop: Spacing.xl,
+    gap: Spacing.three,
+    marginTop: Spacing.four,
     maxWidth: layout.contentMaxWidth,
     width: "100%",
   },
@@ -2443,22 +2894,23 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   sectionCard: {
-    backgroundColor: palette.surface,
+    backgroundColor: "rgba(255, 255, 255, 0.98)",
     borderColor: "rgba(218, 227, 245, 0.78)",
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
     flex: 1,
-    minWidth: 280,
+    minWidth: 320,
     padding: Spacing.four,
     shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.06,
-    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.07,
+    shadowRadius: 28,
     elevation: 2,
   },
   sectionCardHeader: {
     alignItems: "center",
     flexDirection: "row",
+    gap: Spacing.md,
     justifyContent: "space-between",
   },
   sectionTitleWrap: {
@@ -2466,24 +2918,26 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: palette.ink,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
+    fontSize: Typography.cardTitle,
+    fontWeight: Typography.fontWeight.black,
+    letterSpacing: 0,
   },
   sectionAction: {
     alignItems: "center",
-    borderColor: palette.border,
-    borderRadius: Radius.lg,
+    backgroundColor: "rgba(233, 240, 255, 0.82)",
+    borderColor: "rgba(20, 92, 255, 0.14)",
+    borderRadius: Radius.round,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 44,
+    minHeight: 40,
     minWidth: 132,
     paddingHorizontal: Spacing.md,
     paddingVertical: 0,
   },
   sectionActionText: {
-    color: palette.blue,
+    color: palette.blueDeep,
     fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.extraBold,
     textAlign: "center",
   },
   sectionSoon: {
@@ -2496,18 +2950,171 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.md,
-    marginTop: Spacing.lg,
+    marginTop: Spacing.three,
   },
   latestJobsGridSingle: {
     maxWidth: 420,
   },
-  sectionStatusState: {
-    backgroundColor: "rgba(243, 247, 255, 0.78)",
-    borderColor: "rgba(218, 227, 245, 0.62)",
+  activityStack: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    marginTop: Spacing.three,
+  },
+  quickPanel: {
+    flex: 0.74,
+    minWidth: 300,
+  },
+  quickActionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    marginTop: Spacing.three,
+  },
+  quickActionCard: {
+    alignItems: "flex-start",
+    backgroundColor: "rgba(248, 251, 255, 0.96)",
+    borderColor: "rgba(218, 227, 245, 0.82)",
     borderRadius: Radius.xl,
     borderWidth: 1,
-    marginTop: Spacing.lg,
+    flexBasis: 150,
+    flexGrow: 1,
+    justifyContent: "center",
+    minHeight: 76,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    shadowColor: palette.shadow,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.045,
+    shadowRadius: 20,
+    elevation: 1,
+  },
+  quickActionCardHover: {
+    backgroundColor: palette.surface,
+    borderColor: "rgba(20, 92, 255, 0.24)",
+    shadowOpacity: 0.075,
+    transform: [{ translateY: -1 }],
+  },
+  quickActionCardFocus: {
+    borderColor: palette.blue,
+  },
+  quickActionCardPressed: {
+    transform: [{ translateY: 0 }],
+  },
+  quickActionText: {
+    color: palette.ink,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.extraBold,
+    lineHeight: 19,
+  },
+  listingCard: {
+    backgroundColor: "rgba(248, 251, 255, 0.96)",
+    borderColor: "rgba(218, 227, 245, 0.76)",
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    flexBasis: 238,
+    flexGrow: 1,
+    justifyContent: "space-between",
+    minHeight: 194,
     padding: Spacing.lg,
+    shadowColor: palette.shadow,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.055,
+    shadowRadius: 22,
+    elevation: 1,
+  },
+  listingCardHover: {
+    backgroundColor: palette.surface,
+    borderColor: "rgba(20, 92, 255, 0.26)",
+    shadowOpacity: 0.09,
+    transform: [{ translateY: -1 }],
+  },
+  listingCardFocus: {
+    borderColor: palette.blue,
+  },
+  listingCardPressed: {
+    transform: [{ translateY: 0 }],
+  },
+  listingCardBody: {
+    gap: Spacing.sm,
+  },
+  listingCardHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: Spacing.sm,
+    justifyContent: "space-between",
+  },
+  listingTitle: {
+    color: palette.ink,
+    flex: 1,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.black,
+    lineHeight: 22,
+  },
+  listingDate: {
+    color: palette.faint,
+    flexShrink: 0,
+    fontSize: 11,
+    fontWeight: Typography.fontWeight.bold,
+    marginTop: 2,
+    textAlign: "right",
+  },
+  listingPrimaryMeta: {
+    color: palette.text,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.extraBold,
+  },
+  listingSecondaryMeta: {
+    color: palette.muted,
+    fontSize: Typography.small,
+  },
+  listingMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  listingPill: {
+    backgroundColor: palette.surface,
+    borderColor: "rgba(218, 227, 245, 0.90)",
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 30,
+    paddingHorizontal: Spacing.md,
+  },
+  listingPillText: {
+    color: palette.text,
+    fontSize: 12,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  listingFooter: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: Spacing.lg,
+  },
+  listingButton: {
+    alignItems: "center",
+    backgroundColor: palette.blue,
+    borderRadius: Radius.round,
+    justifyContent: "center",
+    minHeight: 34,
+    minWidth: 106,
+    paddingHorizontal: Spacing.md,
+  },
+  listingButtonText: {
+    color: palette.surface,
+    fontSize: 12,
+    fontWeight: Typography.fontWeight.extraBold,
+  },
+  sectionStatusState: {
+    backgroundColor: "rgba(255, 240, 246, 0.48)",
+    borderColor: "rgba(240, 19, 99, 0.16)",
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    marginTop: Spacing.three,
+    padding: Spacing.three,
   },
   sectionErrorText: {
     color: palette.rose,
@@ -2515,8 +3122,8 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.bold,
   },
   jobSkeletonCard: {
-    backgroundColor: "rgba(243, 247, 255, 0.78)",
-    borderColor: "rgba(218, 227, 245, 0.62)",
+    backgroundColor: "rgba(243, 247, 255, 0.90)",
+    borderColor: "rgba(218, 227, 245, 0.76)",
     borderRadius: Radius.xl,
     borderWidth: 1,
     flexBasis: 220,
@@ -2546,13 +3153,13 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: "center",
-    backgroundColor: "rgba(243, 247, 255, 0.78)",
-    borderColor: "rgba(218, 227, 245, 0.62)",
+    backgroundColor: "rgba(243, 247, 255, 0.88)",
+    borderColor: "rgba(218, 227, 245, 0.76)",
     borderRadius: Radius.xl,
     borderWidth: 1,
-    marginTop: Spacing.lg,
+    marginTop: Spacing.three,
     minHeight: 124,
-    padding: Spacing.lg,
+    padding: Spacing.three,
   },
   emptyStateLine: {
     backgroundColor: palette.border,
@@ -2564,6 +3171,8 @@ const styles = StyleSheet.create({
   emptyStateText: {
     color: palette.muted,
     fontSize: Typography.bodySmall,
+    lineHeight: 20,
+    textAlign: "center",
   },
   supportStrip: {
     alignSelf: "center",
