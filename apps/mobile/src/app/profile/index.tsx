@@ -1,4 +1,3 @@
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "@/components/ui";
 import type { PersonalInterest } from "@/domain/account";
@@ -126,8 +125,6 @@ function UnifiedProfileContent() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <AuthenticatedHeader active="profile" />
-
         <Header
           title={t("profileUnified.title")}
           subtitle={t("profileUnified.subtitle")}

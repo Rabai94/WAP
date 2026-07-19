@@ -52,15 +52,18 @@ const navCopyByLanguage = {
 
 export default function AuthenticatedHeader({ active = "home" }: AuthenticatedHeaderProps) {
   const router = useRouter();
-  const { signOut, user } = useAuth();
+  const { isSigningOut, signOut, user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { width } = useWindowDimensions();
   const navCopy = navCopyByLanguage[language];
   const isCompact = width < 900;
 
   async function handleLogout() {
-    await signOut();
-    router.replace("/" as any);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("RabAI sign out failed", error);
+    }
   }
 
   return (
@@ -133,7 +136,13 @@ export default function AuthenticatedHeader({ active = "home" }: AuthenticatedHe
                 {t("common.myOrganizations")}
               </Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={handleLogout} style={styles.logoutButton}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSigningOut }}
+              disabled={isSigningOut}
+              onPress={handleLogout}
+              style={styles.logoutButton}
+            >
               <Text numberOfLines={1} style={styles.logoutButtonText}>{t("common.logout")}</Text>
             </Pressable>
           </View>

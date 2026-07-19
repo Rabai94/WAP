@@ -767,6 +767,7 @@ export default function RabaiHomePage({
   const copy = copyByLanguage[language];
   const activeSearchModeCopy = searchModeCopy[language].jobs;
   const isAuthenticated = authState === "authenticated";
+  const listingReturnPath = isAuthenticated ? "/engine" : "/";
   const isAdminUser = Boolean(user?.isAdmin);
   const visibleNavItems = navItems.filter(
     (item) => isAuthenticated || publicNavKeys.includes(item.key)
@@ -1363,7 +1364,9 @@ export default function RabaiHomePage({
                     key={job.job_id}
                     language={language}
                     onPress={() => {
-                      router.push(buildJobDetailsPath(job.job_id, "/engine") as never);
+                      router.push(
+                        buildJobDetailsPath(job.job_id, listingReturnPath) as never
+                      );
                     }}
                   />
                 ))}
@@ -1374,7 +1377,10 @@ export default function RabaiHomePage({
                     language={language}
                     onPress={() => {
                       router.push(
-                        buildCourseDetailsPath(course.course_id, "/engine") as never
+                        buildCourseDetailsPath(
+                          course.course_id,
+                          listingReturnPath
+                        ) as never
                       );
                     }}
                   />
@@ -2899,7 +2905,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     flex: 1,
-    minWidth: 320,
+    minWidth: 0,
     padding: Spacing.four,
     shadowColor: palette.shadow,
     shadowOffset: { width: 0, height: 18 },
@@ -2963,7 +2969,7 @@ const styles = StyleSheet.create({
   },
   quickPanel: {
     flex: 0.74,
-    minWidth: 300,
+    minWidth: 0,
   },
   quickActionGrid: {
     flexDirection: "row",

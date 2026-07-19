@@ -5,13 +5,13 @@ import { useAuth } from "@/providers/AuthProvider";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { loading: authLoading, session } = useAuth();
+  const { isSigningOut, loading: authLoading, session } = useAuth();
 
   useEffect(() => {
-    if (!authLoading && session) {
+    if (!authLoading && !isSigningOut && session) {
       router.replace("/engine" as never);
     }
-  }, [authLoading, router, session]);
+  }, [authLoading, isSigningOut, router, session]);
 
   return <RabaiHomePage authState="public" />;
 }

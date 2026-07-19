@@ -76,15 +76,13 @@ const fixedWebStyle =
 const gradientWebStyle =
   Platform.OS === "web"
     ? ({
-        backdropFilter: "blur(18px)",
-        backgroundImage:
-          "radial-gradient(circle at 30% 22%, rgba(255,255,255,0.34) 0, rgba(255,255,255,0.10) 24%, transparent 34%), linear-gradient(135deg, #071330 0%, #145CFF 50%, #6E1DFF 100%)",
+        backgroundColor: Colors.brand,
         boxShadow:
-          "0 18px 38px rgba(20, 92, 255, 0.30), 0 0 0 1px rgba(255,255,255,0.28) inset",
+          "0 12px 28px rgba(20, 92, 255, 0.24), 0 0 0 1px rgba(255,255,255,0.20) inset",
         cursor: "pointer",
         touchAction: "none",
         transition:
-          "transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease, filter 160ms ease",
+          "transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease",
         userSelect: "none",
       } as unknown as ViewStyle)
     : null;
@@ -93,7 +91,7 @@ const gradientHoverWebStyle =
   Platform.OS === "web"
     ? ({
         boxShadow:
-          "0 24px 56px rgba(20, 92, 255, 0.40), 0 0 26px rgba(110,29,255,0.24), 0 0 0 1px rgba(255,255,255,0.40) inset",
+          "0 16px 34px rgba(20, 92, 255, 0.30), 0 0 0 1px rgba(255,255,255,0.28) inset",
       } as unknown as ViewStyle)
     : null;
 
@@ -396,9 +394,6 @@ export default function FloatingMessagesButton() {
           isDragging && draggingWebStyle,
         ]}
       >
-        <View pointerEvents="none" style={styles.buttonAura} />
-        <View pointerEvents="none" style={styles.buttonSheen} />
-        <View pointerEvents="none" style={styles.buttonGlowDot} />
         <SymbolView
           fallback={<Text style={styles.fallbackIcon}>M</Text>}
           name={{ ios: "message.fill", android: "chat_bubble", web: "chat_bubble" }}
@@ -621,25 +616,25 @@ const styles = StyleSheet.create({
   },
   button: {
     alignItems: "center",
-    backgroundColor: "#10245F",
-    borderColor: "rgba(255, 255, 255, 0.34)",
+    backgroundColor: Colors.brand,
+    borderColor: "rgba(255, 255, 255, 0.28)",
     borderRadius: Radius.round,
     borderWidth: 1,
-    elevation: 8,
+    elevation: 5,
     height: buttonSize,
     justifyContent: "center",
     shadowColor: Colors.brandDeep,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.28,
-    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
     width: buttonSize,
   },
   buttonHover: {
-    transform: [{ scale: 1.045 }],
+    transform: [{ scale: 1.02 }],
   },
   buttonCurrentRoute: {
-    backgroundColor: "#20145F",
-    opacity: 0.9,
+    backgroundColor: Colors.brandDeep,
+    opacity: 0.94,
   },
   buttonPressed: {
     opacity: 0.86,
@@ -648,33 +643,6 @@ const styles = StyleSheet.create({
   buttonDragging: {
     opacity: 0.92,
     transform: [{ scale: 0.98 }],
-  },
-  buttonAura: {
-    backgroundColor: "rgba(20, 92, 255, 0.18)",
-    borderRadius: Radius.round,
-    height: "126%",
-    opacity: 0.9,
-    position: "absolute",
-    width: "126%",
-  },
-  buttonSheen: {
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
-    borderRadius: Radius.round,
-    height: "54%",
-    left: 7,
-    opacity: 0.72,
-    position: "absolute",
-    right: 7,
-    top: 6,
-  },
-  buttonGlowDot: {
-    backgroundColor: "rgba(255, 255, 255, 0.34)",
-    borderRadius: Radius.round,
-    height: 10,
-    position: "absolute",
-    right: 15,
-    top: 13,
-    width: 10,
   },
   fallbackIcon: {
     color: Colors.white,

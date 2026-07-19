@@ -1,8 +1,6 @@
 import type { LanguageCode } from "@/i18n/translations";
-import { buildJobDetailsPath } from "@/services/jobs/jobNavigation";
 import type { SearchJobResult } from "@/services/jobs/jobFlowService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
-import { useRouter } from "expo-router";
 import {
   Platform,
   Pressable,
@@ -14,11 +12,13 @@ import {
 
 type JobSummaryCardVariant = "list" | "compact";
 
+export type JobSummaryCardAction = "apply" | "view";
+
 type JobSummaryCardProps = {
   job: SearchJobResult;
   language?: LanguageCode;
+  onAction: (job: SearchJobResult, action: JobSummaryCardAction) => void;
   returnLabel?: string;
-  returnTo: string;
   variant?: JobSummaryCardVariant;
 };
 
@@ -48,48 +48,29 @@ const focusRingWebStyle =
 export default function JobSummaryCard({
   job,
   language = "ro",
+  onAction,
   returnLabel,
-  returnTo,
   variant = "list",
 }: JobSummaryCardProps) {
-  const router = useRouter();
   const isCompact = variant === "compact";
   const salary = formatSalary(job, isCompact);
+  const displayTitle = job.title;
+  const occupationName =
+    language === "de"
+      ? job.occupation_name_de
+      : language === "en"
+        ? job.occupation_name_en
+        : job.occupation_name_ro;
   const locationLabel =
     job.location_label || [job.postal_code, job.city, job.state].filter(Boolean).join(" ");
-  const detailsPath = buildJobDetailsPath(job.job_id, returnTo);
 
   return (
-    <Pressable
-      accessibilityHint={
-        returnLabel
-          ? `Deschide pagina de detaliu a jobului. ${returnLabel}.`
-          : "Deschide pagina de detaliu a jobului."
-      }
-      accessibilityLabel={`Vezi jobul ${job.title}`}
-      accessibilityRole="button"
-      onPress={() => {
-        router.push(detailsPath as any);
-      }}
-      style={(state) => {
-        const webState = state as WebPressableState;
-
-        return [
-          styles.card,
-          isCompact ? styles.cardCompact : styles.cardList,
-          pointerWebStyle,
-          webState.hovered && styles.cardHover,
-          webState.pressed && styles.cardPressed,
-          webState.focused && styles.cardFocus,
-          webState.focused && focusRingWebStyle,
-        ];
-      }}
-    >
+    <View style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}>
       <View style={styles.body}>
         <View style={styles.header}>
           <View style={styles.titleWrap}>
             <Text numberOfLines={isCompact ? 2 : 3} style={styles.title}>
-              {job.title}
+              {displayTitle}
             </Text>
             <Text numberOfLines={1} style={styles.company}>
               {job.company_name}
@@ -113,7 +94,11 @@ export default function JobSummaryCard({
             compact={isCompact}
           />
           {!isCompact ? (
-            <InfoPill label="Ocupatie" value={job.occupation_name_ro} compact={false} />
+            <InfoPill
+              label="Ocupatie"
+              value={occupationName}
+              compact={false}
+            />
           ) : null}
         </View>
       </View>
@@ -124,19 +109,57 @@ export default function JobSummaryCard({
             {formatPublishedDate(job.published_at, language)}
           </Text>
         ) : null}
-        <View style={[styles.viewButton, isCompact && styles.viewButtonCompact]}>
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.viewButtonText,
-              isCompact && styles.viewButtonTextCompact,
-            ]}
+        <View style={styles.actionRow}>
+          <Pressable
+            accessibilityHint={
+              returnLabel
+                ? `Deschide vizualizarea rapidă. ${returnLabel}.`
+                : "Deschide vizualizarea rapidă a jobului."
+            }
+            accessibilityLabel={`Vezi jobul ${displayTitle}`}
+            accessibilityRole="button"
+            onPress={() => onAction(job, "view")}
+            style={(state) => {
+              const webState = state as WebPressableState;
+
+              return [
+                styles.viewButton,
+                isCompact && styles.actionButtonCompact,
+                pointerWebStyle,
+                webState.hovered && styles.viewButtonHover,
+                webState.pressed && styles.actionButtonPressed,
+                webState.focused && focusRingWebStyle,
+              ];
+            }}
           >
-            Vezi jobul
-          </Text>
+            <Text numberOfLines={1} style={styles.viewButtonText}>
+              Vezi jobul
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityLabel={`Aplică la jobul ${displayTitle}`}
+            accessibilityRole="button"
+            onPress={() => onAction(job, "apply")}
+            style={(state) => {
+              const webState = state as WebPressableState;
+
+              return [
+                styles.applyButton,
+                isCompact && styles.actionButtonCompact,
+                pointerWebStyle,
+                webState.hovered && styles.applyButtonHover,
+                webState.pressed && styles.actionButtonPressed,
+                webState.focused && focusRingWebStyle,
+              ];
+            }}
+          >
+            <Text numberOfLines={1} style={styles.applyButtonText}>
+              Aplică
+            </Text>
+          </Pressable>
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -167,14 +190,14 @@ function formatSalary(job: SearchJobResult, hideEmpty: boolean) {
   const suffix = formatSalaryType(job.salary_type);
 
   if (job.salary_from !== null && job.salary_to !== null) {
-    return `${formatNumber(job.salary_from)} - ${formatNumber(job.salary_to)} EUR ${suffix}`;
+    return `${formatNumber(job.salary_from)} – ${formatNumber(job.salary_to)} ${suffix}`.trim();
   }
 
   if (job.salary_from !== null) {
-    return `de la ${formatNumber(job.salary_from)} EUR ${suffix}`;
+    return `de la ${formatNumber(job.salary_from)} ${suffix}`.trim();
   }
 
-  return `pana la ${formatNumber(job.salary_to)} EUR ${suffix}`;
+  return `până la ${formatNumber(job.salary_to)} ${suffix}`.trim();
 }
 
 function formatNumber(value: number | null) {
@@ -187,7 +210,15 @@ function formatNumber(value: number | null) {
 
 function formatSalaryType(value: string) {
   if (value === "hourly") {
-    return "/ ora";
+    return "/ oră";
+  }
+
+  if (value === "daily") {
+    return "/ zi";
+  }
+
+  if (value === "weekly") {
+    return "/ săptămână";
   }
 
   if (value === "yearly") {
@@ -198,7 +229,11 @@ function formatSalaryType(value: string) {
     return "fix";
   }
 
-  return "/ luna";
+  if (value === "monthly") {
+    return "/ lună";
+  }
+
+  return humanize(value);
 }
 
 function formatEmploymentType(value: string) {
@@ -222,7 +257,15 @@ function formatEmploymentType(value: string) {
     return "Freelance";
   }
 
-  return "Contract";
+  return humanize(value);
+}
+
+function humanize(value: string) {
+  const normalized = value.trim().replace(/_/g, " ");
+
+  return normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : "";
 }
 
 function formatPublishedDate(value: string, language: LanguageCode) {
@@ -265,18 +308,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(218, 227, 245, 0.70)",
     flexBasis: 220,
     flexGrow: 1,
-    minHeight: 184,
-  },
-  cardHover: {
-    borderColor: "rgba(20, 92, 255, 0.32)",
-    shadowOpacity: 0.09,
-    transform: [{ translateY: -1 }],
-  },
-  cardPressed: {
-    transform: [{ translateY: 0 }],
-  },
-  cardFocus: {
-    borderColor: "#145CFF",
+    minHeight: 194,
   },
   body: {
     gap: Spacing.sm,
@@ -353,6 +385,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: Spacing.md,
   },
+  actionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    justifyContent: "flex-end",
+    marginLeft: "auto",
+  },
   date: {
     color: "#8B96B3",
     flex: 1,
@@ -362,23 +401,46 @@ const styles = StyleSheet.create({
   viewButton: {
     alignItems: "center",
     backgroundColor: "#F3F7FF",
+    borderColor: "#D9E5FF",
     borderRadius: Radius.lg,
+    borderWidth: 1,
     justifyContent: "center",
     minHeight: 44,
     paddingHorizontal: Spacing.lg,
     paddingVertical: 0,
   },
-  viewButtonCompact: {
-    backgroundColor: "#145CFF",
-    minHeight: 34,
-    paddingHorizontal: Spacing.md,
+  actionButtonCompact: {
+    minHeight: 44,
+    paddingHorizontal: Spacing.xl,
   },
   viewButtonText: {
     color: "#145CFF",
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
   },
-  viewButtonTextCompact: {
+  viewButtonHover: {
+    backgroundColor: "#E9F0FF",
+  },
+  applyButton: {
+    alignItems: "center",
+    backgroundColor: Colors.brand,
+    borderColor: Colors.brand,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: Spacing.lg,
+  },
+  applyButtonHover: {
+    backgroundColor: Colors.brandDeep,
+    borderColor: Colors.brandDeep,
+  },
+  applyButtonText: {
     color: Colors.white,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.extraBold,
+  },
+  actionButtonPressed: {
+    opacity: 0.82,
   },
 });

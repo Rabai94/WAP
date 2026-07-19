@@ -1,7 +1,7 @@
 import RequireAuth from "@/components/RequireAuth";
 import { Colors, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
-import { StyleSheet, Text } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 import { Button, Card, Header, Screen } from "../components/ui";
 import { useLanguage } from "../i18n/LanguageProvider";
 
@@ -11,48 +11,58 @@ export default function JobCompletedScreen() {
 
   return (
     <RequireAuth>
-      <Screen>
-      <Header
-        icon="🏆"
-        title={t("jobCompleted.title")}
-        subtitle={t("jobCompleted.subtitle")}
-      />
+      <Screen centered={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Header
+            icon="🏆"
+            title={t("jobCompleted.title")}
+            subtitle={t("jobCompleted.subtitle")}
+          />
 
-      <Card title={t("jobCompleted.summary")}>
-        <Text style={styles.item}>✓ {t("jobCompleted.item1")}</Text>
-        <Text style={styles.item}>✓ {t("jobCompleted.item2")}</Text>
-        <Text style={styles.item}>✓ {t("jobCompleted.item3")}</Text>
-        <Text style={styles.item}>✓ {t("jobCompleted.item4")}</Text>
-        <Text style={styles.item}>✓ {t("jobCompleted.item5")}</Text>
-        <Text style={styles.successItem}>✓ {t("jobCompleted.item6")}</Text>
-      </Card>
+          <Card title={t("jobCompleted.summary")}>
+            <Text style={styles.item}>✓ {t("jobCompleted.item1")}</Text>
+            <Text style={styles.item}>✓ {t("jobCompleted.item2")}</Text>
+            <Text style={styles.item}>✓ {t("jobCompleted.item3")}</Text>
+            <Text style={styles.item}>✓ {t("jobCompleted.item4")}</Text>
+            <Text style={styles.item}>✓ {t("jobCompleted.item5")}</Text>
+            <Text style={styles.successItem}>✓ {t("jobCompleted.item6")}</Text>
+          </Card>
 
-      <Card title={t("jobCompleted.mvpTitle")}>
-        <Text style={styles.item}>{t("jobCompleted.mvp1")}</Text>
-        <Text style={styles.item}>{t("jobCompleted.mvp2")}</Text>
-      </Card>
+          <Card title={t("jobCompleted.mvpTitle")}>
+            <Text style={styles.item}>{t("jobCompleted.mvp1")}</Text>
+            <Text style={styles.item}>{t("jobCompleted.mvp2")}</Text>
+          </Card>
 
-      <Button
-        title="Înapoi la RabAI"
-        onPress={() => {
-          router.replace("/engine" as any);
-        }}
-      />
+          <Button
+            title="Înapoi la RabAI"
+            onPress={() => {
+              router.replace("/engine" as any);
+            }}
+          />
 
-      <Button
-        title="Acasă"
-        variant="ghost"
-        style={styles.backButton}
-        onPress={() => {
-          router.replace("/engine" as any);
-        }}
-      />
+          <Button
+            title="Acasă"
+            variant="ghost"
+            style={styles.backButton}
+            onPress={() => {
+              router.replace("/engine" as any);
+            }}
+          />
+        </ScrollView>
       </Screen>
     </RequireAuth>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
+
   item: {
     fontSize: Typography.body,
     color: Colors.textBody,

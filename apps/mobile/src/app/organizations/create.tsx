@@ -1,4 +1,3 @@
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Input, Screen } from "@/components/ui";
 import type { OrganizationType } from "@/domain/account";
@@ -209,8 +208,6 @@ function OrganizationCreateContent() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <AuthenticatedHeader active="profile" />
-
         <Header
           title={t("organizations.createTitle")}
           subtitle={t("organizations.createSubtitle")}

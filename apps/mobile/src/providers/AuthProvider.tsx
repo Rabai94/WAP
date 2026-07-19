@@ -20,6 +20,7 @@ type AuthContextValue = {
   session: AuthSession | null;
   user: AuthUser | null;
   loading: boolean;
+  isSigningOut: boolean;
   signUp: (
     input: SignUpInput
   ) => Promise<{ session: AuthSession | null; user: AuthUser | null }>;
@@ -39,6 +40,7 @@ type AuthContextValue = {
     onboardingIntent: OnboardingIntent
   ) => Promise<AuthSession | null>;
   signOut: () => Promise<void>;
+  finishSignOut: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -91,6 +94,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       session,
       user,
       loading,
+      isSigningOut,
       async signUp(input) {
         const result = await authService.signUp(input);
 
@@ -131,12 +135,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return nextSession;
       },
       async signOut() {
-        await authService.signOut();
-        setSession(null);
-        setUser(null);
+        setIsSigningOut(true);
+
+        try {
+          await authService.signOut();
+          setSession(null);
+          setUser(null);
+        } catch (error) {
+          setIsSigningOut(false);
+          throw error;
+        }
+      },
+      finishSignOut() {
+        setIsSigningOut(false);
       },
     }),
-    [loading, session, user]
+    [isSigningOut, loading, session, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

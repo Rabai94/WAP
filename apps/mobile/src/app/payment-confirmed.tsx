@@ -1,4 +1,4 @@
-import { StyleSheet, Text } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "../components/ui";
@@ -11,51 +11,61 @@ export default function PaymentConfirmedScreen() {
 
     return (
         <RequireAuth>
-            <Screen>
-            <Header
-                icon="✅"
-                title={t("paymentConfirmed.title")}
-                subtitle={t("paymentConfirmed.subtitle")}
-            />
+            <Screen centered={false}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <Header
+                        icon="✅"
+                        title={t("paymentConfirmed.title")}
+                        subtitle={t("paymentConfirmed.subtitle")}
+                    />
 
-            <Card title={t("paymentConfirmed.summary")}>
-                <Text style={styles.item}>{t("common.worker")}: {t("demo.worker.ion")}</Text>
-                <Text style={styles.item}>{t("common.company")}: {t("demo.company.rabaiLogistics")}</Text>
-                <Text style={styles.item}>{t("common.job")}: {t("jobs.warehouseTitle")}</Text>
-                <Text style={styles.item}>{t("checkOut.hours")}: {t("demo.hours.eight")}</Text>
-                <Text style={styles.item}>{t("payment.grossTotal")}: {t("demo.amount.grossTotal")}</Text>
-                <Text style={styles.total}>{t("paymentConfirmed.workerPay")}: {t("demo.amount.workerTotal")}</Text>
-            </Card>
+                    <Card title={t("paymentConfirmed.summary")}>
+                        <Text style={styles.item}>{t("common.worker")}: {t("demo.worker.ion")}</Text>
+                        <Text style={styles.item}>{t("common.company")}: {t("demo.company.rabaiLogistics")}</Text>
+                        <Text style={styles.item}>{t("common.job")}: {t("jobs.warehouseTitle")}</Text>
+                        <Text style={styles.item}>{t("checkOut.hours")}: {t("demo.hours.eight")}</Text>
+                        <Text style={styles.item}>{t("payment.grossTotal")}: {t("demo.amount.grossTotal")}</Text>
+                        <Text style={styles.total}>{t("paymentConfirmed.workerPay")}: {t("demo.amount.workerTotal")}</Text>
+                    </Card>
 
-            <Card title={t("paymentConfirmed.statusTitle")}>
-                <Text style={styles.item}>✓ {t("paymentConfirmed.item1")}</Text>
-                <Text style={styles.item}>✓ {t("paymentConfirmed.item2")}</Text>
-                <Text style={styles.item}>✓ {t("paymentConfirmed.item3")}</Text>
-                <Text style={styles.successItem}>✓ {t("paymentConfirmed.success")}</Text>
-            </Card>
+                    <Card title={t("paymentConfirmed.statusTitle")}>
+                        <Text style={styles.item}>✓ {t("paymentConfirmed.item1")}</Text>
+                        <Text style={styles.item}>✓ {t("paymentConfirmed.item2")}</Text>
+                        <Text style={styles.item}>✓ {t("paymentConfirmed.item3")}</Text>
+                        <Text style={styles.successItem}>✓ {t("paymentConfirmed.success")}</Text>
+                    </Card>
 
-            <Button
-                title={t("paymentConfirmed.continueRating")}
-                onPress={() => {
-                    console.log("MERGEM LA RATING");
-                    router.push("/rating" as any);
-                }}
-            />
+                    <Button
+                        title={t("paymentConfirmed.continueRating")}
+                        onPress={() => {
+                            console.log("MERGEM LA RATING");
+                            router.push("/rating" as any);
+                        }}
+                    />
 
-            <Button
-                title="Înapoi la RabAI"
-                variant="ghost"
-                style={styles.backButton}
-                onPress={() => {
-                    router.replace("/engine" as any);
-                }}
-            />
+                    <Button
+                        title="Înapoi la RabAI"
+                        variant="ghost"
+                        style={styles.backButton}
+                        onPress={() => {
+                            router.replace("/engine" as any);
+                        }}
+                    />
+                </ScrollView>
             </Screen>
         </RequireAuth>
     );
 }
 
 const styles = StyleSheet.create({
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: "center",
+    },
+
     item: {
         fontSize: Typography.body,
         color: Colors.textBody,

@@ -1,4 +1,3 @@
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import { Button, Card, Header, Screen } from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
@@ -13,7 +12,7 @@ export default function ServicesScreen() {
   const router = useRouter();
   const responsive = useResponsiveLayout();
   const { t } = useLanguage();
-  const { session } = useAuth();
+  const { loading: authLoading, session } = useAuth();
 
   return (
     <Screen
@@ -33,11 +32,7 @@ export default function ServicesScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {session ? (
-          <AuthenticatedHeader active="services" />
-        ) : (
-          <PublicHeader active="services" />
-        )}
+        {!authLoading && !session ? <PublicHeader active="services" /> : null}
 
         <Header title={t("services.title")} subtitle={t("services.subtitle")} />
 

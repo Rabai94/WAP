@@ -2,7 +2,7 @@ import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "@/components/ui";
 import { Colors, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { StyleSheet, Text } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 import { buildJobDetailsPath } from "@/services/jobs/jobNavigation";
 
 export default function ApplicationSentScreen() {
@@ -16,45 +16,50 @@ export default function ApplicationSentScreen() {
 
   return (
     <RequireAuth>
-      <Screen>
-        <Header
-          icon="OK"
-          title="Aplicatia a fost trimisa"
-          subtitle="Organizatia va vedea aplicatia in lista de aplicatii."
-          hero
-        />
+      <Screen centered={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Header
+            icon="OK"
+            title="Aplicatia a fost trimisa"
+            subtitle="Organizatia va vedea aplicatia in lista de aplicatii."
+            hero
+          />
 
-        <Card title="Ce urmeaza">
-          <Text style={styles.item}>
-            Aplicatia este inregistrata cu statusul trimisa.
-          </Text>
-          <Text style={styles.item}>
-            Poti urmari oportunitatile din profilul tau RabAI.
-          </Text>
-          {applicationId ? (
-            <Text style={styles.reference}>ID aplicatie: {applicationId}</Text>
-          ) : null}
-        </Card>
+          <Card title="Ce urmeaza">
+            <Text style={styles.item}>
+              Aplicatia este inregistrata cu statusul trimisa.
+            </Text>
+            <Text style={styles.item}>
+              Poti urmari oportunitatile din profilul tau RabAI.
+            </Text>
+            {applicationId ? (
+              <Text style={styles.reference}>ID aplicatie: {applicationId}</Text>
+            ) : null}
+          </Card>
 
-        <Button
-          title="Vezi profilul"
-          onPress={() => {
-            router.replace("/profile" as any);
-          }}
-        />
-
-        {jobId ? (
           <Button
-            title="Inapoi la job"
-            variant="secondary"
-            style={styles.secondaryButton}
+            title="Vezi profilul"
             onPress={() => {
-              router.replace(
-                buildJobDetailsPath(jobId, "/profile") as any
-              );
+              router.replace("/profile" as any);
             }}
           />
-        ) : null}
+
+          {jobId ? (
+            <Button
+              title="Inapoi la job"
+              variant="secondary"
+              style={styles.secondaryButton}
+              onPress={() => {
+                router.replace(
+                  buildJobDetailsPath(jobId, "/profile") as any
+                );
+              }}
+            />
+          ) : null}
+        </ScrollView>
       </Screen>
     </RequireAuth>
   );
@@ -65,6 +70,10 @@ function readParam(value?: string | string[]) {
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
   item: {
     color: Colors.textBody,
     fontSize: Typography.body,

@@ -1,4 +1,3 @@
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -21,8 +20,6 @@ function MessagesContent() {
   return (
     <Screen centered={false}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <AuthenticatedHeader active="messages" />
-
         <Header title={t("messages.title")} subtitle={t("messages.subtitle")} />
 
         <Card title={t("messages.emptyTitle")}>

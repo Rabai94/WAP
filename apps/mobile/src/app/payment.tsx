@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "../components/ui";
@@ -11,82 +11,92 @@ export default function PaymentScreen() {
 
     return (
         <RequireAuth>
-            <Screen>
-            <Header
-                icon="💶"
-                title={t("payment.title")}
-                subtitle={t("payment.subtitle")}
-            />
+            <Screen centered={false}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <Header
+                        icon="💶"
+                        title={t("payment.title")}
+                        subtitle={t("payment.subtitle")}
+                    />
 
-            <Card title={t("payment.calculation")}>
-                <View style={styles.row}>
-                    <Text style={styles.label}>{t("checkOut.hours")}</Text>
-                    <Text style={styles.value}>{t("demo.hours.eight")}</Text>
-                </View>
+                    <Card title={t("payment.calculation")}>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>{t("checkOut.hours")}</Text>
+                            <Text style={styles.value}>{t("demo.hours.eight")}</Text>
+                        </View>
 
-                <View style={styles.row}>
-                    <Text style={styles.label}>{t("common.payPerHour")}</Text>
-                    <Text style={styles.value}>{t("demo.amount.pay15")}</Text>
-                </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>{t("common.payPerHour")}</Text>
+                            <Text style={styles.value}>{t("demo.amount.pay15")}</Text>
+                        </View>
 
-                <View style={styles.row}>
-                    <Text style={styles.label}>{t("payment.grossTotal")}</Text>
-                    <Text style={styles.value}>{t("demo.amount.grossTotal")}</Text>
-                </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>{t("payment.grossTotal")}</Text>
+                            <Text style={styles.value}>{t("demo.amount.grossTotal")}</Text>
+                        </View>
 
-                <View style={styles.divider} />
+                        <View style={styles.divider} />
 
-                <View style={styles.row}>
-                    <Text style={styles.label}>{t("payment.workerFee")}</Text>
-                    <Text style={styles.value}>{t("demo.amount.businessFee")}</Text>
-                </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>{t("payment.workerFee")}</Text>
+                            <Text style={styles.value}>{t("demo.amount.businessFee")}</Text>
+                        </View>
 
-                <View style={styles.row}>
-                    <Text style={styles.label}>{t("payment.businessFee")}</Text>
-                    <Text style={styles.value}>{t("demo.amount.businessFee")}</Text>
-                </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>{t("payment.businessFee")}</Text>
+                            <Text style={styles.value}>{t("demo.amount.businessFee")}</Text>
+                        </View>
 
-                <View style={styles.divider} />
+                        <View style={styles.divider} />
 
-                <View style={styles.row}>
-                    <Text style={styles.totalLabel}>{t("payment.workerTotal")}</Text>
-                    <Text style={styles.totalValue}>{t("demo.amount.workerTotal")}</Text>
-                </View>
-            </Card>
+                        <View style={styles.row}>
+                            <Text style={styles.totalLabel}>{t("payment.workerTotal")}</Text>
+                            <Text style={styles.totalValue}>{t("demo.amount.workerTotal")}</Text>
+                        </View>
+                    </Card>
 
-            <Card title={t("payment.statusTitle")}>
-                <Text style={styles.item}>✓ {t("payment.item1")}</Text>
-                <Text style={styles.item}>✓ {t("payment.item2")}</Text>
-                <Text style={styles.item}>✓ {t("payment.item3")}</Text>
-                <Text style={styles.pendingItem}>⏳ {t("payment.pending")}</Text>
-            </Card>
+                    <Card title={t("payment.statusTitle")}>
+                        <Text style={styles.item}>✓ {t("payment.item1")}</Text>
+                        <Text style={styles.item}>✓ {t("payment.item2")}</Text>
+                        <Text style={styles.item}>✓ {t("payment.item3")}</Text>
+                        <Text style={styles.pendingItem}>⏳ {t("payment.pending")}</Text>
+                    </Card>
 
-            <Button
-                title={t("payment.confirm")}
-                onPress={() => {
-                    console.log("PLATA CONFIRMATA");
-                    router.push("/payment-confirmed" as any);
-                }}
-            />
+                    <Button
+                        title={t("payment.confirm")}
+                        onPress={() => {
+                            console.log("PLATA CONFIRMATA");
+                            router.push("/payment-confirmed" as any);
+                        }}
+                    />
 
-            <Button
-                title={t("common.backToCheckOut")}
-                variant="ghost"
-                style={styles.backButton}
-                onPress={() => {
-                    if (router.canGoBack()) {
-                        router.back();
-                    } else {
-                        router.push("/check-out" as any);
-                    }
-                }}
-            />
+                    <Button
+                        title={t("common.backToCheckOut")}
+                        variant="ghost"
+                        style={styles.backButton}
+                        onPress={() => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.push("/check-out" as any);
+                            }
+                        }}
+                    />
+                </ScrollView>
             </Screen>
         </RequireAuth>
     );
 }
 
 const styles = StyleSheet.create({
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: "center",
+    },
+
     row: {
         flexDirection: "row",
         justifyContent: "space-between",

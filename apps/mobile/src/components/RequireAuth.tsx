@@ -18,10 +18,10 @@ export default function RequireAuth({
 }: RequireAuthProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { loading, session, user } = useAuth();
+  const { isSigningOut, loading, session, user } = useAuth();
 
   useEffect(() => {
-    if (loading) {
+    if (loading || isSigningOut) {
       return;
     }
 
@@ -33,7 +33,7 @@ export default function RequireAuth({
     if (requiredRole && !canAccessRole(user, requiredRole)) {
       router.replace("/engine" as any);
     }
-  }, [loading, pathname, requiredRole, router, session, user]);
+  }, [isSigningOut, loading, pathname, requiredRole, router, session, user]);
 
   if (loading) {
     return (
@@ -42,6 +42,10 @@ export default function RequireAuth({
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
+  }
+
+  if (isSigningOut && !session) {
+    return null;
   }
 
   if (!session || (requiredRole && !canAccessRole(user, requiredRole))) {

@@ -1,4 +1,3 @@
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "@/components/ui";
 import {
@@ -66,7 +65,6 @@ function ProfileVerificationContent() {
   return (
     <Screen centered={false}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <AuthenticatedHeader active="profile" />
         <Header title={t("verification.title")} subtitle={t("verification.subtitle")} />
 
         <Card title={t("verification.actionBasedTitle")}>

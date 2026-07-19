@@ -2,7 +2,8 @@ import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
 import JobSummaryCard from "@/components/jobs/JobSummaryCard";
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
+import JobQuickView from "@/components/jobs/quick-view/JobQuickView";
+import { useJobQuickView } from "@/components/jobs/quick-view/useJobQuickView";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -77,7 +78,7 @@ export default function JobsScreen() {
     search?: string | string[];
   }>();
   const { language, t } = useLanguage();
-  const { session } = useAuth();
+  const { loading: authLoading, session } = useAuth();
   const isAuthenticated = Boolean(session);
   const homeRoute = isAuthenticated ? "/engine" : "/";
   const page = Math.max(parseIntegerParam(params.page, 1), 1);
@@ -135,6 +136,7 @@ export default function JobsScreen() {
   const [jobs, setJobs] = useState<SearchJobResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const { closeJobQuickView, openJobQuickView, selection } = useJobQuickView();
   const totalCount = jobs[0]?.total_count ?? 0;
   const hasNextPage = page * 20 < totalCount;
   const hasPreviousPage = page > 1;
@@ -425,13 +427,10 @@ export default function JobsScreen() {
             paddingHorizontal: responsive.horizontalPadding,
           },
         ]}
+        scrollEnabled={!selection}
         showsVerticalScrollIndicator={false}
       >
-        {isAuthenticated ? (
-          <AuthenticatedHeader active="jobs" />
-        ) : (
-          <PublicHeader active="jobs" />
-        )}
+        {!authLoading && !isAuthenticated ? <PublicHeader active="jobs" /> : null}
 
         <View style={styles.heroCard}>
           <Text style={styles.heroEyebrow}>{t("jobs.eyebrow")}</Text>
@@ -607,8 +606,10 @@ export default function JobsScreen() {
                 key={job.job_id}
                 job={job}
                 language={language}
+                onAction={(selectedJob, action) =>
+                  openJobQuickView(selectedJob, action, jobsReturnPath)
+                }
                 returnLabel="Înapoi la joburi"
-                returnTo={jobsReturnPath}
               />
             ))}
 
@@ -642,6 +643,7 @@ export default function JobsScreen() {
           </View>
         )}
       </ScrollView>
+      <JobQuickView onClose={closeJobQuickView} selection={selection} />
     </View>
   );
 }

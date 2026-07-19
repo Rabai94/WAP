@@ -1,4 +1,3 @@
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
@@ -95,8 +94,6 @@ function OrganizationsContent() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <AuthenticatedHeader active="profile" />
-
         <Header
           title={t("organizations.title")}
           subtitle={t("organizations.subtitle")}

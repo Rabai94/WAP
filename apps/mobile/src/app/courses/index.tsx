@@ -2,7 +2,6 @@ import CourseSummaryCard from "@/components/courses/CourseSummaryCard";
 import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
@@ -76,7 +75,7 @@ export default function CoursesScreen() {
     search?: string | string[];
   }>();
   const { language } = useLanguage();
-  const { session } = useAuth();
+  const { loading: authLoading, session } = useAuth();
   const isAuthenticated = Boolean(session);
   const page = Math.max(parseIntegerParam(params.page, 1), 1);
   const coursesReturnPath = useMemo(
@@ -305,11 +304,7 @@ export default function CoursesScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {isAuthenticated ? (
-          <AuthenticatedHeader active="courses" />
-        ) : (
-          <PublicHeader active="courses" />
-        )}
+        {!authLoading && !isAuthenticated ? <PublicHeader active="courses" /> : null}
 
         <View style={styles.heroCard}>
           <Text style={styles.heroEyebrow}>Cursuri RabAI</Text>

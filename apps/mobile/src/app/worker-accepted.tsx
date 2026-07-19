@@ -1,4 +1,4 @@
-import { StyleSheet, Text } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "../components/ui";
@@ -11,46 +11,56 @@ export default function WorkerAcceptedScreen() {
 
     return (
         <RequireAuth>
-            <Screen>
-            <Header
-                icon="🤝"
-                title={t("workerAccepted.title")}
-                subtitle={t("workerAccepted.subtitle")}
-            />
+            <Screen centered={false}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <Header
+                        icon="🤝"
+                        title={t("workerAccepted.title")}
+                        subtitle={t("workerAccepted.subtitle")}
+                    />
 
-            <Card title={t("common.nextSteps")}>
-                <Text style={styles.item}>✓ {t("workerAccepted.item1")}</Text>
-                <Text style={styles.item}>✓ {t("workerAccepted.item2")}</Text>
-                <Text style={styles.item}>✓ {t("workerAccepted.item3")}</Text>
-                <Text style={styles.item}>✓ {t("workerAccepted.item4")}</Text>
-            </Card>
+                    <Card title={t("common.nextSteps")}>
+                        <Text style={styles.item}>✓ {t("workerAccepted.item1")}</Text>
+                        <Text style={styles.item}>✓ {t("workerAccepted.item2")}</Text>
+                        <Text style={styles.item}>✓ {t("workerAccepted.item3")}</Text>
+                        <Text style={styles.item}>✓ {t("workerAccepted.item4")}</Text>
+                    </Card>
 
-            <Button
-                title={t("workerAccepted.generateContract")}
-                onPress={() => {
-                    console.log("MERGEM LA CONTRACT");
-                    router.push("/contract" as any);
-                }}
-            />
+                    <Button
+                        title={t("workerAccepted.generateContract")}
+                        onPress={() => {
+                            console.log("MERGEM LA CONTRACT");
+                            router.push("/contract" as any);
+                        }}
+                    />
 
-            <Button
-                title={t("common.backToApplications")}
-                variant="ghost"
-                style={styles.backButton}
-                onPress={() => {
-                    if (router.canGoBack()) {
-                        router.back();
-                    } else {
-                        router.push("/applications" as any);
-                    }
-                }}
-            />
+                    <Button
+                        title={t("common.backToApplications")}
+                        variant="ghost"
+                        style={styles.backButton}
+                        onPress={() => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.push("/applications" as any);
+                            }
+                        }}
+                    />
+                </ScrollView>
             </Screen>
         </RequireAuth>
     );
 }
 
 const styles = StyleSheet.create({
+    scrollContent: {
+        flexGrow: 1,
+        justifyContent: "center",
+    },
+
     item: {
         fontSize: Typography.body,
         color: Colors.textBody,

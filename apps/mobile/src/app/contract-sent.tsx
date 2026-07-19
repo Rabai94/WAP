@@ -1,4 +1,4 @@
-import { StyleSheet, Text } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
 import { useRouter } from "expo-router";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Screen } from "../components/ui";
@@ -11,61 +11,71 @@ export default function ContractSentScreen() {
 
   return (
     <RequireAuth>
-      <Screen>
-      <Header
-        icon="✍️"
-        title={t("contractSent.title")}
-        subtitle={t("contractSent.subtitle")}
-      />
+      <Screen centered={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Header
+            icon="✍️"
+            title={t("contractSent.title")}
+            subtitle={t("contractSent.subtitle")}
+          />
 
-      <Card title={t("contractSent.signStatus")}>
-        <Text style={styles.item}>✓ {t("contractSent.item1")}</Text>
-        <Text style={styles.item}>✓ {t("contractSent.item2")}</Text>
-        <Text style={styles.item}>✓ {t("contractSent.item3")}</Text>
-        <Text style={styles.pendingItem}>⏳ {t("contractSent.pending")}</Text>
-      </Card>
+          <Card title={t("contractSent.signStatus")}>
+            <Text style={styles.item}>✓ {t("contractSent.item1")}</Text>
+            <Text style={styles.item}>✓ {t("contractSent.item2")}</Text>
+            <Text style={styles.item}>✓ {t("contractSent.item3")}</Text>
+            <Text style={styles.pendingItem}>⏳ {t("contractSent.pending")}</Text>
+          </Card>
 
-      <Card title={t("contractSent.afterTitle")}>
-        <Text style={styles.item}>✓ {t("contractSent.after1")}</Text>
-        <Text style={styles.item}>✓ {t("contractSent.after2")}</Text>
-        <Text style={styles.item}>✓ {t("contractSent.after3")}</Text>
-      </Card>
+          <Card title={t("contractSent.afterTitle")}>
+            <Text style={styles.item}>✓ {t("contractSent.after1")}</Text>
+            <Text style={styles.item}>✓ {t("contractSent.after2")}</Text>
+            <Text style={styles.item}>✓ {t("contractSent.after3")}</Text>
+          </Card>
 
-      <Button
-        title={t("contractSent.simulate")}
-        onPress={() => {
-          console.log("SEMNARE COMPLETA - JOB ACTIV");
-          router.push("/job-active" as any);
-        }}
-      />
+          <Button
+            title={t("contractSent.simulate")}
+            onPress={() => {
+              console.log("SEMNARE COMPLETA - JOB ACTIV");
+              router.push("/job-active" as any);
+            }}
+          />
 
-      <Button
-        title="Înapoi la RabAI"
-        variant="secondary"
-        style={styles.secondaryButton}
-        onPress={() => {
-          router.replace("/engine" as any);
-        }}
-      />
+          <Button
+            title="Înapoi la RabAI"
+            variant="secondary"
+            style={styles.secondaryButton}
+            onPress={() => {
+              router.replace("/engine" as any);
+            }}
+          />
 
-      <Button
-        title={t("common.backToContract")}
-        variant="ghost"
-        style={styles.backButton}
-        onPress={() => {
-          if (router.canGoBack()) {
-            router.back();
-          } else {
-            router.push("/contract" as any);
-          }
-        }}
-      />
+          <Button
+            title={t("common.backToContract")}
+            variant="ghost"
+            style={styles.backButton}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.push("/contract" as any);
+              }
+            }}
+          />
+        </ScrollView>
       </Screen>
     </RequireAuth>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
+
   item: {
     fontSize: Typography.body,
     color: Colors.textBody,

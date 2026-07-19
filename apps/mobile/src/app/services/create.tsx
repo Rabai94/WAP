@@ -1,4 +1,3 @@
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Input, Screen } from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
@@ -38,8 +37,6 @@ function ServiceCreateContent() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <AuthenticatedHeader active="services" />
-
         <Header
           title={t("services.createTitle")}
           subtitle={t("services.createSubtitle")}

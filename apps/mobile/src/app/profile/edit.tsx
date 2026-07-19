@@ -1,7 +1,6 @@
 import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
-import AuthenticatedHeader from "@/components/navigation/AuthenticatedHeader";
 import RequireAuth from "@/components/RequireAuth";
 import { Button, Card, Header, Input, Screen } from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -365,8 +364,6 @@ function ProfileEditContent() {
   return (
     <Screen centered={false}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <AuthenticatedHeader active="profile" />
-
         <Header title={t("profileEdit.title")} subtitle={t("profileEdit.subtitle")} />
 
         {loadingProfile ? (
