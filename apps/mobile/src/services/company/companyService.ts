@@ -1,21 +1,35 @@
 import { supabase } from "@/infrastructure/auth/supabase/supabaseClient";
 
-export type CompanyProfile = {
+export type CompanyVerificationStatus = "pending" | "verified" | "rejected";
+
+export type CompanyStatus =
+  | "active"
+  | "inactive"
+  | "suspended"
+  | "archived"
+  | "draft"
+  | "pending"
+  | "verified";
+
+export type PublicCompanyProfile = {
   id: string;
-  owner_user_id: string;
-  profile_id: string | null;
   name: string;
-  legal_name: string | null;
-  country_code: string;
   city: string | null;
-  postal_code: string | null;
-  address: string | null;
   website: string | null;
   description: string | null;
   industry: string | null;
   employee_count_range: string | null;
-  verification_status: string;
-  status: string;
+  verification_status: CompanyVerificationStatus;
+};
+
+export type CompanyProfile = PublicCompanyProfile & {
+  owner_user_id: string;
+  profile_id: string | null;
+  legal_name: string | null;
+  country_code: string;
+  postal_code: string | null;
+  address: string | null;
+  status: CompanyStatus;
   created_at: string;
   updated_at: string;
 };
@@ -69,6 +83,20 @@ const companySelect = [
   "updated_at",
 ].join(", ");
 
+// Keep the public projection deliberately small. The database currently grants
+// row-level public reads for active, verified companies, but does not provide a
+// column-restricted public view yet.
+const publicCompanySelect = [
+  "id",
+  "name",
+  "city",
+  "website",
+  "description",
+  "industry",
+  "employee_count_range",
+  "verification_status",
+].join(", ");
+
 const companyDashboardJobSelect = [
   "id",
   "company_id",
@@ -94,7 +122,56 @@ export async function fetchOwnCompany(userId: string) {
   return data ?? null;
 }
 
-export async function saveOwnCompany(input: SaveCompanyInput) {
+export async function fetchOwnCompanies(userId: string) {
+  const { data, error } = await supabase
+    .from("companies")
+    .select(companySelect)
+    .eq("owner_user_id", userId)
+    .order("created_at", { ascending: true })
+    .returns<CompanyProfile[]>();
+
+  if (error) {
+    throw new Error(error.message || "Company profiles could not be loaded.");
+  }
+
+  return data ?? [];
+}
+
+export async function fetchPublicCompanyById(companyId: string) {
+  const { data, error } = await supabase
+    .from("companies")
+    .select(publicCompanySelect)
+    .eq("id", companyId)
+    .eq("status", "active")
+    .eq("verification_status", "verified")
+    .maybeSingle()
+    .returns<PublicCompanyProfile | null>();
+
+  if (error) {
+    throw new Error(error.message || "Company profile could not be loaded.");
+  }
+
+  return data ?? null;
+}
+
+export function toPublicCompanyProfile(
+  company: CompanyProfile
+): PublicCompanyProfile {
+  return {
+    city: company.city,
+    description: company.description,
+    employee_count_range: company.employee_count_range,
+    id: company.id,
+    industry: company.industry,
+    name: company.name,
+    verification_status: company.verification_status,
+    website: company.website,
+  };
+}
+
+export async function saveOwnCompany(
+  input: SaveCompanyInput
+): Promise<CompanyProfile> {
   const { data, error } = await supabase
     .rpc("upsert_own_company", {
       p_address: input.address,
@@ -108,13 +185,30 @@ export async function saveOwnCompany(input: SaveCompanyInput) {
       p_postal_code: input.postalCode,
       p_website: input.website,
     })
-    .returns<CompanyProfile>();
+    .returns<CompanyProfile | CompanyProfile[]>();
 
   if (error) {
     throw new Error(error.message || "Company profile could not be saved.");
   }
 
-  return data;
+  const company = Array.isArray(data) ? data[0] : data;
+
+  if (!isCompanyProfile(company)) {
+    throw new Error("Company profile could not be saved.");
+  }
+
+  return company;
+}
+
+function isCompanyProfile(value: unknown): value is CompanyProfile {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "name" in value &&
+    typeof value.name === "string"
+  );
 }
 
 export async function fetchOwnCompanyJobs(companyId: string) {

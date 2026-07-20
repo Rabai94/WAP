@@ -1,18 +1,93 @@
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Screen } from "@/components/ui";
+import OrganizationActionButton from "@/components/organizations/OrganizationActionButton";
+import OrganizationAvatar from "@/components/organizations/OrganizationAvatar";
+import OrganizationProfileCompletion from "@/components/organizations/OrganizationProfileCompletion";
+import { getOrganizationCopy } from "@/components/organizations/organizationCopy";
+import { calculateOrganizationCompletion } from "@/components/organizations/organizationProfile";
+import { Header, Screen } from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import type { LanguageCode } from "@/i18n/translations";
 import { useAuth } from "@/providers/AuthProvider";
 import {
-  fetchOwnCompany,
-  fetchOwnCompanyJobs,
-  type CompanyDashboardJob,
+  fetchOwnCompanies,
   type CompanyProfile,
+  type CompanyStatus,
+  type CompanyVerificationStatus,
 } from "@/services/company/companyService";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
-import { useRouter } from "expo-router";
+import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import { type Href, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
+const companyStatusLabels: Record<
+  LanguageCode,
+  Record<CompanyStatus, string>
+> = {
+  de: {
+    active: "Aktiv",
+    archived: "Archiviert",
+    draft: "Entwurf",
+    inactive: "Inaktiv",
+    pending: "Ausstehend",
+    suspended: "Gesperrt",
+    verified: "Bestätigt",
+  },
+  en: {
+    active: "Active",
+    archived: "Archived",
+    draft: "Draft",
+    inactive: "Inactive",
+    pending: "Pending",
+    suspended: "Suspended",
+    verified: "Verified",
+  },
+  ro: {
+    active: "Activă",
+    archived: "Arhivată",
+    draft: "Ciornă",
+    inactive: "Inactivă",
+    pending: "În așteptare",
+    suspended: "Suspendată",
+    verified: "Verificată",
+  },
+};
+
+const verificationStatusLabels: Record<
+  LanguageCode,
+  Record<CompanyVerificationStatus, string>
+> = {
+  de: {
+    pending: "Ausstehend",
+    rejected: "Abgelehnt",
+    verified: "Verifiziert",
+  },
+  en: {
+    pending: "Pending",
+    rejected: "Rejected",
+    verified: "Verified",
+  },
+  ro: {
+    pending: "În așteptare",
+    rejected: "Respinsă",
+    verified: "Verificată",
+  },
+};
+
+const completionStateLabels: Record<
+  LanguageCode,
+  { complete: string; incomplete: string }
+> = {
+  de: { complete: "Vollständig", incomplete: "Unvollständig" },
+  en: { complete: "Complete", incomplete: "Incomplete" },
+  ro: { complete: "Complet", incomplete: "Incomplet" },
+};
 
 export default function OrganizationsScreen() {
   return (
@@ -25,56 +100,69 @@ export default function OrganizationsScreen() {
 function OrganizationsContent() {
   const router = useRouter();
   const responsive = useResponsiveLayout();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const copy = getOrganizationCopy(language);
   const { user } = useAuth();
   const userId = user?.id;
-  const [company, setCompany] = useState<CompanyProfile | null>(null);
-  const [jobs, setJobs] = useState<CompanyDashboardJob[]>([]);
+  const [companies, setCompanies] = useState<CompanyProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState("");
 
-  const canPublishJobs =
-    company?.status === "active" && company.verification_status === "verified";
-
-  const activeJobCount = useMemo(
-    () => jobs.filter((job) => job.status === "published").length,
-    [jobs]
+  const completionLabels = useMemo(
+    () => ({
+      city: t("common.city"),
+      description: t("organizations.description"),
+      employee_count_range: t("organizations.employeeCount"),
+      industry: t("organizations.activityArea"),
+      name: t("organizations.displayName"),
+      website: t("organizations.website"),
+    }),
+    [t]
   );
 
-  const loadOrganization = useCallback(async () => {
+  const loadOrganizations = useCallback(async () => {
     if (!userId) {
+      setCompanies([]);
+      setRedirecting(false);
+      setError(t("organizations.loadError"));
+      setLoading(false);
       return;
     }
 
     setLoading(true);
+    setRedirecting(false);
     setError("");
 
     try {
-      const nextCompany = await fetchOwnCompany(userId);
-      const nextJobs = nextCompany
-        ? await fetchOwnCompanyJobs(nextCompany.id)
-        : [];
+      const nextCompanies = await fetchOwnCompanies(userId);
 
-      setCompany(nextCompany);
-      setJobs(nextJobs);
-    } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : t("organizations.loadError")
-      );
+      if (nextCompanies.length === 1) {
+        setCompanies([]);
+        setRedirecting(true);
+        router.replace(`/organizations/${nextCompanies[0].id}` as Href);
+        return;
+      }
+
+      setCompanies(nextCompanies);
+    } catch {
+      setCompanies([]);
+      setRedirecting(false);
+      setError(t("organizations.loadError"));
     } finally {
       setLoading(false);
     }
-  }, [t, userId]);
+  }, [router, t, userId]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      void loadOrganization();
+      void loadOrganizations();
     }, 0);
 
     return () => clearTimeout(timeoutId);
-  }, [loadOrganization]);
+  }, [loadOrganizations]);
+
+  const showingLoadingState = loading || redirecting;
 
   return (
     <Screen
@@ -89,7 +177,7 @@ function OrganizationsContent() {
           styles.content,
           {
             gap: responsive.isMobile ? Spacing.sm : Spacing.md,
-            maxWidth: responsive.contentMaxWidth,
+            maxWidth: Math.min(responsive.contentMaxWidth, 1040),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -99,319 +187,462 @@ function OrganizationsContent() {
           subtitle={t("organizations.subtitle")}
         />
 
-        {loading ? (
-          <Card>
-            <Text style={styles.mutedText}>{t("organizations.loading")}</Text>
-          </Card>
-        ) : null}
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        {!loading && !company ? (
-          <Card title={t("organizations.emptyTitle")}>
-            <Text style={styles.bodyText}>{t("organizations.emptyText")}</Text>
-            <Button
-              title={t("organizations.createAction")}
-              style={styles.cardButton}
-              onPress={() => router.push("/organizations/create" as any)}
+        {showingLoadingState ? (
+          <View
+            accessibilityLabel={copy.loadingProfile}
+            accessibilityRole="progressbar"
+            style={styles.stateCard}
+          >
+            <ActivityIndicator
+              accessible={false}
+              color={Colors.brand}
+              size="small"
             />
-          </Card>
+            <Text accessibilityLiveRegion="polite" style={styles.stateText}>
+              {copy.loadingProfile}
+            </Text>
+          </View>
         ) : null}
 
-        {company ? (
-          <>
-            <Card title={company.name}>
-              <View style={styles.infoGrid}>
-                <InfoPill
-                  compact={responsive.isMobile}
-                  label={t("organizations.type")}
-                  value={t("organizations.type.company")}
-                />
-                <InfoPill
-                  compact={responsive.isMobile}
-                  label={t("common.status")}
-                  value={formatCompanyStatus(company.status, t)}
-                />
-                <InfoPill
-                  compact={responsive.isMobile}
-                  label={t("organizations.verification")}
-                  tone={
-                    company.verification_status === "verified"
-                      ? "success"
-                      : "warning"
-                  }
-                  value={formatVerificationStatus(company.verification_status, t)}
-                />
-                <InfoPill
-                  compact={responsive.isMobile}
-                  label={t("organizations.activeJobs")}
-                  value={String(activeJobCount)}
-                />
-              </View>
+        {!showingLoadingState && error ? (
+          <View style={[styles.stateCard, styles.errorCard]}>
+            <Text
+              accessibilityLiveRegion="assertive"
+              accessibilityRole="alert"
+              style={styles.errorText}
+            >
+              {error}
+            </Text>
+            <OrganizationActionButton
+              accessibilityHint={copy.loadingProfile}
+              fullWidth={responsive.isMobile}
+              label={copy.retry}
+              onPress={() => void loadOrganizations()}
+              variant="secondary"
+            />
+          </View>
+        ) : null}
 
-              <Text style={styles.bodyText}>
-                {company.description || t("organizations.noDescription")}
+        {!showingLoadingState && !error && companies.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyCopy}>
+              <Text accessibilityRole="header" style={styles.emptyTitle}>
+                {t("organizations.emptyTitle")}
               </Text>
-            </Card>
-
-            <Card title={t("organizations.quickActions")}>
-              <View style={styles.actionGrid}>
-                <ActionButton
-                  label={t("organizations.details")}
-                  onPress={() => router.push(`/organizations/${company.id}` as any)}
-                />
-                <ActionButton
-                  disabled={!canPublishJobs}
-                  label={t("organizations.publishJob")}
-                  onPress={() => router.push("/create-job" as any)}
-                />
-                <ActionButton
-                  label={t("organizations.edit")}
-                  onPress={() => router.push("/organizations/create" as any)}
-                />
-                <ActionButton
-                  label={t("organizations.applications")}
-                  onPress={() => router.push("/applications" as any)}
-                />
-              </View>
-              {!canPublishJobs ? (
-                <Text style={styles.hintText}>
-                  {t("organizations.publishRequirement")}
-                </Text>
-              ) : null}
-            </Card>
-
-            <Card title={t("organizations.jobsTitle")}>
-              {jobs.length > 0 ? (
-                <View style={styles.jobList}>
-                  {jobs.map((job) => (
-                    <View key={job.id} style={styles.jobRow}>
-                      <View style={styles.jobMain}>
-                        <Text style={styles.jobTitle}>{job.title}</Text>
-                        <Text style={styles.mutedText}>
-                          {formatJobStatus(job.status, t)}
-                        </Text>
-                      </View>
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() =>
-                          router.push(`/create-job?jobId=${job.id}` as any)
-                        }
-                        style={styles.smallButton}
-                      >
-                        <Text style={styles.smallButtonText}>
-                          {t("organizations.editJob")}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text style={styles.bodyText}>{t("organizations.noJobs")}</Text>
-              )}
-            </Card>
-          </>
+              <Text style={styles.bodyText}>
+                {t("organizations.emptyText")}
+              </Text>
+            </View>
+            <OrganizationActionButton
+              accessibilityHint={t("organizations.createSubtitle")}
+              fullWidth={responsive.isMobile}
+              label={copy.createOrganization}
+              onPress={() => router.push("/organizations/create" as Href)}
+              variant="primary"
+            />
+          </View>
         ) : null}
+
+        {!showingLoadingState && !error && companies.length >= 2
+          ? companies.map((company) => {
+              const completion = calculateOrganizationCompletion(company);
+
+              return (
+                <View key={company.id} style={styles.organizationCard}>
+                  <View
+                    style={[
+                      styles.organizationHeader,
+                      responsive.isMobile && styles.organizationHeaderMobile,
+                    ]}
+                  >
+                    <OrganizationAvatar
+                      name={company.name}
+                      size={responsive.isMobile ? 58 : 72}
+                    />
+                    <View style={styles.organizationIdentity}>
+                      <Text style={styles.eyebrow}>
+                        {copy.ownedOrganization}
+                      </Text>
+                      <View style={styles.nameRow}>
+                        <Text
+                          accessibilityRole="header"
+                          style={styles.companyName}
+                        >
+                          {company.name}
+                        </Text>
+                        {company.verification_status === "verified" ? (
+                          <View
+                            accessibilityLabel={`${t("organizations.verification")}: ${formatVerificationStatus(company.verification_status, language)}`}
+                            accessible
+                            style={styles.verifiedBadge}
+                          >
+                            <Text style={styles.verifiedBadgeText}>
+                              ✓{" "}
+                              {formatVerificationStatus(
+                                company.verification_status,
+                                language
+                              )}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.factGrid}>
+                    <FactItem
+                      fullWidth={responsive.isMobile}
+                      label={t("organizations.activityArea")}
+                      value={company.industry?.trim() || copy.notProvided}
+                    />
+                    <FactItem
+                      fullWidth={responsive.isMobile}
+                      label={t("common.city")}
+                      value={company.city?.trim() || copy.notProvided}
+                    />
+                  </View>
+
+                  <View style={styles.statusGrid}>
+                    <StatusItem
+                      fullWidth={responsive.isMobile}
+                      label={copy.internalStatus}
+                      tone={companyStatusTone(company.status)}
+                      value={formatCompanyStatus(company.status, language)}
+                    />
+                    <StatusItem
+                      fullWidth={responsive.isMobile}
+                      label={t("organizations.verification")}
+                      tone={verificationStatusTone(
+                        company.verification_status
+                      )}
+                      value={formatVerificationStatus(
+                        company.verification_status,
+                        language
+                      )}
+                    />
+                  </View>
+
+                  <OrganizationProfileCompletion
+                    checklistTitle={copy.completionChecklist}
+                    company={company}
+                    labels={completionLabels}
+                    showChecklist
+                    statusLabels={completionStateLabels[language]}
+                    summary={copy.completionSummary}
+                    title={copy.profileCompletion}
+                  />
+
+                  <View
+                    style={[
+                      styles.actionRow,
+                      responsive.isMobile && styles.actionRowMobile,
+                    ]}
+                  >
+                    <OrganizationActionButton
+                      accessibilityHint={copy.publicDataNote}
+                      fullWidth={responsive.isMobile}
+                      label={copy.viewOrganization}
+                      onPress={() =>
+                        router.push(`/organizations/${company.id}` as Href)
+                      }
+                      variant="primary"
+                    />
+                    <OrganizationActionButton
+                      accessibilityHint={copy.formSubtitle}
+                      fullWidth={responsive.isMobile}
+                      label={
+                        completion.percentage === 100
+                          ? copy.editOrganization
+                          : copy.completeProfile
+                      }
+                      onPress={() =>
+                        router.push("/organizations/create" as Href)
+                      }
+                      variant="secondary"
+                    />
+                  </View>
+                </View>
+              );
+            })
+          : null}
       </ScrollView>
     </Screen>
   );
 }
 
-function InfoPill({
-  compact,
+function FactItem({
+  fullWidth,
   label,
-  tone,
   value,
 }: {
-  compact?: boolean;
+  fullWidth: boolean;
   label: string;
-  tone?: "success" | "warning";
   value: string;
 }) {
   return (
-    <View
-      style={[
-        styles.infoPill,
-        compact && styles.infoPillCompact,
-        tone === "success" && styles.infoPillSuccess,
-        tone === "warning" && styles.infoPillWarning,
-      ]}
-    >
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+    <View style={[styles.factItem, fullWidth && styles.fullWidthItem]}>
+      <Text style={styles.factLabel}>{label}</Text>
+      <Text selectable style={styles.factValue}>
+        {value}
+      </Text>
     </View>
   );
 }
 
-function ActionButton({
-  disabled,
+function StatusItem({
+  fullWidth,
   label,
-  onPress,
+  tone,
+  value,
 }: {
-  disabled?: boolean;
+  fullWidth: boolean;
   label: string;
-  onPress: () => void;
+  tone: "danger" | "neutral" | "success" | "warning";
+  value: string;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: Boolean(disabled) }}
-      disabled={disabled}
-      onPress={onPress}
-      style={[styles.actionButton, disabled && styles.actionButtonDisabled]}
+    <View
+      accessibilityLabel={`${label}: ${value}`}
+      accessible
+      style={[
+        styles.statusItem,
+        fullWidth && styles.fullWidthItem,
+        tone === "success" && styles.statusItemSuccess,
+        tone === "warning" && styles.statusItemWarning,
+        tone === "danger" && styles.statusItemDanger,
+      ]}
     >
-      <Text style={styles.actionButtonText}>{label}</Text>
-    </Pressable>
+      <Text style={styles.statusLabel}>{label}</Text>
+      <Text style={styles.statusValue}>{value}</Text>
+    </View>
   );
 }
 
-function formatVerificationStatus(value: string, t: (key: string) => string) {
-  if (value === "verified") {
-    return t("verification.status.verified");
-  }
-
-  if (value === "rejected") {
-    return t("organizations.verification.rejected");
-  }
-
-  return t("organizations.unverifiedStatus");
+function formatCompanyStatus(value: CompanyStatus, language: LanguageCode) {
+  return companyStatusLabels[language][value];
 }
 
-function formatCompanyStatus(value: string, t: (key: string) => string) {
-  return t(`organizations.status.${value}`);
+function formatVerificationStatus(
+  value: CompanyVerificationStatus,
+  language: LanguageCode
+) {
+  return verificationStatusLabels[language][value];
 }
 
-function formatJobStatus(value: string, t: (key: string) => string) {
-  return t(`organizations.jobStatus.${value}`);
+function companyStatusTone(
+  status: CompanyStatus
+): "danger" | "neutral" | "success" | "warning" {
+  if (status === "active" || status === "verified") {
+    return "success";
+  }
+
+  if (status === "draft" || status === "pending") {
+    return "warning";
+  }
+
+  if (status === "archived" || status === "suspended") {
+    return "danger";
+  }
+
+  return "neutral";
+}
+
+function verificationStatusTone(
+  status: CompanyVerificationStatus
+): "danger" | "success" | "warning" {
+  if (status === "verified") {
+    return "success";
+  }
+
+  return status === "rejected" ? "danger" : "warning";
 }
 
 const styles = StyleSheet.create({
   content: {
     alignSelf: "center",
-    gap: Spacing.md,
-    paddingBottom: Spacing.five,
+    paddingBottom: Spacing.eight,
     width: "100%",
   },
-  infoGrid: {
+  stateCard: {
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
+    borderRadius: Radius.xxl,
+    borderWidth: 1,
+    gap: Spacing.md,
+    padding: Spacing.screen,
+    ...Shadows.card,
+  },
+  stateText: {
+    color: Colors.textMuted,
+    fontSize: Typography.body,
+    lineHeight: Typography.lineHeight.body,
+    textAlign: "center",
+  },
+  errorCard: {
+    alignItems: "stretch",
+    borderColor: "#FDA4AF",
+  },
+  errorText: {
+    color: "#BE123C",
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.bold,
+    lineHeight: Typography.lineHeight.default,
+    textAlign: "center",
+  },
+  emptyCard: {
+    alignItems: "flex-start",
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
+    borderRadius: Radius.xxl,
+    borderWidth: 1,
+    gap: Spacing.screen,
+    padding: Spacing.screen,
+    ...Shadows.card,
+  },
+  emptyCopy: {
+    gap: Spacing.md,
+  },
+  emptyTitle: {
+    color: Colors.text,
+    fontSize: Typography.cardTitleLarge,
+    fontWeight: Typography.fontWeight.black,
+  },
+  bodyText: {
+    color: Colors.textBody,
+    fontSize: Typography.body,
+    lineHeight: Typography.lineHeight.default,
+  },
+  organizationCard: {
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
+    borderRadius: Radius.xxl,
+    borderWidth: 1,
+    gap: Spacing.three,
+    overflow: "hidden",
+    padding: Spacing.screen,
+    ...Shadows.card,
+  },
+  organizationHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.three,
+  },
+  organizationHeaderMobile: {
+    alignItems: "flex-start",
+  },
+  organizationIdentity: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eyebrow: {
+    color: Colors.brand,
+    fontSize: Typography.small,
+    fontWeight: Typography.fontWeight.extraBold,
+    letterSpacing: 0.8,
+    marginBottom: Spacing.sm,
+    textTransform: "uppercase",
+  },
+  nameRow: {
+    alignItems: "center",
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.md,
-    marginBottom: Spacing.lg,
   },
-  infoPill: {
-    backgroundColor: "#F7F9FD",
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexBasis: 180,
-    flexGrow: 1,
-    padding: Spacing.lg,
+  companyName: {
+    color: Colors.text,
+    flexShrink: 1,
+    fontSize: Typography.h3,
+    fontWeight: Typography.fontWeight.black,
+    lineHeight: 30,
   },
-  infoPillCompact: {
-    flexBasis: "100%",
-  },
-  infoPillSuccess: {
+  verifiedBadge: {
     backgroundColor: "#E8F8F2",
     borderColor: "#BEEBD7",
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.sm,
   },
-  infoPillWarning: {
-    backgroundColor: "#FFF7E8",
-    borderColor: "#F6D7A8",
+  verifiedBadgeText: {
+    color: "#056B4B",
+    fontSize: Typography.small,
+    fontWeight: Typography.fontWeight.extraBold,
   },
-  infoLabel: {
+  factGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+  },
+  factItem: {
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.border,
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    flexBasis: 220,
+    flexGrow: 1,
+    minWidth: 0,
+    padding: Spacing.three,
+  },
+  factLabel: {
     color: Colors.textMuted,
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
     marginBottom: Spacing.xs,
   },
-  infoValue: {
+  factValue: {
     color: Colors.text,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
-  },
-  bodyText: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
     lineHeight: Typography.lineHeight.body,
   },
-  mutedText: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-  },
-  errorText: {
-    color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  hintText: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: 20,
-    marginTop: Spacing.md,
-  },
-  cardButton: {
-    marginTop: Spacing.lg,
-  },
-  actionGrid: {
+  statusGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.md,
   },
-  actionButton: {
-    alignItems: "center",
-    backgroundColor: Colors.white,
-    borderColor: Colors.brand,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexGrow: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xxl,
-  },
-  actionButtonDisabled: {
-    opacity: 0.5,
-  },
-  actionButtonText: {
-    color: Colors.brand,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-    textAlign: "center",
-  },
-  jobList: {
-    gap: Spacing.md,
-  },
-  jobRow: {
-    alignItems: "center",
-    backgroundColor: "#F7F9FD",
+  statusItem: {
+    backgroundColor: Colors.surfaceMuted,
     borderColor: Colors.border,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.card,
     borderWidth: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    justifyContent: "space-between",
-    padding: Spacing.lg,
-  },
-  jobMain: {
-    flexBasis: 260,
+    flexBasis: 220,
     flexGrow: 1,
+    minWidth: 0,
+    padding: Spacing.three,
   },
-  jobTitle: {
+  statusItemSuccess: {
+    backgroundColor: "#E8F8F2",
+    borderColor: "#BEEBD7",
+  },
+  statusItemWarning: {
+    backgroundColor: Colors.warningSurface,
+    borderColor: Colors.warningBorder,
+  },
+  statusItemDanger: {
+    backgroundColor: "#FFF1F2",
+    borderColor: "#FDA4AF",
+  },
+  statusLabel: {
+    color: Colors.textMuted,
+    fontSize: Typography.small,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  statusValue: {
     color: Colors.text,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
+    marginTop: Spacing.xs,
   },
-  smallButton: {
-    backgroundColor: Colors.white,
-    borderColor: Colors.brand,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+  fullWidthItem: {
+    flexBasis: "100%",
   },
-  smallButtonText: {
-    color: Colors.brand,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
+  actionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+  },
+  actionRowMobile: {
+    flexDirection: "column",
   },
 });

@@ -1,6 +1,11 @@
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Input, Screen } from "@/components/ui";
-import type { OrganizationType } from "@/domain/account";
+import OrganizationActionButton from "@/components/organizations/OrganizationActionButton";
+import { getOrganizationCopy } from "@/components/organizations/organizationCopy";
+import {
+  getCompanyStatusLabel,
+  getCompanyVerificationLabel,
+} from "@/components/organizations/organizationProfile";
+import { Card, Header, Input, Screen } from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
@@ -10,33 +15,29 @@ import {
   type CompanyProfile,
 } from "@/services/company/companyService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
-import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { type Href, useRouter } from "expo-router";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+type WebPressableState = {
+  focused?: boolean;
+  pressed?: boolean;
+};
+
 type FormErrors = Partial<
-  Record<
-    "city" | "country" | "industry" | "legalName" | "name" | "website",
-    string
-  >
+  Record<"city" | "country" | "industry" | "name" | "website", string>
 >;
 
-type CompanyCapability = "publish_jobs" | "publish_tasks" | "offer_services";
-type CourseDeliveryMode = "online" | "onsite" | "hybrid";
-
-const organizationTypes: OrganizationType[] = [
-  "company",
-  "academy",
-  "institution",
-];
+type HydrationState = "error" | "loading" | "ready";
 
 const employeeCountOptions = ["1-10", "11-50", "51-200", "201-500", "500+"];
-const companyCapabilityOptions: CompanyCapability[] = [
-  "publish_jobs",
-  "publish_tasks",
-  "offer_services",
-];
-const courseDeliveryModes: CourseDeliveryMode[] = ["online", "onsite", "hybrid"];
 
 export default function OrganizationCreateScreen() {
   return (
@@ -49,10 +50,14 @@ export default function OrganizationCreateScreen() {
 function OrganizationCreateContent() {
   const router = useRouter();
   const responsive = useResponsiveLayout();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const { user } = useAuth();
-  const [organizationType, setOrganizationType] =
-    useState<OrganizationType>("company");
+  const copy = getOrganizationCopy(language);
+  const userId = user?.id;
+  const translationRef = useRef(t);
+  const loadAttemptRef = useRef(0);
+  const submissionRef = useRef(false);
+
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [name, setName] = useState("");
   const [legalName, setLegalName] = useState("");
@@ -61,79 +66,109 @@ function OrganizationCreateContent() {
   const [city, setCity] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [address, setAddress] = useState("");
-  const [contactEmail, setContactEmail] = useState(user?.email ?? "");
-  const [contactPhone, setContactPhone] = useState(user?.phone ?? "");
   const [website, setWebsite] = useState("");
-  const [vatId, setVatId] = useState("");
-  const [registrationNumber, setRegistrationNumber] = useState("");
   const [employeeCountRange, setEmployeeCountRange] = useState("");
-  const [companyCapabilities, setCompanyCapabilities] = useState<
-    CompanyCapability[]
-  >(["publish_jobs"]);
-  const [educationArea, setEducationArea] = useState("");
-  const [courseDeliveryMode, setCourseDeliveryMode] =
-    useState<CourseDeliveryMode>("online");
-  const [accreditationStatus, setAccreditationStatus] = useState("");
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [loadError, setLoadError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [submitError, setSubmitError] = useState("");
+  const [hydrationState, setHydrationState] =
+    useState<HydrationState>("loading");
   const [submitting, setSubmitting] = useState(false);
-  const canEditOrganizationFields = !submitting;
-  const canSaveCompany = !loading && !submitting && organizationType === "company";
 
   useEffect(() => {
-    let mounted = true;
+    translationRef.current = t;
+  }, [t]);
 
-    async function loadCompany() {
-      if (!user?.id) {
+  const loadCompany = useCallback(async () => {
+    const attempt = loadAttemptRef.current + 1;
+    loadAttemptRef.current = attempt;
+    setHydrationState("loading");
+    setLoadError("");
+    setSubmitError("");
+    setErrors({});
+
+    if (!userId) {
+      setLoadError(translationRef.current("organizations.loadError"));
+      setHydrationState("error");
+      return;
+    }
+
+    try {
+      const nextCompany = await fetchOwnCompany(userId);
+
+      if (loadAttemptRef.current !== attempt) {
         return;
       }
 
-      setLoading(true);
-      setLoadError("");
-
-      try {
-        const nextCompany = await fetchOwnCompany(user.id);
-
-        if (!mounted) {
-          return;
-        }
-
-        setCompany(nextCompany);
-
-        if (nextCompany) {
-          setName(nextCompany.name ?? "");
-          setLegalName(nextCompany.legal_name ?? "");
-          setCountry(nextCompany.country_code ?? "DE");
-          setIndustry(nextCompany.industry ?? "");
-          setCity(nextCompany.city ?? "");
-          setPostalCode(nextCompany.postal_code ?? "");
-          setAddress(nextCompany.address ?? "");
-          setWebsite(nextCompany.website ?? "");
-          setEmployeeCountRange(nextCompany.employee_count_range ?? "");
-          setDescription(nextCompany.description ?? "");
-        }
-      } catch (error) {
-        if (mounted) {
-          setLoadError(readError(error, t));
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+      setCompany(nextCompany);
+      setName(nextCompany?.name ?? "");
+      setLegalName(nextCompany?.legal_name ?? "");
+      setCountry(nextCompany?.country_code ?? "DE");
+      setIndustry(nextCompany?.industry ?? "");
+      setCity(nextCompany?.city ?? "");
+      setPostalCode(nextCompany?.postal_code ?? "");
+      setAddress(nextCompany?.address ?? "");
+      setWebsite(nextCompany?.website ?? "");
+      setEmployeeCountRange(nextCompany?.employee_count_range ?? "");
+      setDescription(nextCompany?.description ?? "");
+      setHydrationState("ready");
+    } catch (error) {
+      if (loadAttemptRef.current !== attempt) {
+        return;
       }
-    }
 
-    void loadCompany();
+      setCompany(null);
+      setLoadError(
+        readError(
+          error,
+          translationRef.current("organizations.loadError")
+        )
+      );
+      setHydrationState("error");
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void loadCompany();
+    }, 0);
 
     return () => {
-      mounted = false;
+      clearTimeout(timeoutId);
+      loadAttemptRef.current += 1;
     };
-  }, [t, user?.id]);
+  }, [loadCompany]);
+
+  function updateValue(
+    setter: Dispatch<SetStateAction<string>>,
+    value: string,
+    field?: keyof FormErrors
+  ) {
+    setter(value);
+    setSubmitError("");
+
+    if (!field) {
+      return;
+    }
+
+    setErrors((current) => {
+      if (!current[field]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  }
 
   async function handleSubmit() {
-    if (submitting || organizationType !== "company") {
+    if (
+      submissionRef.current ||
+      submitting ||
+      hydrationState !== "ready"
+    ) {
       return;
     }
 
@@ -141,24 +176,25 @@ function OrganizationCreateContent() {
     const nextErrors = validateForm({
       city,
       country,
+      countryCodeError: copy.countryCodeError,
       industry,
-      legalName,
       name,
       normalizedWebsite,
       t,
       website,
     });
     setErrors(nextErrors);
+    setSubmitError("");
 
     if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
+    submissionRef.current = true;
     setSubmitting(true);
-    setLoadError("");
 
     try {
-      await saveOwnCompany({
+      const savedCompany = await saveOwnCompany({
         address: emptyToNull(address),
         city: city.trim(),
         countryCode: country.trim().toUpperCase(),
@@ -170,24 +206,37 @@ function OrganizationCreateContent() {
         postalCode: emptyToNull(postalCode),
         website: normalizedWebsite,
       });
-
-      router.replace("/organizations" as any);
+      router.replace(`/organizations/${savedCompany.id}` as Href);
     } catch (error) {
-      setLoadError(readError(error, t));
+      setSubmitError(readError(error, t("organizations.saveError")));
     } finally {
+      submissionRef.current = false;
       setSubmitting(false);
     }
   }
 
-  function toggleCompanyCapability(capability: CompanyCapability) {
-    setCompanyCapabilities((current) => {
-      if (current.includes(capability)) {
-        return current.filter((item) => item !== capability);
-      }
+  function handleCancel() {
+    if (submissionRef.current || submitting) {
+      return;
+    }
 
-      return [...current, capability];
-    });
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/organizations" as Href);
   }
+
+  const isEditing = hydrationState === "ready" && company !== null;
+  const headerTitle = isEditing
+    ? copy.editOrganizationTitle
+    : copy.createOrganization;
+  const saveLabel = submitting
+    ? copy.saving
+    : isEditing
+      ? copy.saveChanges
+      : copy.createOrganization;
 
   return (
     <Screen
@@ -202,355 +251,299 @@ function OrganizationCreateContent() {
           styles.content,
           {
             gap: responsive.isMobile ? Spacing.sm : Spacing.md,
-            maxWidth: responsive.contentMaxWidth,
+            maxWidth: Math.min(responsive.contentMaxWidth, 1040),
           },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Header
-          title={t("organizations.createTitle")}
-          subtitle={t("organizations.createSubtitle")}
-        />
+        <Header title={headerTitle} subtitle={copy.formSubtitle} />
 
-        <Card title={t("organizations.type")}>
-          <View style={styles.optionGrid}>
-            {organizationTypes.map((type) => {
-              const active = organizationType === type;
-              const disabled = type === "institution";
-
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled, selected: active }}
-                  disabled={disabled}
-                  key={type}
-                  onPress={() => setOrganizationType(type)}
-                  style={[
-                    styles.typeButton,
-                    responsive.isMobile && styles.fullWidthItem,
-                    active && styles.typeButtonActive,
-                    disabled && styles.typeButtonDisabled,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.typeButtonText,
-                      active && styles.typeButtonTextActive,
-                    ]}
-                  >
-                    {t(`organizations.type.${type}`)}
-                  </Text>
-                  {type === "institution" ? (
-                    <Text style={styles.comingSoonText}>
-                      {t("organizations.institutionLater")}
-                    </Text>
-                  ) : type === "academy" ? (
-                    <Text style={styles.comingSoonText}>
-                      {t("organizations.academyPrepared")}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-
-        {organizationType !== "company" ? (
-          <Card title={t("organizations.preparedTitle")} variant="warning">
-            <Text style={styles.bodyText}>{t("organizations.preparedText")}</Text>
-          </Card>
-        ) : null}
-
-        {company ? (
-          <Card title={t("organizations.currentStatus")}>
-            <Text style={styles.bodyText}>
-              {t("organizations.currentStatusText")
-                .replace("{status}", company.status)
-                .replace("{verification}", company.verification_status)}
-            </Text>
-          </Card>
-        ) : null}
-
-        {loading ? (
+        {hydrationState === "loading" ? (
           <Card>
-            <Text style={styles.mutedText}>
-              {t("organizations.createLoading")}
+            <Text
+              accessibilityLiveRegion="polite"
+              accessibilityRole="text"
+              style={styles.mutedText}
+            >
+              {copy.formLoading}
             </Text>
+            <View style={styles.loadingAction}>
+              <OrganizationActionButton
+                accessibilityHint={copy.back}
+                fullWidth={responsive.isMobile}
+                label={copy.cancel}
+                onPress={handleCancel}
+                variant="secondary"
+              />
+            </View>
           </Card>
         ) : null}
 
-        {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
-
-        <Card title={t("organizations.verificationStatusTitle")}>
-          <View style={styles.statusBox}>
-            <Text style={styles.statusTitle}>
-              {t("organizations.unverifiedPendingStatus")}
+        {hydrationState === "error" ? (
+          <Card title={t("organizations.loadError")} variant="warning">
+            <Text accessibilityRole="alert" style={styles.errorText}>
+              {loadError}
             </Text>
-            <Text style={styles.bodyText}>
-              {t("organizations.verificationRequirementText")}
-            </Text>
-          </View>
-        </Card>
-
-        <Card title={t("organizations.verificationInfoTitle")}>
-          <Text style={styles.bodyText}>{t("organizations.verificationInfoText")}</Text>
-          <View style={styles.exampleList}>
-            <InfoListItem label={t("organizations.verificationExample.registrationDocument")} />
-            <InfoListItem label={t("organizations.verificationExample.vatTaxNumber")} />
-            <InfoListItem label={t("organizations.verificationExample.representativeAuthorization")} />
-            <InfoListItem label={t("organizations.verificationExample.businessAddress")} />
-            <InfoListItem label={t("organizations.verificationExample.insuranceDocuments")} />
-          </View>
-        </Card>
-
-        <Card title={t("organizations.organizationData")}>
-          <Input
-            editable={canEditOrganizationFields}
-            label={t("organizations.displayName")}
-            onChangeText={setName}
-            placeholder={t("organizations.displayNamePlaceholder")}
-            value={name}
-          />
-          <FieldError message={errors.name} />
-
-          <Input
-            editable={canEditOrganizationFields}
-            label={t("organizations.legalName")}
-            onChangeText={setLegalName}
-            placeholder={t("organizations.legalNamePlaceholder")}
-            value={legalName}
-          />
-          <FieldError message={errors.legalName} />
-
-          <View
-            style={[
-              styles.twoColumn,
-              responsive.isMobile && styles.twoColumnMobile,
-            ]}
-          >
+            <Text style={styles.bodyText}>{copy.loadFailedSaveDisabled}</Text>
             <View
               style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
+                styles.actions,
+                responsive.isMobile && styles.actionsMobile,
               ]}
             >
-              <Input
-                autoCapitalize="characters"
-                editable={canEditOrganizationFields}
-                label={t("organizations.country")}
-                onChangeText={setCountry}
-                placeholder={t("organizations.countryPlaceholder")}
-                value={country}
+              <OrganizationActionButton
+                accessibilityHint={copy.loadFailedSaveDisabled}
+                fullWidth={responsive.isMobile}
+                label={copy.retry}
+                onPress={() => void loadCompany()}
+                variant="primary"
               />
-              <FieldError message={errors.country} />
-            </View>
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
-              <Input
-                editable={canEditOrganizationFields}
-                label={t("common.city")}
-                onChangeText={setCity}
-                placeholder={t("organizations.cityPlaceholder")}
-                value={city}
+              <OrganizationActionButton
+                accessibilityHint={copy.back}
+                fullWidth={responsive.isMobile}
+                label={copy.cancel}
+                onPress={handleCancel}
+                variant="secondary"
               />
-              <FieldError message={errors.city} />
             </View>
-          </View>
+          </Card>
+        ) : null}
 
-          <Input
-            editable={canEditOrganizationFields}
-            label={t("organizations.address")}
-            onChangeText={setAddress}
-            placeholder={t("organizations.addressPlaceholder")}
-            value={address}
-          />
+        {hydrationState === "ready" ? (
+          <>
+            <Card title={t("organizations.type")}>
+              <View style={styles.typeGrid}>
+                <OrganizationTypeCard
+                  label={t("organizations.type.company")}
+                  selected
+                  subtitle={copy.safeSavedFields}
+                />
+                <OrganizationTypeCard
+                  disabled
+                  label={t("organizations.type.academy")}
+                  subtitle={copy.comingSoon}
+                />
+                <OrganizationTypeCard
+                  disabled
+                  label={t("organizations.type.institution")}
+                  subtitle={copy.comingSoon}
+                />
+              </View>
+              <Text style={styles.hintText}>
+                {copy.organizationTypeUnavailable}
+              </Text>
+            </Card>
 
-          <View
-            style={[
-              styles.twoColumn,
-              responsive.isMobile && styles.twoColumnMobile,
-            ]}
-          >
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
+            {company ? (
+              <Card title={t("organizations.currentStatus")}>
+                <Text style={styles.bodyText}>
+                  {t("organizations.currentStatusText")
+                    .replace(
+                      "{status}",
+                      getCompanyStatusLabel(company.status, language)
+                    )
+                    .replace(
+                      "{verification}",
+                      getCompanyVerificationLabel(
+                        company.verification_status,
+                        language
+                      )
+                    )}
+                </Text>
+              </Card>
+            ) : null}
+
+            <Card title={copy.safeSavedFields} variant="muted">
+              <Text style={styles.bodyText}>{copy.safeSavedFieldsText}</Text>
+            </Card>
+
+            <Card title={t("organizations.organizationData")}>
               <Input
+                accessibilityLabel={t("organizations.displayName")}
+                accessibilityHint={errors.name}
+                accessibilityState={{ disabled: submitting }}
+                aria-describedby={errors.name ? "organization-name-error" : undefined}
+                aria-invalid={Boolean(errors.name)}
+                editable={!submitting}
+                label={`${t("organizations.displayName")} *`}
+                onChangeText={(value) => updateValue(setName, value, "name")}
+                placeholder={t("organizations.displayNamePlaceholder")}
+                value={name}
+              />
+              <FieldError id="organization-name-error" message={errors.name} />
+
+              <Input
+                accessibilityLabel={t("organizations.legalName")}
+                accessibilityState={{ disabled: submitting }}
+                editable={!submitting}
+                label={`${t("organizations.legalName")} - ${t("organizations.optionalPlaceholder")}`}
+                onChangeText={(value) => updateValue(setLegalName, value)}
+                placeholder={t("organizations.legalNamePlaceholder")}
+                value={legalName}
+              />
+
+              <View
+                style={[
+                  styles.twoColumn,
+                  responsive.isMobile && styles.twoColumnMobile,
+                ]}
+              >
+                <View style={styles.column}>
+                  <Input
+                    accessibilityLabel={t("organizations.country")}
+                    accessibilityHint={errors.country}
+                    accessibilityState={{ disabled: submitting }}
+                    aria-describedby={
+                      errors.country ? "organization-country-error" : undefined
+                    }
+                    aria-invalid={Boolean(errors.country)}
+                    autoCapitalize="characters"
+                    editable={!submitting}
+                    label={`${t("organizations.country")} *`}
+                    maxLength={2}
+                    onChangeText={(value) =>
+                      updateValue(setCountry, value, "country")
+                    }
+                    placeholder={t("organizations.countryPlaceholder")}
+                    value={country}
+                  />
+                  <FieldError
+                    id="organization-country-error"
+                    message={errors.country}
+                  />
+                </View>
+                <View style={styles.column}>
+                  <Input
+                    accessibilityLabel={t("common.city")}
+                    accessibilityHint={errors.city}
+                    accessibilityState={{ disabled: submitting }}
+                    aria-describedby={errors.city ? "organization-city-error" : undefined}
+                    aria-invalid={Boolean(errors.city)}
+                    editable={!submitting}
+                    label={`${t("common.city")} *`}
+                    onChangeText={(value) =>
+                      updateValue(setCity, value, "city")
+                    }
+                    placeholder={t("organizations.cityPlaceholder")}
+                    value={city}
+                  />
+                  <FieldError id="organization-city-error" message={errors.city} />
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.twoColumn,
+                  responsive.isMobile && styles.twoColumnMobile,
+                ]}
+              >
+                <View style={styles.column}>
+                  <Input
+                    accessibilityLabel={t("organizations.postalCode")}
+                    accessibilityState={{ disabled: submitting }}
+                    editable={!submitting}
+                    label={`${t("organizations.postalCode")} - ${t("organizations.optionalPlaceholder")}`}
+                    onChangeText={(value) => updateValue(setPostalCode, value)}
+                    placeholder={t("organizations.optionalPlaceholder")}
+                    value={postalCode}
+                  />
+                </View>
+                <View style={styles.column}>
+                  <Input
+                    accessibilityLabel={t("organizations.address")}
+                    accessibilityState={{ disabled: submitting }}
+                    editable={!submitting}
+                    label={t("organizations.address")}
+                    onChangeText={(value) => updateValue(setAddress, value)}
+                    placeholder={t("organizations.addressPlaceholder")}
+                    value={address}
+                  />
+                </View>
+              </View>
+
+              <Input
+                accessibilityLabel={t("organizations.website")}
+                accessibilityHint={errors.website}
+                accessibilityState={{ disabled: submitting }}
+                aria-describedby={
+                  errors.website ? "organization-website-error" : undefined
+                }
+                aria-invalid={Boolean(errors.website)}
                 autoCapitalize="none"
-                editable={canEditOrganizationFields}
-                keyboardType="email-address"
-                label={t("organizations.contactEmail")}
-                onChangeText={setContactEmail}
-                placeholder="contact@example.com"
-                value={contactEmail}
+                autoCorrect={false}
+                editable={!submitting}
+                keyboardType="url"
+                label={t("organizations.website")}
+                onChangeText={(value) =>
+                  updateValue(setWebsite, value, "website")
+                }
+                placeholder="https://example.com"
+                value={website}
               />
-            </View>
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
+              <FieldError
+                id="organization-website-error"
+                message={errors.website}
+              />
+
               <Input
-                editable={canEditOrganizationFields}
-                keyboardType="phone-pad"
-                label={t("organizations.contactPhone")}
-                onChangeText={setContactPhone}
-                placeholder="+49..."
-                value={contactPhone}
+                accessibilityLabel={t("organizations.activityArea")}
+                accessibilityHint={errors.industry}
+                accessibilityState={{ disabled: submitting }}
+                aria-describedby={
+                  errors.industry ? "organization-industry-error" : undefined
+                }
+                aria-invalid={Boolean(errors.industry)}
+                editable={!submitting}
+                label={`${t("organizations.activityArea")} *`}
+                onChangeText={(value) =>
+                  updateValue(setIndustry, value, "industry")
+                }
+                placeholder={t("organizations.industryPlaceholder")}
+                value={industry}
               />
-            </View>
-          </View>
-
-          <Input
-            autoCapitalize="none"
-            editable={canEditOrganizationFields}
-            keyboardType="url"
-            label={t("organizations.website")}
-            onChangeText={setWebsite}
-            placeholder="https://example.com"
-            value={website}
-          />
-          <FieldError message={errors.website} />
-
-          <Input
-            editable={canEditOrganizationFields}
-            label={t("organizations.activityArea")}
-            onChangeText={setIndustry}
-            placeholder={t("organizations.industryPlaceholder")}
-            value={industry}
-          />
-          <FieldError message={errors.industry} />
-
-          <Input
-            editable={canEditOrganizationFields}
-            label={t("organizations.description")}
-            multiline
-            onChangeText={setDescription}
-            placeholder={t("organizations.descriptionPlaceholder")}
-            style={styles.bigInput}
-            value={description}
-          />
-
-          <View
-            style={[
-              styles.twoColumn,
-              responsive.isMobile && styles.twoColumnMobile,
-            ]}
-          >
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
-              <Input
-                editable={canEditOrganizationFields}
-                label={t("organizations.registrationNumber")}
-                onChangeText={setRegistrationNumber}
-                placeholder={t("organizations.optionalPlaceholder")}
-                value={registrationNumber}
+              <FieldError
+                id="organization-industry-error"
+                message={errors.industry}
               />
-            </View>
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
-              <Input
-                editable={canEditOrganizationFields}
-                label={t("organizations.vatId")}
-                onChangeText={setVatId}
-                placeholder={t("organizations.optionalPlaceholder")}
-                value={vatId}
-              />
-            </View>
-          </View>
-        </Card>
 
-        <Card title={t("organizations.operationalProfile")}>
-          {organizationType === "academy" ? (
-            <>
-              <Input
-                editable={canEditOrganizationFields}
-                label={t("organizations.trainingAreas")}
-                onChangeText={setEducationArea}
-                placeholder={t("organizations.trainingAreasPlaceholder")}
-                value={educationArea}
-              />
               <Text style={styles.optionLabel}>
-                {t("organizations.courseDeliveryMode")}
+                {t("organizations.employeeCount")}
               </Text>
               <View style={styles.optionGrid}>
-                {courseDeliveryModes.map((mode) => {
-                  const active = courseDeliveryMode === mode;
-
-                  return (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      disabled={submitting}
-                      key={mode}
-                      onPress={() => setCourseDeliveryMode(mode)}
-                      style={[
-                        styles.optionButton,
-                        active && styles.optionButtonActive,
-                        submitting && styles.optionButtonDisabled,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          active && styles.optionTextActive,
-                        ]}
-                      >
-                        {t(`organizations.courseDeliveryMode.${mode}`)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <Input
-                editable={canEditOrganizationFields}
-                label={t("organizations.accreditationStatus")}
-                onChangeText={setAccreditationStatus}
-                placeholder={t("organizations.accreditationStatusPlaceholder")}
-                value={accreditationStatus}
-              />
-            </>
-          ) : (
-            <>
-              <Text style={styles.optionLabel}>{t("organizations.employeeCount")}</Text>
-              <View style={styles.optionGrid}>
                 {employeeCountOptions.map((option) => {
-                  const active = employeeCountRange === option;
+                  const selected = employeeCountRange === option;
 
                   return (
                     <Pressable
+                      accessibilityHint={t("organizations.employeeCount")}
+                      accessibilityLabel={option}
                       accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      disabled={submitting || organizationType !== "company"}
+                      accessibilityState={{ disabled: submitting, selected }}
+                      disabled={submitting}
                       key={option}
-                      onPress={() => setEmployeeCountRange(option)}
-                      style={[
-                        styles.optionButton,
-                        active && styles.optionButtonActive,
-                        (submitting || organizationType !== "company") &&
-                          styles.optionButtonDisabled,
-                      ]}
+                      onPress={() => {
+                        setEmployeeCountRange(selected ? "" : option);
+                        setSubmitError("");
+                      }}
+                      style={(state) => {
+                        const webState = state as WebPressableState;
+
+                        return [
+                          styles.optionButton,
+                          selected && styles.optionButtonSelected,
+                          webState.focused && styles.optionButtonFocused,
+                          webState.pressed &&
+                            !submitting &&
+                            styles.optionButtonPressed,
+                          submitting && styles.disabled,
+                        ];
+                      }}
                     >
                       <Text
                         style={[
-                          styles.optionText,
-                          active && styles.optionTextActive,
+                          styles.optionButtonText,
+                          selected && styles.optionButtonTextSelected,
                         ]}
                       >
                         {option}
@@ -560,75 +553,120 @@ function OrganizationCreateContent() {
                 })}
               </View>
 
-              <Text style={styles.optionLabel}>
-                {t("organizations.companyCapabilities")}
-              </Text>
-              <View style={styles.optionGrid}>
-                {companyCapabilityOptions.map((option) => {
-                  const active = companyCapabilities.includes(option);
+              <Input
+                accessibilityLabel={t("organizations.description")}
+                accessibilityState={{ disabled: submitting }}
+                editable={!submitting}
+                label={t("organizations.description")}
+                multiline
+                onChangeText={(value) => updateValue(setDescription, value)}
+                placeholder={t("organizations.descriptionPlaceholder")}
+                style={styles.largeInput}
+                value={description}
+              />
+            </Card>
 
-                  return (
-                    <Pressable
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: active }}
-                      disabled={submitting || organizationType !== "company"}
-                      key={option}
-                      onPress={() => toggleCompanyCapability(option)}
-                      style={[
-                        styles.optionButton,
-                        active && styles.optionButtonActive,
-                        (submitting || organizationType !== "company") &&
-                          styles.optionButtonDisabled,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          active && styles.optionTextActive,
-                        ]}
-                      >
-                        {t(`organizations.capability.${option}`)}
+            <Card title={copy.comingSoonTitle} variant="muted">
+              <Text style={styles.bodyText}>{copy.comingSoonFields}</Text>
+              <View style={styles.plannedList}>
+                {[
+                  t("organizations.contactEmail"),
+                  t("organizations.contactPhone"),
+                  t("organizations.registrationNumber"),
+                  t("organizations.vatId"),
+                  t("organizations.companyCapabilities"),
+                ].map((label) => (
+                  <View key={label} style={styles.plannedRow}>
+                    <Text style={styles.plannedLabel}>{label}</Text>
+                    <View style={styles.comingSoonBadge}>
+                      <Text style={styles.comingSoonBadgeText}>
+                        {copy.comingSoon} · {copy.notSaved}
                       </Text>
-                    </Pressable>
-                  );
-                })}
+                    </View>
+                  </View>
+                ))}
               </View>
-            </>
-          )}
+            </Card>
 
-          <Text style={styles.hintText}>
-            {t("organizations.preparedFieldsNote")}
-          </Text>
-        </Card>
+            {submitError ? (
+              <Text accessibilityRole="alert" style={styles.errorText}>
+                {submitError}
+              </Text>
+            ) : null}
 
-        <Button
-          disabled={!canSaveCompany}
-          title={submitting ? t("organizations.saving") : t("organizations.save")}
-          onPress={handleSubmit}
-        />
+            <View
+              style={[
+                styles.actions,
+                responsive.isMobile && styles.actionsMobile,
+              ]}
+            >
+              <OrganizationActionButton
+                accessibilityHint={copy.back}
+                disabled={submitting}
+                fullWidth={responsive.isMobile}
+                label={copy.cancel}
+                onPress={handleCancel}
+                variant="secondary"
+              />
+              <OrganizationActionButton
+                accessibilityHint={copy.safeSavedFieldsText}
+                disabled={submitting}
+                fullWidth={responsive.isMobile}
+                label={saveLabel}
+                onPress={() => void handleSubmit()}
+                variant="primary"
+              />
+            </View>
+          </>
+        ) : null}
       </ScrollView>
     </Screen>
   );
 }
 
-function FieldError({ message }: { message?: string }) {
-  return message ? <Text style={styles.fieldError}>{message}</Text> : null;
-}
-
-function InfoListItem({ label }: { label: string }) {
+function OrganizationTypeCard({
+  disabled = false,
+  label,
+  selected = false,
+  subtitle,
+}: {
+  disabled?: boolean;
+  label: string;
+  selected?: boolean;
+  subtitle: string;
+}) {
   return (
-    <View style={styles.exampleItem}>
-      <Text style={styles.exampleBullet}>-</Text>
-      <Text style={styles.exampleText}>{label}</Text>
+    <View
+      accessible
+      accessibilityLabel={`${label}. ${subtitle}`}
+      accessibilityRole="text"
+      style={[
+        styles.typeCard,
+        selected && styles.typeCardSelected,
+        disabled && styles.disabled,
+      ]}
+    >
+      <Text style={[styles.typeTitle, selected && styles.typeTitleSelected]}>
+        {label}
+      </Text>
+      <Text style={styles.typeSubtitle}>{subtitle}</Text>
     </View>
   );
+}
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+  return message ? (
+    <Text accessibilityRole="alert" nativeID={id} style={styles.fieldError}>
+      {message}
+    </Text>
+  ) : null;
 }
 
 function validateForm({
   city,
   country,
+  countryCodeError,
   industry,
-  legalName,
   name,
   normalizedWebsite,
   t,
@@ -636,8 +674,8 @@ function validateForm({
 }: {
   city: string;
   country: string;
+  countryCodeError: string;
   industry: string;
-  legalName: string;
   name: string;
   normalizedWebsite: string | null;
   t: (key: string) => string;
@@ -645,16 +683,12 @@ function validateForm({
 }) {
   const nextErrors: FormErrors = {};
 
-  if (!legalName.trim()) {
-    nextErrors.legalName = t("organizations.error.legalName");
-  }
-
   if (!name.trim()) {
     nextErrors.name = t("organizations.error.name");
   }
 
-  if (!country.trim()) {
-    nextErrors.country = t("organizations.error.country");
+  if (!/^[a-z]{2}$/i.test(country.trim())) {
+    nextErrors.country = countryCodeError;
   }
 
   if (!city.trim()) {
@@ -699,8 +733,8 @@ function emptyToNull(value: string) {
   return trimmed ? trimmed : null;
 }
 
-function readError(error: unknown, t: (key: string) => string) {
-  return error instanceof Error ? error.message : t("organizations.saveError");
+function readError(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 const styles = StyleSheet.create({
@@ -721,139 +755,166 @@ const styles = StyleSheet.create({
     lineHeight: Typography.lineHeight.body,
   },
   errorText: {
-    color: Colors.danger,
+    color: "#BE123C",
     fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  statusBox: {
-    backgroundColor: "#FFF7E8",
-    borderColor: "#F6D7A8",
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Spacing.lg,
-  },
-  statusTitle: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.sm,
-  },
-  exampleList: {
-    gap: Spacing.sm,
-    marginTop: Spacing.lg,
-  },
-  exampleItem: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: Spacing.sm,
-  },
-  exampleBullet: {
-    color: Colors.brand,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
+    fontWeight: Typography.fontWeight.bold,
     lineHeight: Typography.lineHeight.body,
+    marginBottom: Spacing.md,
   },
-  exampleText: {
-    color: Colors.textBody,
-    flex: 1,
+  hintText: {
+    color: Colors.textMuted,
     fontSize: Typography.bodySmall,
     lineHeight: Typography.lineHeight.body,
+    marginTop: Spacing.three,
   },
   fieldError: {
-    color: Colors.danger,
+    color: "#BE123C",
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
     marginBottom: Spacing.md,
     marginTop: -Spacing.md,
   },
-  optionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
-  },
-  typeButton: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexBasis: 220,
-    flexGrow: 1,
-    padding: Spacing.lg,
-  },
-  typeButtonActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
-  },
-  typeButtonDisabled: {
-    opacity: 0.56,
-  },
-  typeButtonText: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  typeButtonTextActive: {
-    color: "#145CFF",
-  },
-  comingSoonText: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginTop: Spacing.xs,
-  },
-  twoColumn: {
+  typeGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.md,
   },
+  typeCard: {
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.border,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    flexBasis: 210,
+    flexGrow: 1,
+    minHeight: 76,
+    padding: Spacing.three,
+  },
+  typeCardSelected: {
+    backgroundColor: Colors.brandSoft,
+    borderColor: Colors.brand,
+  },
+  typeTitle: {
+    color: Colors.textBody,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.extraBold,
+  },
+  typeTitleSelected: {
+    color: Colors.brandDeep,
+  },
+  typeSubtitle: {
+    color: Colors.textMuted,
+    fontSize: Typography.bodySmall,
+    lineHeight: Typography.lineHeight.compact,
+    marginTop: Spacing.sm,
+  },
+  twoColumn: {
+    flexDirection: "row",
+    gap: Spacing.md,
+  },
   twoColumnMobile: {
     flexDirection: "column",
+    gap: Spacing.none,
   },
   column: {
-    flexBasis: 220,
-    flexGrow: 1,
-  },
-  fullWidthItem: {
-    flexBasis: "100%",
+    flex: 1,
+    minWidth: 0,
   },
   optionLabel: {
     color: Colors.text,
     fontSize: Typography.label,
     fontWeight: Typography.fontWeight.extraBold,
     marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
+  },
+  optionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xxl,
   },
   optionButton: {
+    alignItems: "center",
     backgroundColor: Colors.surface,
     borderColor: Colors.border,
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.md,
+  },
+  optionButtonSelected: {
+    backgroundColor: Colors.brandSoft,
+    borderColor: Colors.brand,
+  },
+  optionButtonFocused: {
+    borderColor: Colors.text,
+    borderWidth: 2,
+  },
+  optionButtonPressed: {
+    opacity: 0.78,
+  },
+  optionButtonText: {
+    color: Colors.textMuted,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  optionButtonTextSelected: {
+    color: Colors.brandDeep,
+  },
+  largeInput: {
+    height: 120,
+    textAlignVertical: "top",
+  },
+  plannedList: {
+    gap: Spacing.md,
+    marginTop: Spacing.three,
+  },
+  plannedRow: {
+    alignItems: "center",
+    borderTopColor: Colors.borderMuted,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    justifyContent: "space-between",
+    minHeight: 48,
+    paddingTop: Spacing.md,
+  },
+  plannedLabel: {
+    color: Colors.textBody,
+    flexGrow: 1,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  comingSoonBadge: {
+    backgroundColor: Colors.warningSurface,
+    borderColor: Colors.warningBorder,
     borderRadius: Radius.round,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
-  optionButtonActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
-  },
-  optionButtonDisabled: {
-    opacity: 0.56,
-  },
-  optionText: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
+  comingSoonBadgeText: {
+    color: Colors.textBody,
+    fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
   },
-  optionTextActive: {
-    color: "#145CFF",
+  actions: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.md,
+    justifyContent: "flex-end",
+    marginTop: Spacing.md,
   },
-  hintText: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.lg,
+  actionsMobile: {
+    alignItems: "stretch",
+    flexDirection: "column",
   },
-  bigInput: {
-    height: 120,
-    textAlignVertical: "top",
+  loadingAction: {
+    alignItems: "flex-start",
+    marginTop: Spacing.three,
+  },
+  disabled: {
+    opacity: 0.56,
   },
 });
