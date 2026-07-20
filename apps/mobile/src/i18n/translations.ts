@@ -1,3 +1,5 @@
+import { translateCredential } from "./credentialTranslations";
+
 export type LanguageCode = "de" | "en" | "ro";
 
 export const languages: {
@@ -3615,5 +3617,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 };
 
 export function translate(language: LanguageCode, key: string) {
-  return translations[language][key] ?? translations.de[key] ?? key;
+  return translateCredential(language, key)
+    ?? translations[language][key]
+    ?? translations.de[key]
+    ?? key;
 }

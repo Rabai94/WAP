@@ -8,6 +8,12 @@ import {
   fetchOwnWorkerProfile,
   type WorkerProfile,
 } from "@/services/worker/workerService";
+import {
+  listOwnCredentials,
+  listOwnSkills,
+  type UserSkill,
+  type WalletCredential,
+} from "@/services/credentials/credentialService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -27,6 +33,8 @@ function UnifiedProfileContent() {
   const { language, t } = useLanguage();
   const { user } = useAuth();
   const [profile, setProfile] = useState<WorkerProfile | null>(null);
+  const [credentials, setCredentials] = useState<WalletCredential[]>([]);
+  const [verifiedSkills, setVerifiedSkills] = useState<UserSkill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const userId = user?.id;
@@ -86,8 +94,14 @@ function UnifiedProfileContent() {
     setError("");
 
     try {
-      const nextProfile = await fetchOwnWorkerProfile(userId);
+      const [nextProfile, nextCredentials, nextSkills] = await Promise.all([
+        fetchOwnWorkerProfile(userId),
+        listOwnCredentials(),
+        listOwnSkills(),
+      ]);
       setProfile(nextProfile);
+      setCredentials(nextCredentials);
+      setVerifiedSkills(nextSkills);
     } catch (nextError) {
       setError(
         nextError instanceof Error
@@ -270,6 +284,68 @@ function UnifiedProfileContent() {
               value={user?.servicePreferences ?? missingValue}
             />
           </View>
+        </Card>
+
+        <Card title={t("credentials.profile.walletTitle")}>
+          <Text style={styles.summaryText}>
+            {t("credentials.profile.walletCount").replace(
+              "{count}",
+              String(credentials.length),
+            )}
+          </Text>
+          <View style={styles.profileCredentialActions}>
+            <Button
+              title={t("credentials.profile.openWallet")}
+              style={styles.profileCredentialButton}
+              onPress={() => router.push("/profile/wallet" as never)}
+            />
+            <Button
+              title={t("credentials.profile.openIssuer")}
+              variant="secondary"
+              style={styles.profileCredentialButton}
+              onPress={() => router.push("/credentials/issuer" as never)}
+            />
+          </View>
+        </Card>
+
+        <Card title={t("credentials.profile.skillsTitle")}>
+          {user?.skills ? (
+            <View style={styles.profileSkillRow}>
+              <View style={styles.declaredSkillBadge}>
+                <Text style={styles.profileSkillBadgeText}>
+                  {t("credentials.skills.selfDeclared")}
+                </Text>
+              </View>
+              <Text style={styles.profileSkillText}>{user.skills}</Text>
+            </View>
+          ) : null}
+
+          {verifiedSkills.length === 0 ? (
+            <Text style={styles.mutedText}>{t("credentials.profile.noVerifiedSkills")}</Text>
+          ) : verifiedSkills.map((skill) => (
+            <View key={skill.user_skill_id} style={styles.profileSkillRow}>
+              <View
+                style={[
+                  styles.verifiedSkillBadge,
+                  skill.status !== "valid" && styles.invalidSkillBadge,
+                ]}
+              >
+                <Text style={styles.profileSkillBadgeText}>
+                  {skill.status === "valid"
+                    ? `✓ ${t(`credentials.skills.${skill.source_type}`)}`
+                    : `! ${t(`credentials.status.${skill.status}`)}`}
+                </Text>
+              </View>
+              <View style={styles.profileSkillContent}>
+                <Text style={styles.profileSkillName}>
+                  {skill[`skill_name_${language}`]}
+                </Text>
+                <Text style={styles.profileSkillMeta}>
+                  {[skill.issuer_name, skill.credential_number].filter(Boolean).join(" · ")}
+                </Text>
+              </View>
+            </View>
+          ))}
         </Card>
 
         <Card title={t("profileUnified.verificationTitle")}>
@@ -594,6 +670,70 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
+  },
+  profileCredentialActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  profileCredentialButton: {
+    flexGrow: 1,
+    minWidth: 180,
+  },
+  profileSkillRow: {
+    alignItems: "flex-start",
+    borderBottomColor: Colors.borderMuted,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  declaredSkillBadge: {
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.border,
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  verifiedSkillBadge: {
+    backgroundColor: "#E8F8F2",
+    borderColor: "#8AD8BC",
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  invalidSkillBadge: {
+    backgroundColor: "#FFF1F3",
+    borderColor: "#FDA4AF",
+  },
+  profileSkillBadgeText: {
+    color: Colors.text,
+    fontSize: Typography.small,
+    fontWeight: Typography.fontWeight.extraBold,
+  },
+  profileSkillText: {
+    color: Colors.textBody,
+    flex: 1,
+    fontSize: Typography.bodySmall,
+    minWidth: 180,
+  },
+  profileSkillContent: {
+    flex: 1,
+    minWidth: 180,
+  },
+  profileSkillName: {
+    color: Colors.text,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  profileSkillMeta: {
+    color: Colors.textMuted,
+    fontSize: Typography.small,
+    marginTop: Spacing.xs,
   },
   actionButton: {
     backgroundColor: Colors.white,

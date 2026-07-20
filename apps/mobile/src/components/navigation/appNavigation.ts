@@ -115,7 +115,13 @@ export function getMainNavigation(language: LanguageCode): SidebarNavigationItem
     { key: "tasks", label: copy.tasks, icon: "task", route: "/tasks", activePaths: ["/tasks"] },
     { key: "services", label: copy.services, icon: "service", route: "/services", activePaths: ["/services"] },
     { key: "transport", label: copy.transport, icon: "transport", disabled: true, soon: true },
-    { key: "courses", label: copy.courses, icon: "course", route: "/courses", activePaths: ["/courses"] },
+    {
+      key: "courses",
+      label: copy.courses,
+      icon: "course",
+      route: "/courses",
+      activePaths: ["/courses", "/credentials/issuer"],
+    },
     { key: "messages", label: copy.messages, icon: "message", route: "/messages", activePaths: ["/messages"] },
     {
       key: "organizations",

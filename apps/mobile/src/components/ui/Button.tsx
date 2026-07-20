@@ -1,9 +1,18 @@
-import { Pressable, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from "react-native";
+import {
+  Pressable,
+  Platform,
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextStyle,
+  ViewStyle,
+} from "react-native";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "success" | "ghost";
 
 type ButtonProps = {
+  accessibilityLabel?: string;
   title: string;
   onPress?: () => void;
   variant?: ButtonVariant;
@@ -12,7 +21,22 @@ type ButtonProps = {
   textStyle?: StyleProp<TextStyle>;
 };
 
+type WebPressableState = {
+  focused?: boolean;
+  pressed?: boolean;
+};
+
+const focusRingWebStyle = Platform.OS === "web"
+  ? ({
+      outlineColor: "rgba(20, 92, 255, 0.72)",
+      outlineOffset: 3,
+      outlineStyle: "solid",
+      outlineWidth: 2,
+    } as unknown as ViewStyle)
+  : null;
+
 export default function Button({
+  accessibilityLabel,
   title,
   onPress,
   variant = "primary",
@@ -22,14 +46,21 @@ export default function Button({
 }: ButtonProps) {
   return (
     <Pressable
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityRole="button"
       accessibilityState={{ disabled }}
       disabled={disabled}
-      style={[
-        styles.button,
-        buttonStyles[variant],
-        disabled && styles.disabledButton,
-        style,
-      ]}
+      style={(state) => {
+        const webState = state as WebPressableState;
+        return [
+          styles.button,
+          buttonStyles[variant],
+          webState.pressed && styles.pressedButton,
+          webState.focused && focusRingWebStyle,
+          disabled && styles.disabledButton,
+          style,
+        ];
+      }}
       onPress={onPress}
     >
       <Text
@@ -98,6 +129,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.borderMuted,
     borderColor: Colors.borderNeutral,
     opacity: 1,
+  },
+
+  pressedButton: {
+    opacity: 0.84,
   },
 
   text: {
