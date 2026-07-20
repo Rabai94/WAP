@@ -50,7 +50,7 @@ export type SearchCourseResult = {
   total_count: number;
 };
 
-export type CourseDetails = SearchCourseResult & {
+export type CourseDetails = Omit<SearchCourseResult, "total_count"> & {
   slug: string | null;
   description: string;
   provider_description: string | null;
@@ -65,13 +65,20 @@ export type CourseDetails = SearchCourseResult & {
   expires_at: string | null;
 };
 
+export type CourseEnrollmentStatus =
+  | "submitted"
+  | "viewed"
+  | "accepted"
+  | "rejected"
+  | "withdrawn";
+
 export type UserCourseEnrollment = {
   enrollment_id: string;
   course_id: string;
   course_title: string;
   provider_name: string;
   location_label: string | null;
-  status: string;
+  status: CourseEnrollmentStatus;
   message: string | null;
   start_date: string | null;
   created_at: string;
@@ -84,7 +91,7 @@ export type ProviderCourseEnrollment = {
   course_title: string;
   applicant_user_id: string;
   applicant_email: string | null;
-  status: string;
+  status: CourseEnrollmentStatus;
   message: string | null;
   created_at: string;
   updated_at: string;

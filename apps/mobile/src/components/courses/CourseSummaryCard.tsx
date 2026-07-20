@@ -1,8 +1,6 @@
 import type { LanguageCode } from "@/i18n/translations";
-import { buildCourseDetailsPath } from "@/services/courses/courseNavigation";
 import type { SearchCourseResult } from "@/services/courses/courseService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
-import { useRouter } from "expo-router";
 import {
   Platform,
   Pressable,
@@ -14,11 +12,16 @@ import {
 
 type CourseSummaryCardVariant = "list" | "compact";
 
+export type CourseSummaryCardAction = "enroll" | "view";
+
 type CourseSummaryCardProps = {
   course: SearchCourseResult;
   language?: LanguageCode;
+  onAction: (
+    course: SearchCourseResult,
+    action: CourseSummaryCardAction
+  ) => void;
   returnLabel?: string;
-  returnTo: string;
   variant?: CourseSummaryCardVariant;
 };
 
@@ -30,9 +33,7 @@ type WebPressableState = {
 
 const pointerWebStyle =
   Platform.OS === "web"
-    ? ({
-        cursor: "pointer",
-      } as unknown as ViewStyle)
+    ? ({ cursor: "pointer" } as unknown as ViewStyle)
     : null;
 
 const focusRingWebStyle =
@@ -48,41 +49,20 @@ const focusRingWebStyle =
 export default function CourseSummaryCard({
   course,
   language = "ro",
+  onAction,
   returnLabel,
-  returnTo,
   variant = "list",
 }: CourseSummaryCardProps) {
-  const router = useRouter();
   const isCompact = variant === "compact";
-  const detailsPath = buildCourseDetailsPath(course.course_id, returnTo);
   const categoryLabel = getCategoryLabel(course, language);
+  const location = formatLocation(course);
+  const deliveryMode = formatDeliveryMode(course.delivery_mode);
+  const price = formatPrice(course);
+  const duration = formatDuration(course);
+  const startDate = formatDate(course.start_date, language);
 
   return (
-    <Pressable
-      accessibilityHint={
-        returnLabel
-          ? `Deschide pagina de detaliu a cursului. ${returnLabel}.`
-          : "Deschide pagina de detaliu a cursului."
-      }
-      accessibilityLabel={`Vezi cursul ${course.title}`}
-      accessibilityRole="button"
-      onPress={() => {
-        router.push(detailsPath as any);
-      }}
-      style={(state) => {
-        const webState = state as WebPressableState;
-
-        return [
-          styles.card,
-          isCompact ? styles.cardCompact : styles.cardList,
-          pointerWebStyle,
-          webState.hovered && styles.cardHover,
-          webState.pressed && styles.cardPressed,
-          webState.focused && styles.cardFocus,
-          webState.focused && focusRingWebStyle,
-        ];
-      }}
-    >
+    <View style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}>
       <View style={styles.body}>
         <View style={styles.header}>
           <View style={styles.titleWrap}>
@@ -92,13 +72,15 @@ export default function CourseSummaryCard({
             <Text numberOfLines={1} style={styles.provider}>
               {course.provider_name}
             </Text>
-            <Text numberOfLines={1} style={styles.meta}>
-              {formatLocation(course)}
-            </Text>
+            {location ? (
+              <Text numberOfLines={1} style={styles.meta}>
+                {location}
+              </Text>
+            ) : null}
           </View>
-          {!isCompact ? (
+          {!isCompact && startDate ? (
             <Text numberOfLines={1} style={styles.startDate}>
-              {formatDate(course.start_date, language)}
+              {startDate}
             </Text>
           ) : null}
         </View>
@@ -109,50 +91,107 @@ export default function CourseSummaryCard({
           </Text>
         ) : null}
 
-        <View style={styles.pillRow}>
-          {categoryLabel ? (
-            <InfoPill compact={isCompact} label="Categorie" value={categoryLabel} />
-          ) : null}
-          <InfoPill
-            compact={isCompact}
-            label="Mod"
-            value={formatDeliveryMode(course.delivery_mode)}
-          />
-          <InfoPill
-            compact={isCompact}
-            label="Pret"
-            value={formatPrice(course)}
-          />
-          {!isCompact && course.certificate_available ? (
-            <InfoPill compact={false} label="Certificat" value="Disponibil" />
-          ) : null}
-        </View>
+        {categoryLabel || deliveryMode || price || course.certificate_available ? (
+          <View style={styles.pillRow}>
+            {categoryLabel ? (
+              <InfoPill compact={isCompact} label="Categorie" value={categoryLabel} />
+            ) : null}
+            {deliveryMode ? (
+              <InfoPill compact={isCompact} label="Format" value={deliveryMode} />
+            ) : null}
+            {price ? (
+              <InfoPill compact={isCompact} label="Preț" value={price} />
+            ) : null}
+            {!isCompact && course.certificate_available ? (
+              <InfoPill compact={false} label="Certificat" value="Disponibil" />
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
-      <View style={styles.footer}>
-        {isCompact ? (
+      <View style={[styles.footer, isCompact && styles.footerCompact]}>
+        {(isCompact ? startDate : duration) ? (
           <Text numberOfLines={1} style={styles.date}>
-            {formatDate(course.start_date, language)}
+            {isCompact ? startDate : duration}
           </Text>
-        ) : (
-          <Text numberOfLines={1} style={styles.date}>
-            {formatDuration(course)}
-          </Text>
-        )}
-        <View style={[styles.viewButton, isCompact && styles.viewButtonCompact]}>
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.viewButtonText,
-              isCompact && styles.viewButtonTextCompact,
-            ]}
-          >
-            Vezi cursul
-          </Text>
+        ) : null}
+        <View style={styles.actionRow}>
+          <CourseAction
+            accessibilityHint={
+              returnLabel
+                ? `Deschide vizualizarea rapidă. ${returnLabel}.`
+                : "Deschide vizualizarea rapidă a cursului."
+            }
+            accessibilityLabel={`Vezi cursul ${course.title}`}
+            label="Vezi cursul"
+            onPress={() => onAction(course, "view")}
+            tone="secondary"
+          />
+          <CourseAction
+            accessibilityHint="Deschide confirmarea înainte de trimiterea înscrierii."
+            accessibilityLabel={`Înscrie-te la cursul ${course.title}`}
+            label="Înscrie-te"
+            onPress={() => onAction(course, "enroll")}
+            testID={`course-enroll-${course.course_id}`}
+            tone="primary"
+          />
         </View>
       </View>
+    </View>
+  );
+}
+
+function CourseAction({
+  accessibilityHint,
+  accessibilityLabel,
+  label,
+  onPress,
+  testID,
+  tone,
+}: {
+  accessibilityHint?: string;
+  accessibilityLabel: string;
+  label: string;
+  onPress: () => void;
+  testID?: string;
+  tone: "primary" | "secondary";
+}) {
+  return (
+    <Pressable
+      accessibilityHint={accessibilityHint}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={(state) => {
+        const webState = state as WebPressableState;
+        const primary = tone === "primary";
+
+        return [
+          styles.actionButton,
+          primary ? styles.primaryButton : styles.secondaryButton,
+          pointerWebStyle,
+          webState.hovered &&
+            (primary ? styles.primaryButtonHover : styles.secondaryButtonHover),
+          webState.pressed && styles.actionButtonPressed,
+          webState.focused && focusRingWebStyle,
+        ];
+      }}
+      testID={testID}
+    >
+      <Text
+        numberOfLines={1}
+        style={primaryTextStyle(tone)}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
+}
+
+function primaryTextStyle(tone: "primary" | "secondary") {
+  return tone === "primary"
+    ? styles.primaryButtonText
+    : styles.secondaryButtonText;
 }
 
 function InfoPill({
@@ -191,7 +230,14 @@ function formatLocation(course: SearchCourseResult) {
     return "Online";
   }
 
-  return course.location_label || "Online";
+  if (!course.location_id) {
+    return "";
+  }
+
+  return (
+    course.location_label?.trim() ||
+    [course.postal_code, course.city, course.state].filter(Boolean).join(" ")
+  );
 }
 
 function formatDeliveryMode(value: string | null) {
@@ -200,27 +246,29 @@ function formatDeliveryMode(value: string | null) {
   }
 
   if (value === "onsite") {
-    return "La locatie";
+    return "La locație";
   }
 
   if (value === "hybrid") {
     return "Hibrid";
   }
 
-  return "Nespecificat";
+  return "";
 }
 
 function formatPrice(course: SearchCourseResult) {
-  if (course.price_amount === null) {
-    return "Gratuit / nespecificat";
+  const currency = course.currency_code?.trim();
+
+  if (course.price_amount === null || !currency) {
+    return "";
   }
 
-  return `${formatNumber(course.price_amount)} ${course.currency_code ?? "EUR"}`;
+  return `${formatNumber(course.price_amount)} ${currency}`;
 }
 
 function formatDuration(course: SearchCourseResult) {
   if (!course.duration_value || !course.duration_unit) {
-    return "Durata nespecificata";
+    return "";
   }
 
   if (course.duration_unit === "hours") {
@@ -232,27 +280,31 @@ function formatDuration(course: SearchCourseResult) {
   }
 
   if (course.duration_unit === "weeks") {
-    return `${course.duration_value} saptamani`;
+    return `${course.duration_value} săptămâni`;
   }
 
-  return `${course.duration_value} luni`;
+  if (course.duration_unit === "months") {
+    return `${course.duration_value} luni`;
+  }
+
+  return "";
 }
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("ro-RO", {
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
 function formatDate(value: string | null, language: LanguageCode) {
   if (!value) {
-    return "Start flexibil";
+    return "";
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Start flexibil";
+    return "";
   }
 
   const locale =
@@ -288,21 +340,11 @@ const styles = StyleSheet.create({
     borderColor: "rgba(218, 227, 245, 0.70)",
     flexBasis: 220,
     flexGrow: 1,
-    minHeight: 194,
-  },
-  cardHover: {
-    borderColor: "rgba(110, 29, 255, 0.30)",
-    shadowOpacity: 0.09,
-    transform: [{ translateY: -1 }],
-  },
-  cardPressed: {
-    transform: [{ translateY: 0 }],
-  },
-  cardFocus: {
-    borderColor: "#145CFF",
+    minHeight: 218,
   },
   body: {
     gap: Spacing.sm,
+    minWidth: 0,
   },
   header: {
     alignItems: "flex-start",
@@ -313,7 +355,7 @@ const styles = StyleSheet.create({
   },
   titleWrap: {
     flex: 1,
-    minWidth: 180,
+    minWidth: 0,
   },
   title: {
     color: Colors.text,
@@ -353,14 +395,13 @@ const styles = StyleSheet.create({
     borderColor: "#E6ECF7",
     borderRadius: Radius.lg,
     borderWidth: 1,
-    minWidth: 142,
+    minWidth: 0,
     padding: Spacing.md,
   },
   infoPillCompact: {
     backgroundColor: Colors.white,
     borderColor: "#EEF2FB",
     borderRadius: Radius.round,
-    minWidth: 0,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
   },
@@ -377,36 +418,66 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: Spacing.sm,
     justifyContent: "space-between",
     marginTop: Spacing.md,
+    minWidth: 0,
+  },
+  footerCompact: {
+    alignItems: "stretch",
+    flexDirection: "column",
   },
   date: {
     color: "#8B96B3",
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
+    minWidth: 0,
   },
-  viewButton: {
+  actionRow: {
+    flexDirection: "row",
+    flexGrow: 1,
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    justifyContent: "flex-end",
+    minWidth: 0,
+  },
+  actionButton: {
     alignItems: "center",
-    backgroundColor: "#F1E9FF",
     borderRadius: Radius.lg,
+    flexGrow: 1,
     justifyContent: "center",
     minHeight: 44,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 0,
-  },
-  viewButtonCompact: {
-    backgroundColor: "#6E1DFF",
-    minHeight: 34,
+    minWidth: 96,
     paddingHorizontal: Spacing.md,
   },
-  viewButtonText: {
+  secondaryButton: {
+    backgroundColor: "#F1E9FF",
+    borderColor: "rgba(93, 55, 234, 0.18)",
+    borderWidth: 1,
+  },
+  secondaryButtonHover: {
+    backgroundColor: "#E9DCFF",
+  },
+  secondaryButtonText: {
     color: "#5D37EA",
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
   },
-  viewButtonTextCompact: {
+  primaryButton: {
+    backgroundColor: "#6E1DFF",
+  },
+  primaryButtonHover: {
+    backgroundColor: "#5711D8",
+  },
+  primaryButtonText: {
     color: Colors.white,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.extraBold,
+  },
+  actionButtonPressed: {
+    opacity: 0.84,
   },
 });

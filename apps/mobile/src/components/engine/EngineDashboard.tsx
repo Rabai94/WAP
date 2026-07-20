@@ -1,5 +1,7 @@
 import AppIcon, { type AppIconName } from "@/components/navigation/AppIcon";
 import CourseSummaryCard from "@/components/courses/CourseSummaryCard";
+import CourseQuickView from "@/components/courses/quick-view/CourseQuickView";
+import { useCourseQuickView } from "@/components/courses/quick-view/useCourseQuickView";
 import JobSummaryCard from "@/components/jobs/JobSummaryCard";
 import JobQuickView from "@/components/jobs/quick-view/JobQuickView";
 import { useJobQuickView } from "@/components/jobs/quick-view/useJobQuickView";
@@ -310,7 +312,16 @@ export default function EngineDashboard() {
     undefined
   );
   const [contentWidth, setContentWidth] = useState(0);
-  const { closeJobQuickView, openJobQuickView, selection } = useJobQuickView();
+  const {
+    closeJobQuickView,
+    openJobQuickView,
+    selection: jobSelection,
+  } = useJobQuickView();
+  const {
+    closeCourseQuickView,
+    openCourseQuickView,
+    selection: courseSelection,
+  } = useCourseQuickView();
   const responsiveWidth = contentWidth > 0 ? contentWidth : width;
   const isMobile = responsiveWidth < 640;
   const firstName = getFirstName(user?.fullName, user?.email);
@@ -374,7 +385,7 @@ export default function EngineDashboard() {
           styles.content,
           isMobile && styles.contentMobile,
         ]}
-        scrollEnabled={!selection}
+        scrollEnabled={!jobSelection && !courseSelection}
         showsVerticalScrollIndicator={false}
       >
         <ImageBackground
@@ -526,8 +537,10 @@ export default function EngineDashboard() {
                     course={course}
                     key={course.course_id}
                     language={language}
+                    onAction={(selectedCourse, action) =>
+                      openCourseQuickView(selectedCourse, action, "/engine")
+                    }
                     returnLabel={copy.returnHome}
-                    returnTo="/engine"
                     variant="compact"
                   />
                 ))}
@@ -555,7 +568,11 @@ export default function EngineDashboard() {
           </Pressable>
         </View>
       </ScrollView>
-      <JobQuickView onClose={closeJobQuickView} selection={selection} />
+      <JobQuickView onClose={closeJobQuickView} selection={jobSelection} />
+      <CourseQuickView
+        onClose={closeCourseQuickView}
+        selection={courseSelection}
+      />
     </View>
   );
 }

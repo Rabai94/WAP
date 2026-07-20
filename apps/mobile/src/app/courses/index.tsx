@@ -1,4 +1,6 @@
 import CourseSummaryCard from "@/components/courses/CourseSummaryCard";
+import CourseQuickView from "@/components/courses/quick-view/CourseQuickView";
+import { useCourseQuickView } from "@/components/courses/quick-view/useCourseQuickView";
 import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
@@ -117,6 +119,11 @@ export default function CoursesScreen() {
   const [courses, setCourses] = useState<SearchCourseResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const {
+    closeCourseQuickView,
+    openCourseQuickView,
+    selection: courseSelection,
+  } = useCourseQuickView();
   const totalCount = courses[0]?.total_count ?? 0;
   const hasNextPage = page * 20 < totalCount;
   const hasPreviousPage = page > 1;
@@ -303,7 +310,11 @@ export default function CoursesScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        scrollEnabled={!courseSelection}
+        showsVerticalScrollIndicator={false}
+      >
         {!authLoading && !isAuthenticated ? <PublicHeader active="courses" /> : null}
 
         <View style={styles.heroCard}>
@@ -437,8 +448,14 @@ export default function CoursesScreen() {
                 course={course}
                 key={course.course_id}
                 language={language}
+                onAction={(selectedCourse, action) =>
+                  openCourseQuickView(
+                    selectedCourse,
+                    action,
+                    coursesReturnPath
+                  )
+                }
                 returnLabel="Înapoi la cursuri"
-                returnTo={coursesReturnPath}
               />
             ))}
 
@@ -472,6 +489,10 @@ export default function CoursesScreen() {
           </View>
         )}
       </ScrollView>
+      <CourseQuickView
+        onClose={closeCourseQuickView}
+        selection={courseSelection}
+      />
     </View>
   );
 }
