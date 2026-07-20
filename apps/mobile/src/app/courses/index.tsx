@@ -1,5 +1,6 @@
 import CourseSummaryCard from "@/components/courses/CourseSummaryCard";
 import CourseQuickView from "@/components/courses/quick-view/CourseQuickView";
+import { useCourseEnrollmentMap } from "@/components/courses/quick-view/useCourseEnrollmentMap";
 import { useCourseQuickView } from "@/components/courses/quick-view/useCourseQuickView";
 import HeroAutocompleteField, {
   type HeroAutocompleteOption,
@@ -77,8 +78,9 @@ export default function CoursesScreen() {
     search?: string | string[];
   }>();
   const { language } = useLanguage();
-  const { loading: authLoading, session } = useAuth();
+  const { loading: authLoading, session, user } = useAuth();
   const isAuthenticated = Boolean(session);
+  const enrollmentMap = useCourseEnrollmentMap(user?.id ?? null);
   const page = Math.max(parseIntegerParam(params.page, 1), 1);
   const coursesReturnPath = useMemo(
     () => buildCourseReturnPath("/courses", params),
@@ -446,6 +448,7 @@ export default function CoursesScreen() {
             {courses.map((course) => (
               <CourseSummaryCard
                 course={course}
+                enrollment={enrollmentMap.get(course.course_id)}
                 key={course.course_id}
                 language={language}
                 onAction={(selectedCourse, action) =>

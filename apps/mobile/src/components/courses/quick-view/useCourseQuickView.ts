@@ -2,7 +2,7 @@ import type { SearchCourseResult } from "@/services/courses/courseService";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 
-export type CourseQuickViewIntent = "enroll" | "view";
+export type CourseQuickViewIntent = "enroll" | "status" | "view";
 
 export type CourseQuickViewSelection = {
   intent: CourseQuickViewIntent;

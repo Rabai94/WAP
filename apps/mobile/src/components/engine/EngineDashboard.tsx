@@ -1,6 +1,7 @@
 import AppIcon, { type AppIconName } from "@/components/navigation/AppIcon";
 import CourseSummaryCard from "@/components/courses/CourseSummaryCard";
 import CourseQuickView from "@/components/courses/quick-view/CourseQuickView";
+import { useCourseEnrollmentMap } from "@/components/courses/quick-view/useCourseEnrollmentMap";
 import { useCourseQuickView } from "@/components/courses/quick-view/useCourseQuickView";
 import JobSummaryCard from "@/components/jobs/JobSummaryCard";
 import JobQuickView from "@/components/jobs/quick-view/JobQuickView";
@@ -301,6 +302,7 @@ export default function EngineDashboard() {
   const router = useRouter();
   const { language } = useLanguage();
   const { user } = useAuth();
+  const enrollmentMap = useCourseEnrollmentMap(user?.id ?? null);
   const { width } = useWindowDimensions();
   const copy = copyByLanguage[language];
   const [jobs, setJobs] = useState<SearchJobResult[]>([]);
@@ -477,7 +479,10 @@ export default function EngineDashboard() {
             </View>
           </View>
 
-          <RecentActivityCard style={styles.activityPanel} />
+          <RecentActivityCard
+            key={user?.id ?? "signed-out"}
+            style={styles.activityPanel}
+          />
         </View>
 
         <View style={styles.recommendationHeader}>
@@ -535,6 +540,7 @@ export default function EngineDashboard() {
                 {courses.map((course) => (
                   <CourseSummaryCard
                     course={course}
+                    enrollment={enrollmentMap.get(course.course_id)}
                     key={course.course_id}
                     language={language}
                     onAction={(selectedCourse, action) =>

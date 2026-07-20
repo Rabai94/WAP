@@ -180,7 +180,11 @@ export async function withdrawCourseEnrollment(enrollmentId: string) {
     throw new Error(error.message || "Course enrollment could not be withdrawn.");
   }
 
-  return data as string;
+  if (typeof data !== "string" || data !== enrollmentId) {
+    throw new Error("Course enrollment withdrawal was not confirmed.");
+  }
+
+  return data;
 }
 
 export async function listUserCourseEnrollments() {

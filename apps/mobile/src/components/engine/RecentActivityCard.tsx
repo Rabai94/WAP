@@ -1,9 +1,13 @@
 import {
   listProviderCourseEnrollments,
-  listUserCourseEnrollments,
   type ProviderCourseEnrollment,
   type UserCourseEnrollment,
 } from "@/services/courses/courseService";
+import {
+  fetchCachedCourseEnrollments,
+  type CourseEnrollmentSnapshot,
+} from "@/components/courses/quick-view/courseQuickViewData";
+import { useCourseEnrollmentMap } from "@/components/courses/quick-view/useCourseEnrollmentMap";
 import {
   listCompanyApplications,
   listWorkerApplications,
@@ -12,8 +16,9 @@ import {
 } from "@/services/worker/workerService";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import type { LanguageCode } from "@/i18n/translations";
+import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -81,6 +86,7 @@ const copyByLanguage = {
       pending: "În așteptare",
       rejected: "Respinsă",
       submitted: "Trimisă",
+      viewed: "Vizualizată",
       withdrawn: "Retrasă",
     },
     subtitle: "Aplicații și înscrieri asociate contului tău",
@@ -119,6 +125,7 @@ const copyByLanguage = {
       pending: "Pending",
       rejected: "Rejected",
       submitted: "Submitted",
+      viewed: "Viewed",
       withdrawn: "Withdrawn",
     },
     subtitle: "Applications and enrollments associated with your account",
@@ -157,6 +164,7 @@ const copyByLanguage = {
       pending: "Ausstehend",
       rejected: "Abgelehnt",
       submitted: "Eingereicht",
+      viewed: "Angesehen",
       withdrawn: "Zurückgezogen",
     },
     subtitle: "Bewerbungen und Anmeldungen, die mit deinem Konto verknüpft sind",
@@ -177,6 +185,7 @@ type RecentActivityCardProps = {
 
 type RecentActivityItem = {
   context: { key: ActivityContextKey; value: string } | null;
+  courseId: string | null;
   id: string;
   status: string;
   timestamp: string;
@@ -188,12 +197,20 @@ export default function RecentActivityCard({
   style,
 }: RecentActivityCardProps) {
   const { language } = useLanguage();
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const enrollmentMap = useCourseEnrollmentMap(userId);
   const copy = copyByLanguage[language];
   const [items, setItems] = useState<RecentActivityItem[]>([]);
   const [failedSourceCount, setFailedSourceCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    const activeUserId = userId;
     let mounted = true;
 
     async function loadActivity() {
@@ -201,7 +218,7 @@ export default function RecentActivityCard({
         const results = await Promise.allSettled([
           listWorkerApplications(),
           listCompanyApplications(),
-          listUserCourseEnrollments(),
+          fetchCachedCourseEnrollments(activeUserId),
           listProviderCourseEnrollments(),
         ]);
 
@@ -220,9 +237,7 @@ export default function RecentActivityCard({
           ...collectFulfilled(companyApplications, normalizeCompanyApplication),
           ...collectFulfilled(userEnrollments, normalizeUserEnrollment),
           ...collectFulfilled(providerEnrollments, normalizeProviderEnrollment),
-        ]
-          .sort(compareActivityDescending)
-          .slice(0, maximumVisibleItems);
+        ].sort(compareActivityDescending);
 
         setItems(normalizedItems);
         setFailedSourceCount(
@@ -245,7 +260,49 @@ export default function RecentActivityCard({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [userId]);
+
+  const visibleItems = useMemo(
+    () => {
+      const synchronizedItems = items.map((item) => {
+          if (item.type !== "userEnrollment" || !item.courseId) {
+            return item;
+          }
+
+          const enrollment = enrollmentMap.get(item.courseId);
+
+          if (!enrollment || enrollment.status === item.status) {
+            return item;
+          }
+
+          return {
+            ...item,
+            status: enrollment.status,
+            timestamp: enrollment.updated_at ?? item.timestamp,
+          };
+        });
+      const visibleIds = new Set(synchronizedItems.map((item) => item.id));
+
+      for (const enrollment of enrollmentMap.values()) {
+        const itemId = `user-enrollment:${enrollment.enrollment_id}`;
+
+        if (visibleIds.has(itemId)) {
+          continue;
+        }
+
+        const newItem = normalizeEnrollmentSnapshot(enrollment);
+
+        if (newItem) {
+          synchronizedItems.push(newItem);
+        }
+      }
+
+      return synchronizedItems
+        .sort(compareActivityDescending)
+        .slice(0, maximumVisibleItems);
+    },
+    [enrollmentMap, items]
+  );
 
   const allSourcesFailed = failedSourceCount === activitySourceCount;
   const hasPartialError =
@@ -280,11 +337,11 @@ export default function RecentActivityCard({
             </View>
           ) : null}
 
-          {items.length > 0 ? (
+          {visibleItems.length > 0 ? (
             <View style={styles.activityList}>
-              {items.map((item, index) => (
+              {visibleItems.map((item, index) => (
                 <ActivityRow
-                  isLast={index === items.length - 1}
+                  isLast={index === visibleItems.length - 1}
                   item={item}
                   key={item.id}
                   language={language}
@@ -364,6 +421,7 @@ function normalizeWorkerApplication(
     context: readText(application.company_name)
       ? { key: "company", value: application.company_name.trim() }
       : null,
+    courseId: null,
     id: `worker-application:${application.application_id}`,
     status: application.status,
     timestamp: selectTimestamp(application.updated_at, application.created_at),
@@ -379,6 +437,7 @@ function normalizeCompanyApplication(
     context: readText(application.worker_name)
       ? { key: "candidate", value: application.worker_name.trim() }
       : null,
+    courseId: null,
     id: `company-application:${application.application_id}`,
     status: application.status,
     timestamp: selectTimestamp(application.updated_at, application.created_at),
@@ -394,6 +453,7 @@ function normalizeUserEnrollment(
     context: readText(enrollment.provider_name)
       ? { key: "provider", value: enrollment.provider_name.trim() }
       : null,
+    courseId: enrollment.course_id,
     id: `user-enrollment:${enrollment.enrollment_id}`,
     status: enrollment.status,
     timestamp: selectTimestamp(enrollment.updated_at, enrollment.created_at),
@@ -409,11 +469,35 @@ function normalizeProviderEnrollment(
     context: readText(enrollment.applicant_email)
       ? { key: "participant", value: enrollment.applicant_email?.trim() ?? "" }
       : null,
+    courseId: enrollment.course_id,
     id: `provider-enrollment:${enrollment.enrollment_id}`,
     status: enrollment.status,
     timestamp: selectTimestamp(enrollment.updated_at, enrollment.created_at),
     title: readText(enrollment.course_title),
     type: "providerEnrollment",
+  };
+}
+
+function normalizeEnrollmentSnapshot(
+  enrollment: CourseEnrollmentSnapshot
+): RecentActivityItem | null {
+  if (!enrollment.course_title?.trim() || !enrollment.created_at) {
+    return null;
+  }
+
+  return {
+    context: enrollment.provider_name?.trim()
+      ? { key: "provider", value: enrollment.provider_name.trim() }
+      : null,
+    courseId: enrollment.course_id,
+    id: `user-enrollment:${enrollment.enrollment_id}`,
+    status: enrollment.status,
+    timestamp: selectTimestamp(
+      enrollment.updated_at ?? enrollment.created_at,
+      enrollment.created_at
+    ),
+    title: enrollment.course_title.trim(),
+    type: "userEnrollment",
   };
 }
 

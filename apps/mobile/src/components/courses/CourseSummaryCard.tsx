@@ -1,4 +1,6 @@
 import type { LanguageCode } from "@/i18n/translations";
+import type { CourseEnrollmentSnapshot } from "@/components/courses/quick-view/courseQuickViewData";
+import { formatCourseEnrollmentStatus } from "@/components/courses/quick-view/courseEnrollmentStatus";
 import type { SearchCourseResult } from "@/services/courses/courseService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import {
@@ -12,10 +14,11 @@ import {
 
 type CourseSummaryCardVariant = "list" | "compact";
 
-export type CourseSummaryCardAction = "enroll" | "view";
+export type CourseSummaryCardAction = "enroll" | "status" | "view";
 
 type CourseSummaryCardProps = {
   course: SearchCourseResult;
+  enrollment?: CourseEnrollmentSnapshot | null;
   language?: LanguageCode;
   onAction: (
     course: SearchCourseResult,
@@ -48,6 +51,7 @@ const focusRingWebStyle =
 
 export default function CourseSummaryCard({
   course,
+  enrollment = null,
   language = "ro",
   onAction,
   returnLabel,
@@ -60,6 +64,9 @@ export default function CourseSummaryCard({
   const price = formatPrice(course);
   const duration = formatDuration(course);
   const startDate = formatDate(course.start_date, language);
+  const enrollmentStatusLabel = enrollment
+    ? formatCourseEnrollmentStatus(enrollment.status)
+    : null;
 
   return (
     <View style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}>
@@ -76,6 +83,13 @@ export default function CourseSummaryCard({
               <Text numberOfLines={1} style={styles.meta}>
                 {location}
               </Text>
+            ) : null}
+            {enrollmentStatusLabel ? (
+              <View style={styles.enrollmentBadge}>
+                <Text numberOfLines={1} style={styles.enrollmentBadgeText}>
+                  {enrollmentStatusLabel}
+                </Text>
+              </View>
             ) : null}
           </View>
           {!isCompact && startDate ? (
@@ -128,11 +142,25 @@ export default function CourseSummaryCard({
             tone="secondary"
           />
           <CourseAction
-            accessibilityHint="Deschide confirmarea înainte de trimiterea înscrierii."
-            accessibilityLabel={`Înscrie-te la cursul ${course.title}`}
-            label="Înscrie-te"
-            onPress={() => onAction(course, "enroll")}
-            testID={`course-enroll-${course.course_id}`}
+            accessibilityHint={
+              enrollment
+                ? "Deschide vizualizarea rapidă și detaliile înscrierii."
+                : "Deschide confirmarea înainte de trimiterea înscrierii."
+            }
+            accessibilityLabel={
+              enrollment
+                ? `Vezi starea înscrierii la cursul ${course.title}`
+                : `Înscrie-te la cursul ${course.title}`
+            }
+            label={enrollment ? "Vezi starea" : "Înscrie-te"}
+            onPress={() =>
+              onAction(course, enrollment ? "status" : "enroll")
+            }
+            testID={
+              enrollment
+                ? `course-enrollment-status-${course.course_id}`
+                : `course-enroll-${course.course_id}`
+            }
             tone="primary"
           />
         </View>
@@ -373,6 +401,22 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: Typography.small,
     marginTop: 3,
+  },
+  enrollmentBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: Colors.brandSoft,
+    borderColor: "#C9D9FF",
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    marginTop: Spacing.sm,
+    maxWidth: "100%",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  enrollmentBadgeText: {
+    color: Colors.brandDeep,
+    fontSize: Typography.small,
+    fontWeight: Typography.fontWeight.extraBold,
   },
   startDate: {
     color: Colors.textMuted,
