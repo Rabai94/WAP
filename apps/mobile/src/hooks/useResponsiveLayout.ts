@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Platform, useWindowDimensions } from "react-native";
+import { Breakpoints, PageGutters, PageWidths } from "@/theme";
 
 export type ResponsiveLayout = {
   width: number;
@@ -19,11 +20,11 @@ export function useResponsiveLayout(): ResponsiveLayout {
   const { height, width } = useWindowDimensions();
 
   return useMemo(() => {
-    const isMobile = width < 640;
-    const isTablet = width >= 640 && width < 900;
-    const isLaptop = width >= 900 && width < 1280;
-    const isDesktop = width >= 1280 && width < 1600;
-    const isWide = width >= 1600;
+    const isMobile = width < Breakpoints.mobile;
+    const isTablet = width >= Breakpoints.mobile && width < Breakpoints.tablet;
+    const isLaptop = width >= Breakpoints.tablet && width < Breakpoints.desktop;
+    const isDesktop = width >= Breakpoints.desktop && width < Breakpoints.wide;
+    const isWide = width >= Breakpoints.wide;
 
     return {
       width,
@@ -37,21 +38,21 @@ export function useResponsiveLayout(): ResponsiveLayout {
       contentMaxWidth: isMobile
         ? Math.max(width, 0)
         : isTablet
-          ? 840
+          ? PageWidths.form
           : isLaptop
-            ? 1120
+            ? PageWidths.content
             : isDesktop
-              ? 1280
-              : 1440,
+              ? PageWidths.desktop
+              : PageWidths.wide,
       horizontalPadding: isMobile
-        ? 16
+        ? PageGutters.compact
         : isTablet
-          ? 24
+          ? PageGutters.tablet
           : isLaptop
-            ? 32
+            ? PageGutters.desktop
             : isDesktop
-              ? 40
-              : 48,
+              ? PageGutters.wide
+              : PageGutters.wide,
       columnCount: isMobile ? 1 : isTablet || isLaptop ? 2 : 3,
     };
   }, [height, width]);

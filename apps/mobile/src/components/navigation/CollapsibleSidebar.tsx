@@ -10,16 +10,26 @@ import { BRAND_NAME } from "@/domain/brand/brand";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { languages, type LanguageCode } from "@/i18n/translations";
 import { useAuth } from "@/providers/AuthProvider";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
-import { usePathname, useRouter } from "expo-router";
 import {
-  Platform,
+  Colors,
+  ControlHeight,
+  InteractionStyles,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/theme";
+import { usePathname, useRouter } from "expo-router";
+import { useState } from "react";
+import {
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
+  type PressableProps,
+  type StyleProp,
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -74,11 +84,6 @@ const copyByLanguage = {
     workspaceSubtitle: "Dein Arbeitsbereich",
   },
 } satisfies Record<LanguageCode, CollapsibleSidebarCopy>;
-
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
 
 export default function CollapsibleSidebar({
   collapsed,
@@ -139,11 +144,13 @@ export default function CollapsibleSidebar({
       ]}
     >
       <View style={[styles.brandRow, isCollapsed && styles.brandRowCollapsed]}>
-        <Pressable
+        <InteractivePressable
           accessibilityLabel={shellCopy.brandHome}
           accessibilityRole="button"
+          hoverStyle={styles.controlHover}
           onPress={() => navigate("/engine")}
-          style={[styles.brandButton, isCollapsed && styles.brandButtonCollapsed, pointerWebStyle]}
+          pressedStyle={styles.controlPressed}
+          style={[styles.brandButton, isCollapsed && styles.brandButtonCollapsed]}
         >
           <View style={styles.logoMark}>
             <Text style={styles.logoMarkText}>R</Text>
@@ -156,9 +163,9 @@ export default function CollapsibleSidebar({
               </Text>
             </View>
           ) : null}
-        </Pressable>
+        </InteractivePressable>
 
-        <Pressable
+        <InteractivePressable
           accessibilityLabel={
             drawer
               ? shellCopy.closeMenu
@@ -167,15 +174,17 @@ export default function CollapsibleSidebar({
                 : shellCopy.collapseSidebar
           }
           accessibilityRole="button"
-          onPress={drawer ? onNavigate : onCollapseToggle}
-          style={[styles.collapseButton, pointerWebStyle]}
+          hoverStyle={styles.controlHover}
+          onPress={drawer ? onNavigate ?? onCollapseToggle : onCollapseToggle}
+          pressedStyle={styles.controlPressed}
+          style={styles.collapseButton}
         >
           <AppIcon
             color={Colors.textSubtle}
             name={drawer ? "close" : isCollapsed ? "chevron-right" : "chevron-left"}
             size={18}
           />
-        </Pressable>
+        </InteractivePressable>
       </View>
 
       <ScrollView
@@ -231,22 +240,23 @@ export default function CollapsibleSidebar({
               const selected = language === item.code;
 
               return (
-                <Pressable
+                <InteractivePressable
                   accessibilityLabel={item.label}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
+                  hoverStyle={styles.controlHover}
                   key={item.code}
                   onPress={() => setLanguage(item.code)}
+                  pressedStyle={styles.controlPressed}
                   style={[
                     styles.languageButton,
                     selected && styles.languageButtonActive,
-                    pointerWebStyle,
                   ]}
                 >
                   <Text style={[styles.languageText, selected && styles.languageTextActive]}>
                     {item.code.toUpperCase()}
                   </Text>
-                </Pressable>
+                </InteractivePressable>
               );
             })}
           </View>
@@ -274,9 +284,60 @@ export default function CollapsibleSidebar({
   );
 }
 
+type InteractivePressableProps = Omit<PressableProps, "style"> & {
+  hoverStyle?: StyleProp<ViewStyle>;
+  pressedStyle?: StyleProp<ViewStyle>;
+  style?: StyleProp<ViewStyle>;
+};
+
+function InteractivePressable({
+  disabled,
+  hoverStyle,
+  onBlur,
+  onFocus,
+  onHoverIn,
+  onHoverOut,
+  pressedStyle,
+  style,
+  ...props
+}: InteractivePressableProps) {
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Pressable
+      {...props}
+      disabled={disabled}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onHoverIn={(event) => {
+        setHovered(true);
+        onHoverIn?.(event);
+      }}
+      onHoverOut={(event) => {
+        setHovered(false);
+        onHoverOut?.(event);
+      }}
+      style={({ pressed }) => [
+        style,
+        !disabled && InteractionStyles.pointer,
+        !disabled && hovered && hoverStyle,
+        !disabled && pressed && pressedStyle,
+        !disabled && focused && InteractionStyles.focusRing,
+      ]}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   sidebar: {
-    backgroundColor: "#F8FAFE",
+    backgroundColor: Colors.surfaceMuted,
     borderColor: Colors.borderNeutral,
     borderRightWidth: 1,
     flexShrink: 0,
@@ -306,6 +367,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     gap: Spacing.xl,
+    minHeight: ControlHeight.minimumTouch,
     minWidth: 0,
   },
   brandButtonCollapsed: {
@@ -318,11 +380,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     height: 38,
     justifyContent: "center",
-    shadowColor: Colors.brand,
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
     width: 38,
+    ...Shadows.button,
   },
   logoMarkText: {
     color: Colors.brandOn,
@@ -350,9 +409,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     flexShrink: 0,
-    height: 34,
+    height: ControlHeight.minimumTouch,
     justifyContent: "center",
-    width: 34,
+    width: ControlHeight.minimumTouch,
   },
   navigationScroll: {
     flex: 1,
@@ -413,7 +472,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     flex: 1,
     justifyContent: "center",
-    minHeight: 30,
+    minHeight: ControlHeight.minimumTouch,
   },
   languageButtonActive: {
     backgroundColor: Colors.surface,
@@ -427,5 +486,12 @@ const styles = StyleSheet.create({
   },
   languageTextActive: {
     color: Colors.brandDeep,
+  },
+  controlHover: {
+    backgroundColor: Colors.surfaceInteractive,
+    borderColor: Colors.borderStrong,
+  },
+  controlPressed: {
+    backgroundColor: Colors.selection,
   },
 });

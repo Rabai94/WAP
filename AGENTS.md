@@ -1,5 +1,7 @@
 # RabAI Development Rules
 
+These rules apply to the entire repository. Work under `apps/mobile` must also follow `apps/mobile/AGENTS.md`. The more specific rule applies when guidance differs, but no existing safety, validation, or quality rule may be discarded.
+
 ## General
 
 - Always inspect the existing project before writing code.
@@ -15,7 +17,7 @@
 
 Before writing any Expo or React Native code:
 
-1. Inspect apps/mobile/package.json.
+1. Inspect `apps/mobile/package.json`.
 2. Detect the installed Expo SDK version.
 3. Read the official Expo documentation matching that exact SDK version.
 4. Never assume the latest Expo SDK.
@@ -63,6 +65,8 @@ Before writing any Expo or React Native code:
 - Reuse existing UI components whenever possible.
 - Keep the design system consistent.
 - Use accessible colors and spacing.
+- Read `docs/rabai-design-system.md` before creating or materially changing a page.
+- Follow `docs/rabai-new-page-checklist.md` for every new page.
 
 ---
 
@@ -71,7 +75,7 @@ Before writing any Expo or React Native code:
 - Keyboard navigation.
 - Visible focus states.
 - Proper ARIA attributes where applicable.
-- Respect prefers-reduced-motion.
+- Respect `prefers-reduced-motion`.
 - Never reduce accessibility for visual effects.
 
 ---
@@ -195,13 +199,11 @@ When introducing significant functionality:
 
 ## RABAI UI CONTRACT — OBLIGATORIU
 
-Înainte de a crea sau modifica o pagină, citește și `../../docs/rabai-design-system.md`, apoi folosește `../../docs/rabai-new-page-checklist.md` pentru implementare și verificare.
-
 Orice Codex care creează sau modifică o pagină trebuie:
 
 1. să citească `AGENTS.md`;
 2. să citească `docs/rabai-design-system.md`;
-3. să reutilizeze componentele din `components/ui`;
+3. să reutilizeze componentele din `apps/mobile/src/components/ui`;
 4. să folosească design tokens;
 5. să nu creeze butoane one-off;
 6. să nu hardcodeze culori, border radius sau shadows;
@@ -217,3 +219,5 @@ Orice Codex care creează sau modifică o pagină trebuie:
 16. să nu afișeze butoane fără handler;
 17. să ruleze lint și typecheck;
 18. să raporteze orice abatere de la design system.
+
+Use `docs/rabai-new-page-checklist.md` as the mandatory implementation and review checklist.

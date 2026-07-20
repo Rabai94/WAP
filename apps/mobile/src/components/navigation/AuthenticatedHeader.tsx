@@ -204,10 +204,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 38,
     justifyContent: "center",
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
+    ...Shadows.button,
     width: 38,
   },
   logoText: {
@@ -295,10 +292,7 @@ const styles = StyleSheet.create({
   },
   languageButtonActive: {
     borderColor: Colors.brand,
-    shadowColor: Colors.brand,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
+    ...Shadows.button,
   },
   userCard: {
     alignItems: "center",

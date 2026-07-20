@@ -1,4 +1,9 @@
 export const Typography = {
+  fontFamily: {
+    sans: undefined,
+    mono: "monospace",
+  },
+
   h1: 32,
   h2: 28,
   h3: 24,
@@ -22,9 +27,11 @@ export const Typography = {
   small: 12,
 
   lineHeight: {
+    tight: 18,
     compact: 20,
     body: 21,
     default: 24,
+    relaxed: 26,
     link: 30,
     subtitle: 22,
     display: 52,
@@ -38,5 +45,12 @@ export const Typography = {
     bold: "700",
     extraBold: "800",
     black: "900",
+  },
+
+  letterSpacing: {
+    tight: -0.3,
+    normal: 0,
+    label: 0.1,
+    eyebrow: 0.7,
   },
 } as const;

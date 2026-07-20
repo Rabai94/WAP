@@ -1,33 +1,24 @@
 import { useEffect, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  RabAICard,
+  RabAIInput,
+} from "@/components/ui";
 import type { OnboardingIntent } from "@/domain/account/types";
-import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { sanitizeAuthReturnPath } from "@/services/auth/authNavigation";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
-
-const palette = {
-  page: "#F8FAFF",
-  surface: "#FFFFFF",
-  surfaceSoft: "#F3F6FF",
-  ink: "#101828",
-  muted: "#667085",
-  line: "#D9E2F4",
-  violet: "#6D28D9",
-  violetDark: "#145CFF",
-  red: "#145CFF",
-  redSoft: "#EAF1FF",
-  shadow: "#182033",
-} as const;
+import {
+  Colors,
+  ControlHeight,
+  Radius,
+  Spacing,
+  Typography,
+} from "@/theme";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -36,7 +27,6 @@ export default function LoginScreen() {
     notice?: string | string[];
     returnTo?: string | string[];
   }>();
-  const responsive = useResponsiveLayout();
   const { t } = useLanguage();
   const { loading, session, signIn, signUp } = useAuth();
   const authMode = readModeParam(params.mode) === "signup" ? "signup" : "login";
@@ -171,30 +161,21 @@ export default function LoginScreen() {
     (authMode === "login" && notice === "account-created"
       ? t("login.signupNeedsConfirmation")
       : "");
+  const submitTitle =
+    authMode === "signup" ? t("login.signupSubmit") : t("login.submit");
+  const submittingLabel =
+    authMode === "signup"
+      ? t("login.signupSubmitting")
+      : t("login.submitting");
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.screen,
-        {
-          paddingHorizontal: responsive.horizontalPadding,
-          paddingVertical: responsive.isMobile ? Spacing.three : Spacing.screen,
-        },
-      ]}
+    <PageContainer
+      centered
       keyboardShouldPersistTaps="handled"
+      maxWidth="narrow"
+      scroll
     >
-      <View
-        style={[
-          styles.card,
-          {
-            maxWidth: responsive.isWide
-              ? 640
-              : responsive.isDesktop
-                ? 600
-                : 520,
-          },
-        ]}
-      >
+      <RabAICard padding="lg" style={styles.card} variant="elevated">
         <View style={styles.brandRow}>
           <View style={styles.brandMark}>
             <Text style={styles.brandMarkText}>R</Text>
@@ -205,17 +186,19 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        <Text style={styles.title}>
-          {authMode === "signup" ? t("login.signupTitle") : t("login.title")}
-        </Text>
-        <Text style={styles.subtitle}>
-          {authMode === "signup"
-            ? t("login.signupSubtitle")
-            : t("login.subtitle")}
-        </Text>
+        <PageHeader
+          description={
+            authMode === "signup"
+              ? t("login.signupSubtitle")
+              : t("login.subtitle")
+          }
+          title={
+            authMode === "signup" ? t("login.signupTitle") : t("login.title")
+          }
+        />
 
         {authMode === "signup" ? (
-          <View style={styles.intentGroup}>
+          <View accessibilityRole="radiogroup" style={styles.intentGroup}>
             <Text style={styles.intentTitle}>
               {t("login.intentQuestion")}
             </Text>
@@ -223,12 +206,14 @@ export default function LoginScreen() {
               <IntentOption
                 active={selectedOnboardingIntent === "personal"}
                 description={t("login.intentPersonalText")}
+                disabled={isSubmitting}
                 label={t("login.intentPersonalTitle")}
                 onPress={() => setSelectedOnboardingIntent("personal")}
               />
               <IntentOption
                 active={selectedOnboardingIntent === "create_organization"}
                 description={t("login.intentOrganizationText")}
+                disabled={isSubmitting}
                 label={t("login.intentOrganizationTitle")}
                 onPress={() =>
                   setSelectedOnboardingIntent("create_organization")
@@ -246,149 +231,154 @@ export default function LoginScreen() {
         ) : null}
 
         {authMode === "signup" ? (
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t("login.fullName")}</Text>
-            <TextInput
-              autoComplete="name"
-              autoCapitalize="words"
-              onChangeText={setFullName}
-              placeholder={t("login.fullNamePlaceholder")}
-              placeholderTextColor={palette.muted}
-              style={styles.input}
-              textContentType="name"
-              value={fullName}
-            />
-          </View>
+          <RabAIInput
+            autoComplete="name"
+            autoCapitalize="words"
+            containerStyle={styles.fieldGroup}
+            disabled={isSubmitting}
+            label={t("login.fullName")}
+            onChangeText={setFullName}
+            placeholder={t("login.fullNamePlaceholder")}
+            required
+            textContentType="name"
+            value={fullName}
+          />
         ) : null}
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>{t("common.email")}</Text>
-          <TextInput
-            autoComplete="email"
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            placeholderTextColor={palette.muted}
-            style={styles.input}
-            textContentType="emailAddress"
-            value={email}
-          />
-        </View>
+        <RabAIInput
+          autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect={false}
+          containerStyle={styles.fieldGroup}
+          disabled={isSubmitting}
+          keyboardType="email-address"
+          label={t("common.email")}
+          onChangeText={setEmail}
+          placeholder="you@example.com"
+          required
+          textContentType="emailAddress"
+          value={email}
+        />
 
         {authMode === "signup" ? (
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t("common.phone")}</Text>
-            <TextInput
-              autoComplete="tel"
-              keyboardType="phone-pad"
-              onChangeText={setPhone}
-              placeholder={t("login.phonePlaceholder")}
-              placeholderTextColor={palette.muted}
-              style={styles.input}
-              textContentType="telephoneNumber"
-              value={phone}
-            />
-          </View>
+          <RabAIInput
+            autoComplete="tel"
+            containerStyle={styles.fieldGroup}
+            disabled={isSubmitting}
+            keyboardType="phone-pad"
+            label={t("common.phone")}
+            onChangeText={setPhone}
+            placeholder={t("login.phonePlaceholder")}
+            textContentType="telephoneNumber"
+            value={phone}
+          />
         ) : null}
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>{t("login.password")}</Text>
-          <TextInput
-            autoComplete={authMode === "signup" ? "new-password" : "current-password"}
-            onChangeText={setPassword}
-            placeholder={t("login.passwordPlaceholder")}
-            placeholderTextColor={palette.muted}
+        <RabAIInput
+          autoComplete={authMode === "signup" ? "new-password" : "current-password"}
+          containerStyle={styles.fieldGroup}
+          disabled={isSubmitting}
+          label={t("login.password")}
+          onChangeText={setPassword}
+          placeholder={t("login.passwordPlaceholder")}
+          required
+          secureTextEntry
+          textContentType={authMode === "signup" ? "newPassword" : "password"}
+          value={password}
+        />
+
+        {authMode === "signup" ? (
+          <RabAIInput
+            autoComplete="new-password"
+            containerStyle={styles.fieldGroup}
+            disabled={isSubmitting}
+            label={t("login.confirmPassword")}
+            onChangeText={setConfirmPassword}
+            placeholder={t("login.confirmPasswordPlaceholder")}
+            required
             secureTextEntry
-            style={styles.input}
-            textContentType={authMode === "signup" ? "newPassword" : "password"}
-            value={password}
+            textContentType="newPassword"
+            value={confirmPassword}
           />
-        </View>
-
-        {authMode === "signup" ? (
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{t("login.confirmPassword")}</Text>
-            <TextInput
-              autoComplete="new-password"
-              onChangeText={setConfirmPassword}
-              placeholder={t("login.confirmPasswordPlaceholder")}
-              placeholderTextColor={palette.muted}
-              secureTextEntry
-              style={styles.input}
-              textContentType="newPassword"
-              value={confirmPassword}
-            />
-          </View>
         ) : null}
 
         {visibleAccountCreatedMessage ? (
-          <Text style={styles.successText}>{visibleAccountCreatedMessage}</Text>
+          <Text accessibilityLiveRegion="polite" style={styles.successText}>
+            {visibleAccountCreatedMessage}
+          </Text>
         ) : null}
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <Pressable style={styles.primaryButton} onPress={handleSubmit}>
-          <Text style={styles.primaryButtonText}>
-            {isSubmitting
-              ? authMode === "signup"
-                ? t("login.signupSubmitting")
-                : t("login.submitting")
-              : authMode === "signup"
-                ? t("login.signupSubmit")
-                : t("login.submit")}
+        {error ? (
+          <Text accessibilityLiveRegion="assertive" role="alert" style={styles.errorText}>
+            {error}
           </Text>
-        </Pressable>
+        ) : null}
+
+        <RabAIButton
+          accessibilityLabel={submitTitle}
+          disabled={loading}
+          fullWidth
+          loading={isSubmitting}
+          loadingLabel={submittingLabel}
+          onPress={handleSubmit}
+          size="lg"
+          title={submitTitle}
+        />
 
         <View style={styles.actionRow}>
-          <Pressable
-            style={styles.linkButton}
+          <RabAIButton
+            disabled={isSubmitting}
             onPress={() => {
               switchMode(authMode === "signup" ? "login" : "signup");
             }}
-          >
-            <Text style={styles.linkButtonText}>
-              {authMode === "signup"
+            size="sm"
+            title={
+              authMode === "signup"
                 ? t("login.switchToLogin")
-                : t("login.createAccount")}
-            </Text>
-          </Pressable>
+                : t("login.createAccount")
+            }
+            variant="ghost"
+          />
 
-          <Pressable
-            style={styles.linkButton}
+          <RabAIButton
+            disabled={isSubmitting}
             onPress={() => {
               router.replace("/" as any);
             }}
-          >
-            <Text style={styles.linkButtonText}>{t("login.back")}</Text>
-          </Pressable>
+            size="sm"
+            title={t("login.back")}
+            variant="ghost"
+          />
         </View>
-      </View>
-    </ScrollView>
+      </RabAICard>
+    </PageContainer>
   );
 }
 
 function IntentOption({
   active,
   description,
+  disabled,
   label,
   onPress,
 }: {
   active: boolean;
   description: string;
+  disabled: boolean;
   label: string;
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <RabAICard
+      accessibilityLabel={`${label}. ${description}`}
       accessibilityRole="radio"
-      accessibilityState={{ selected: active }}
+      accessibilityState={{ checked: active, disabled }}
+      disabled={disabled}
+      interactive
       onPress={onPress}
-      style={[
-        styles.intentOption,
-        active && styles.intentOptionActive,
-      ]}
+      padding="sm"
+      selected={active}
+      style={styles.intentOption}
     >
       <Text
         style={[
@@ -399,220 +389,137 @@ function IntentOption({
         {label}
       </Text>
       <Text style={styles.intentOptionText}>{description}</Text>
-    </Pressable>
+    </RabAICard>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    alignItems: "center",
-    backgroundColor: palette.page,
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: Spacing.screen,
-  },
-
   card: {
-    backgroundColor: palette.surface,
-    borderColor: palette.line,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    maxWidth: 520,
-    padding: Spacing.five,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.12,
-    shadowRadius: 36,
+    alignSelf: "stretch",
     width: "100%",
-    elevation: 5,
   },
 
   brandRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: Spacing.three,
-    marginBottom: Spacing.five,
+    gap: Spacing.component,
+    marginBottom: Spacing.section,
   },
 
   brandMark: {
     alignItems: "center",
-    backgroundColor: palette.violetDark,
-    borderRadius: Radius.xl,
-    height: 54,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.panel,
+    height: ControlHeight.large,
     justifyContent: "center",
-    width: 54,
+    width: ControlHeight.large,
   },
 
   brandMarkText: {
-    color: Colors.white,
+    color: Colors.onPrimary,
     fontSize: Typography.h3,
     fontWeight: Typography.fontWeight.black,
   },
 
   logo: {
-    color: palette.ink,
+    color: Colors.textPrimary,
     fontSize: Typography.h3,
     fontWeight: Typography.fontWeight.black,
   },
 
   brandSubtitle: {
-    color: palette.red,
+    color: Colors.primaryPressed,
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.black,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.compact,
     textTransform: "uppercase",
   },
 
-  title: {
-    color: palette.ink,
-    fontSize: Typography.h2,
-    fontWeight: Typography.fontWeight.black,
-    lineHeight: 34,
-    marginBottom: Spacing.xl,
-  },
-
-  subtitle: {
-    color: palette.muted,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.default,
-    marginBottom: Spacing.five,
-  },
-
   intentGroup: {
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.section,
   },
 
   intentTitle: {
-    color: palette.ink,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.black,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.control,
   },
 
   intentOptions: {
-    gap: Spacing.md,
+    gap: Spacing.control,
   },
 
   intentOption: {
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.line,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Spacing.lg,
-  },
-
-  intentOptionActive: {
-    backgroundColor: "#EEF7FF",
-    borderColor: palette.violet,
+    minHeight: ControlHeight.minimumTouch,
   },
 
   intentOptionTitle: {
-    color: palette.ink,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.black,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.compact,
   },
 
   intentOptionTitleActive: {
-    color: palette.violetDark,
+    color: Colors.primaryPressed,
   },
 
   intentOptionText: {
-    color: palette.muted,
+    color: Colors.textSecondary,
     fontSize: Typography.bodySmall,
     lineHeight: Typography.lineHeight.body,
   },
 
   intentHelperText: {
-    backgroundColor: "#EEF7FF",
-    borderColor: palette.line,
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.informationSurface,
+    borderColor: Colors.informationBorder,
+    borderRadius: Radius.control,
     borderWidth: 1,
-    color: palette.ink,
+    color: Colors.textBody,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
     lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.md,
-    padding: Spacing.lg,
+    marginTop: Spacing.control,
+    padding: Spacing.inline,
   },
 
   fieldGroup: {
-    marginBottom: Spacing.xl,
-  },
-
-  label: {
-    color: palette.ink,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.black,
-    marginBottom: Spacing.sm,
-  },
-
-  input: {
-    backgroundColor: palette.surfaceSoft,
-    borderColor: palette.line,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    color: palette.ink,
-    fontSize: Typography.body,
-    minHeight: 52,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.xl,
+    marginBottom: Spacing.component,
   },
 
   errorText: {
-    backgroundColor: "#FFF1F6",
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.dangerSurface,
+    borderColor: Colors.dangerBorder,
+    borderRadius: Radius.control,
+    borderWidth: 1,
     color: Colors.danger,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
     lineHeight: Typography.lineHeight.body,
-    marginBottom: Spacing.xl,
-    padding: Spacing.xl,
+    marginBottom: Spacing.component,
+    padding: Spacing.inline,
   },
 
   successText: {
-    backgroundColor: "#E8F8F2",
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.successSurface,
+    borderColor: Colors.successBorder,
+    borderRadius: Radius.control,
+    borderWidth: 1,
     color: Colors.success,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
     lineHeight: Typography.lineHeight.body,
-    marginBottom: Spacing.xl,
-    padding: Spacing.xl,
-  },
-
-  primaryButton: {
-    alignItems: "center",
-    backgroundColor: palette.red,
-    borderRadius: Radius.lg,
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.xxl,
-  },
-
-  primaryButtonText: {
-    color: Colors.white,
-    fontSize: Typography.button,
-    fontWeight: Typography.fontWeight.black,
+    marginBottom: Spacing.component,
+    padding: Spacing.inline,
   },
 
   actionRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.xl,
+    gap: Spacing.control,
     justifyContent: "center",
-    marginTop: Spacing.three,
-  },
-
-  linkButton: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-  },
-
-  linkButtonText: {
-    color: palette.ink,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.black,
+    marginTop: Spacing.component,
   },
 });
 

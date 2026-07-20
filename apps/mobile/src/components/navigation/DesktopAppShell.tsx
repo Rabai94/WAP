@@ -1,10 +1,24 @@
 import AppTopBar from "@/components/navigation/AppTopBar";
 import CollapsibleSidebar from "@/components/navigation/CollapsibleSidebar";
 import { useAuth } from "@/providers/AuthProvider";
-import { Colors } from "@/theme";
-import { usePathname } from "expo-router";
-import { type ReactNode, useEffect, useState } from "react";
 import {
+  Breakpoints,
+  Colors,
+  InteractionStyles,
+  Layers,
+} from "@/theme";
+import { usePathname } from "expo-router";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  AccessibilityInfo,
+  findNodeHandle,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -12,8 +26,6 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-
-const DRAWER_BREAKPOINT = 1024;
 
 type DesktopAppShellProps = {
   children: ReactNode;
@@ -29,7 +41,10 @@ export default function DesktopAppShell({
   const { height, width } = useWindowDimensions();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const usesDrawer = width <= DRAWER_BREAKPOINT;
+  const [drawerFocused, setDrawerFocused] = useState(false);
+  const drawerPanelRef = useRef<View>(null);
+  const returnFocusRef = useRef<{ focus?: () => void } | null>(null);
+  const usesDrawer = width <= Breakpoints.shell;
   const availableContentWidth = usesDrawer
     ? width
     : width - (collapsed ? 72 : 256);
@@ -48,32 +63,44 @@ export default function DesktopAppShell({
           } as unknown as ViewStyle)
       : null;
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setDrawerOpen(false);
-    }, 0);
-
-    return () => clearTimeout(timeoutId);
-  }, [enabled, pathname, usesDrawer]);
-
-  useEffect(() => {
-    if (!drawerOpen || Platform.OS !== "web") {
+  const restoreDrawerTriggerFocus = useCallback(() => {
+    if (Platform.OS !== "web") {
+      returnFocusRef.current = null;
       return;
     }
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setDrawerOpen(false);
-      }
+    const target = returnFocusRef.current;
+    returnFocusRef.current = null;
+    setTimeout(() => target?.focus?.(), 0);
+  }, []);
+
+  const closeDrawer = useCallback(() => {
+    setDrawerOpen(false);
+    restoreDrawerTriggerFocus();
+  }, [restoreDrawerTriggerFocus]);
+
+  const openDrawer = useCallback(() => {
+    if (Platform.OS === "web") {
+      returnFocusRef.current = globalThis.document
+        ?.activeElement as { focus?: () => void } | null;
     }
 
-    globalThis.addEventListener("keydown", handleKeyDown);
-    return () => globalThis.removeEventListener("keydown", handleKeyDown);
-  }, [drawerOpen]);
+    setDrawerOpen(true);
+  }, []);
 
-  function closeDrawer() {
-    setDrawerOpen(false);
-  }
+  useEffect(() => {
+    const timeoutId = setTimeout(closeDrawer, 0);
+    return () => clearTimeout(timeoutId);
+  }, [closeDrawer, enabled, pathname, usesDrawer]);
+
+  useEffect(() => {
+    if (!drawerOpen) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => focusView(drawerPanelRef.current), 0);
+    return () => clearTimeout(timeoutId);
+  }, [drawerOpen]);
 
   return (
     <View
@@ -99,7 +126,7 @@ export default function DesktopAppShell({
         {enabled ? (
           <AppTopBar
             availableWidth={availableContentWidth}
-            onMenuPress={() => setDrawerOpen(true)}
+            onMenuPress={openDrawer}
             showSearch={
               pathname !== "/engine" && !pathname.startsWith("/engine/")
             }
@@ -121,28 +148,52 @@ export default function DesktopAppShell({
       </View>
 
       {enabled && usesDrawer && drawerOpen ? (
-        <View accessibilityViewIsModal style={styles.drawerLayer}>
-          <Pressable
-            accessibilityLabel="Închide meniul"
-            accessibilityRole="button"
-            onPress={closeDrawer}
-            style={styles.backdrop}
-          />
-          <View
-            accessibilityLabel="Meniu principal"
-            accessibilityViewIsModal
-            role="dialog"
-            style={styles.drawerPanel}
-          >
-            <CollapsibleSidebar
-              collapsed={false}
-              drawer
-              isAdmin={user?.isAdmin === true}
-              onCollapseToggle={() => undefined}
-              onNavigate={closeDrawer}
+        <Modal
+          animationType="fade"
+          onRequestClose={closeDrawer}
+          transparent
+          visible
+        >
+          <View accessibilityViewIsModal style={styles.drawerLayer}>
+            <Pressable
+              accessibilityLabel="Închide meniul"
+              accessibilityRole="button"
+              onPress={closeDrawer}
+              style={styles.backdrop}
             />
+            <View
+              accessibilityLabel="Meniu principal"
+              accessibilityViewIsModal
+              focusable
+              onAccessibilityEscape={closeDrawer}
+              onBlur={(event) => {
+                if (event.target === event.currentTarget) {
+                  setDrawerFocused(false);
+                }
+              }}
+              onFocus={(event) => {
+                if (event.target === event.currentTarget) {
+                  setDrawerFocused(true);
+                }
+              }}
+              ref={drawerPanelRef}
+              role="dialog"
+              style={[
+                styles.drawerPanel,
+                drawerFocused && InteractionStyles.focusRing,
+              ]}
+              tabIndex={-1}
+            >
+              <CollapsibleSidebar
+                collapsed={false}
+                drawer
+                isAdmin={user?.isAdmin === true}
+                onCollapseToggle={closeDrawer}
+                onNavigate={closeDrawer}
+              />
+            </View>
           </View>
-        </View>
+        </Modal>
       ) : null}
     </View>
   );
@@ -185,14 +236,30 @@ const styles = StyleSheet.create({
   drawerLayer: {
     ...StyleSheet.absoluteFill,
     flexDirection: "row",
-    zIndex: 10000,
+    zIndex: Layers.overlay,
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(8, 17, 42, 0.34)",
+    backgroundColor: Colors.overlay,
   },
   drawerPanel: {
     height: "100%",
-    zIndex: 1,
+    zIndex: Layers.drawer,
   },
 });
+
+function focusView(node: View | null) {
+  if (!node) {
+    return;
+  }
+
+  if (Platform.OS === "web") {
+    (node as View & { focus?: () => void }).focus?.();
+    return;
+  }
+
+  const handle = findNodeHandle(node);
+  if (handle) {
+    AccessibilityInfo.setAccessibilityFocus(handle);
+  }
+}

@@ -1,4 +1,10 @@
 export const Radius = {
+  control: 10,
+  panel: 14,
+  dialog: 20,
+  pill: 999,
+
+  // Compatibility aliases.
   sm: 6,
   md: 10,
   lg: 12,

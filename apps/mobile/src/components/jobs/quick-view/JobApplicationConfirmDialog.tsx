@@ -1,7 +1,17 @@
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
-import { useState, type ReactNode } from "react";
 import {
+  Colors,
+  ControlHeight,
+  InteractionStyles,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/theme";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  AccessibilityInfo,
   ActivityIndicator,
+  findNodeHandle,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,6 +22,8 @@ import {
   TextInput,
   useWindowDimensions,
   View,
+  type PressableProps,
+  type StyleProp,
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,11 +50,6 @@ type JobApplicationConfirmDialogProps = {
   visible: boolean;
 };
 
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
-
 export default function JobApplicationConfirmDialog({
   alreadyApplied,
   applicationContextError,
@@ -67,6 +74,10 @@ export default function JobApplicationConfirmDialog({
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [message, setMessage] = useState("");
+  const [dialogFocused, setDialogFocused] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+  const dialogRef = useRef<View>(null);
+  const returnFocusRef = useRef<{ focus?: () => void } | null>(null);
   const dialogWidth = Math.min(536, Math.max(width - 32, 0));
   const hasProfileIssue =
     missingProfileFields.length > 0 || profileBlockMessage !== null;
@@ -79,6 +90,27 @@ export default function JobApplicationConfirmDialog({
     !jobUnavailable &&
     !loadingApplicationContext &&
     !submitting;
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    if (Platform.OS === "web") {
+      returnFocusRef.current = globalThis.document
+        ?.activeElement as { focus?: () => void } | null;
+    }
+
+    const focusTimeoutId = setTimeout(() => focusView(dialogRef.current), 0);
+    return () => {
+      clearTimeout(focusTimeoutId);
+      if (Platform.OS === "web") {
+        const target = returnFocusRef.current;
+        returnFocusRef.current = null;
+        setTimeout(() => target?.focus?.(), 0);
+      }
+    };
+  }, [visible]);
 
   return (
     <Modal
@@ -96,11 +128,24 @@ export default function JobApplicationConfirmDialog({
           accessibilityLabel="Închide confirmarea aplicării"
           accessibilityRole="button"
           onPress={onCancel}
-          style={styles.backdrop}
+          style={[styles.backdrop, InteractionStyles.pointer]}
         />
         <View
           accessibilityLabel={`Confirmă aplicarea la ${jobTitle}`}
           accessibilityViewIsModal
+          focusable
+          onAccessibilityEscape={onCancel}
+          onBlur={(event) => {
+            if (event.target === event.currentTarget) {
+              setDialogFocused(false);
+            }
+          }}
+          onFocus={(event) => {
+            if (event.target === event.currentTarget) {
+              setDialogFocused(true);
+            }
+          }}
+          ref={dialogRef}
           role="dialog"
           style={[
             styles.dialog,
@@ -108,7 +153,9 @@ export default function JobApplicationConfirmDialog({
               marginBottom: Math.max(insets.bottom, Spacing.three),
               width: dialogWidth,
             },
+            dialogFocused && InteractionStyles.focusRing,
           ]}
+          tabIndex={-1}
           testID="job-application-confirm-dialog"
         >
           <ScrollView
@@ -138,26 +185,30 @@ export default function JobApplicationConfirmDialog({
                 <Text style={styles.noticeText}>
                   Detaliile complete nu sunt disponibile momentan.
                 </Text>
-                <Pressable
+                <InteractivePressable
                   accessibilityRole="button"
+                  hoverStyle={styles.inlineButtonHover}
                   onPress={onRetryJobDetails}
-                  style={[styles.inlineButton, pointerWebStyle]}
+                  pressedStyle={styles.buttonPressed}
+                  style={styles.inlineButton}
                 >
                   <Text style={styles.inlineButtonText}>Reîncearcă</Text>
-                </Pressable>
+                </InteractivePressable>
               </Notice>
             ) : null}
 
             {applicationContextError ? (
               <Notice tone="danger" title="Verificarea nu a reușit">
                 <Text style={styles.noticeText}>{applicationContextError}</Text>
-                <Pressable
+                <InteractivePressable
                   accessibilityRole="button"
+                  hoverStyle={styles.inlineButtonHover}
                   onPress={onRetryApplicationContext}
-                  style={[styles.inlineButton, pointerWebStyle]}
+                  pressedStyle={styles.buttonPressed}
+                  style={styles.inlineButton}
                 >
                   <Text style={styles.inlineButtonText}>Reîncearcă</Text>
-                </Pressable>
+                </InteractivePressable>
               </Notice>
             ) : null}
 
@@ -195,13 +246,15 @@ export default function JobApplicationConfirmDialog({
                     ))}
                   </View>
                 ) : null}
-                <Pressable
+                <InteractivePressable
                   accessibilityRole="button"
+                  hoverStyle={styles.inlineButtonHover}
                   onPress={onCompleteProfile}
-                  style={[styles.inlineButton, pointerWebStyle]}
+                  pressedStyle={styles.buttonPressed}
+                  style={styles.inlineButton}
                 >
                   <Text style={styles.inlineButtonText}>Completează profilul</Text>
-                </Pressable>
+                </InteractivePressable>
               </Notice>
             ) : null}
 
@@ -214,16 +267,25 @@ export default function JobApplicationConfirmDialog({
             !hasProfileIssue ? (
               <View style={styles.messageBlock}>
                 <Text style={styles.inputLabel}>Mesaj opțional</Text>
-                <TextInput
+                <View
+                  style={[
+                    styles.messageInputFrame,
+                    inputFocused && InteractionStyles.focusRing,
+                  ]}
+                >
+                  <TextInput
                   accessibilityLabel="Mesaj opțional pentru angajator"
                   multiline
+                  onBlur={() => setInputFocused(false)}
                   onChangeText={setMessage}
+                  onFocus={() => setInputFocused(true)}
                   placeholder="Adaugă un mesaj scurt pentru companie"
                   placeholderTextColor={Colors.placeholder}
                   style={styles.messageInput}
                   textAlignVertical="top"
                   value={message}
-                />
+                  />
+                </View>
                 <Text style={styles.helperText}>
                   Candidatura nu este trimisă până nu confirmi mai jos.
                 </Text>
@@ -238,30 +300,26 @@ export default function JobApplicationConfirmDialog({
           </ScrollView>
 
           <View style={styles.actions}>
-            <Pressable
+            <InteractivePressable
               accessibilityRole="button"
               disabled={submitting}
+              hoverStyle={styles.secondaryButtonHover}
               onPress={onCancel}
-              style={({ hovered, pressed }) => [
-                styles.secondaryButton,
-                pointerWebStyle,
-                hovered && styles.secondaryButtonHover,
-                pressed && styles.buttonPressed,
-              ]}
+              pressedStyle={styles.buttonPressed}
+              style={styles.secondaryButton}
             >
               <Text style={styles.secondaryButtonText}>Anulează</Text>
-            </Pressable>
-            <Pressable
+            </InteractivePressable>
+            <InteractivePressable
               accessibilityRole="button"
               accessibilityState={{ disabled: !canSubmit }}
               disabled={!canSubmit}
+              hoverStyle={styles.primaryButtonHover}
               onPress={() => onConfirm(message.trim() || null)}
-              style={({ hovered, pressed }) => [
+              pressedStyle={styles.buttonPressed}
+              style={[
                 styles.primaryButton,
-                pointerWebStyle,
                 !canSubmit && styles.primaryButtonDisabled,
-                canSubmit && hovered && styles.primaryButtonHover,
-                canSubmit && pressed && styles.buttonPressed,
               ]}
               testID="confirm-job-application"
             >
@@ -274,12 +332,79 @@ export default function JobApplicationConfirmDialog({
                     : "Trimite candidatura"}
                 </Text>
               )}
-            </Pressable>
+            </InteractivePressable>
           </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
+}
+
+type InteractivePressableProps = Omit<PressableProps, "style"> & {
+  hoverStyle?: StyleProp<ViewStyle>;
+  pressedStyle?: StyleProp<ViewStyle>;
+  style?: StyleProp<ViewStyle>;
+};
+
+function InteractivePressable({
+  disabled,
+  hoverStyle,
+  onBlur,
+  onFocus,
+  onHoverIn,
+  onHoverOut,
+  pressedStyle,
+  style,
+  ...props
+}: InteractivePressableProps) {
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Pressable
+      {...props}
+      disabled={disabled}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onHoverIn={(event) => {
+        setHovered(true);
+        onHoverIn?.(event);
+      }}
+      onHoverOut={(event) => {
+        setHovered(false);
+        onHoverOut?.(event);
+      }}
+      style={({ pressed }) => [
+        style,
+        !disabled && InteractionStyles.pointer,
+        !disabled && hovered && hoverStyle,
+        !disabled && pressed && pressedStyle,
+        !disabled && focused && InteractionStyles.focusRing,
+      ]}
+    />
+  );
+}
+
+function focusView(node: View | null) {
+  if (!node) {
+    return;
+  }
+
+  if (Platform.OS === "web") {
+    (node as View & { focus?: () => void }).focus?.();
+    return;
+  }
+
+  const handle = findNodeHandle(node);
+  if (handle) {
+    AccessibilityInfo.setAccessibilityFocus(handle);
+  }
 }
 
 function Notice({
@@ -317,7 +442,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(6, 14, 34, 0.68)",
+    backgroundColor: Colors.overlay,
   },
   dialog: {
     backgroundColor: Colors.surface,
@@ -326,7 +451,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     maxHeight: "90%",
     overflow: "hidden",
-    ...Shadows.card,
+    ...Shadows.elevated,
   },
   content: {
     gap: Spacing.three,
@@ -374,12 +499,12 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   noticeDanger: {
-    backgroundColor: "#FFF1F2",
-    borderColor: "#FECDD3",
+    backgroundColor: Colors.dangerSurface,
+    borderColor: Colors.dangerBorder,
   },
   noticeInfo: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: "#C9D9FF",
+    backgroundColor: Colors.informationSurface,
+    borderColor: Colors.informationBorder,
   },
   noticeWarning: {
     backgroundColor: Colors.warningSurface,
@@ -414,7 +539,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    minHeight: 40,
+    minHeight: ControlHeight.minimumTouch,
     justifyContent: "center",
     paddingHorizontal: Spacing.three,
   },
@@ -423,6 +548,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
   },
+  inlineButtonHover: {
+    backgroundColor: Colors.surfaceInteractive,
+    borderColor: Colors.borderStrong,
+  },
   messageBlock: {
     gap: Spacing.md,
   },
@@ -430,6 +559,9 @@ const styles = StyleSheet.create({
     color: Colors.textBody,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
+  },
+  messageInputFrame: {
+    borderRadius: Radius.lg,
   },
   messageInput: {
     backgroundColor: Colors.surfaceMuted,
@@ -492,7 +624,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brandDeep,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#AAB7D4",
+    backgroundColor: Colors.surfaceDisabled,
   },
   primaryButtonText: {
     color: Colors.white,

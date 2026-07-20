@@ -24,7 +24,14 @@ import {
   type LocationSuggestion,
   type OccupationSuggestion,
 } from "@/services/search/heroAutocomplete";
-import { Radius, Spacing, Typography } from "@/theme";
+import {
+  Colors,
+  InteractionStyles,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/theme";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -528,26 +535,25 @@ const legacyListingLabels = new Set([
 ]);
 
 const palette = {
-  page: "#F7FAFF",
-  surface: "#FFFFFF",
-  surfaceSoft: "#F3F7FF",
-  ink: "#0A1028",
-  text: "#17213F",
-  muted: "#66708A",
-  faint: "#8B96B3",
-  border: "#DAE3F5",
-  borderSoft: "#EEF2FB",
-  blue: "#145CFF",
-  blueDeep: "#0C2FC7",
-  blueSoft: "#E9F0FF",
-  violet: "#6E1DFF",
-  violetSoft: "#F1E9FF",
-  rose: "#F01363",
-  roseSoft: "#FFF0F6",
-  cyan: "#18C7DF",
-  cyanSoft: "#EAFBFF",
-  shadow: "#153058",
-  disabled: "#EEF2F7",
+  page: Colors.background,
+  surface: Colors.surface,
+  surfaceSoft: Colors.surfaceMuted,
+  ink: Colors.textPrimary,
+  text: Colors.textBody,
+  muted: Colors.textMuted,
+  faint: Colors.textDisabled,
+  border: Colors.border,
+  borderSoft: Colors.borderMuted,
+  blue: Colors.primary,
+  blueDeep: Colors.primaryPressed,
+  blueSoft: Colors.primarySoft,
+  violet: Colors.accent,
+  violetSoft: Colors.accentSoft,
+  rose: Colors.danger,
+  roseSoft: Colors.dangerSurface,
+  cyan: Colors.information,
+  cyanSoft: Colors.informationSurface,
+  disabled: Colors.surfaceDisabled,
 } as const;
 
 const layout = {
@@ -648,42 +654,30 @@ const pageBackgroundWebStyle =
   Platform.OS === "web"
     ? ({
         backgroundColor: palette.page,
-        backgroundImage:
-          "linear-gradient(180deg, #F7FAFF 0%, #EEF4FF 48%, #F8FBFF 100%)",
-        backgroundRepeat: "no-repeat",
       } as unknown as ViewStyle)
     : null;
 const glassPanelWebStyle =
   Platform.OS === "web"
-    ? ({
-        WebkitBackdropFilter: "blur(18px)",
-        backdropFilter: "blur(18px)",
-        boxShadow:
-          "0 26px 70px rgba(8, 16, 42, 0.22), 0 1px 0 rgba(255, 255, 255, 0.22) inset",
-      } as unknown as ViewStyle)
+    ? Shadows.elevated
     : null;
 const searchButtonWebStyle =
   Platform.OS === "web"
     ? ({
-        backgroundImage: "linear-gradient(135deg, #145CFF 0%, #5D37EA 100%)",
-        boxShadow:
-          "0 16px 30px rgba(20, 92, 255, 0.24), 0 0 26px rgba(110, 29, 255, 0.16)",
+        backgroundColor: Colors.primary,
+        ...Shadows.button,
       } as unknown as ViewStyle)
     : null;
 const searchButtonHoverWebStyle =
   Platform.OS === "web"
     ? ({
-        boxShadow:
-          "0 18px 34px rgba(20, 92, 255, 0.28), 0 0 30px rgba(110, 29, 255, 0.18)",
+        backgroundColor: Colors.primaryHover,
       } as unknown as ViewStyle)
     : null;
 const adminBarWebStyle =
   Platform.OS === "web"
     ? ({
-        backgroundImage:
-          "linear-gradient(135deg, rgba(7,13,32,0.98) 0%, rgba(10,32,78,0.96) 55%, rgba(16,71,158,0.90) 100%)",
-        boxShadow:
-          "0 22px 58px rgba(10, 16, 40, 0.22), 0 1px 0 rgba(255,255,255,0.14) inset",
+        backgroundColor: Colors.textPrimary,
+        ...Shadows.elevated,
       } as unknown as ViewStyle)
     : null;
 const adminButtonWebStyle =
@@ -692,15 +686,7 @@ const adminButtonWebStyle =
         boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.18)",
       } as unknown as ViewStyle)
     : null;
-const focusRingWebStyle =
-  Platform.OS === "web"
-    ? ({
-        outlineColor: "rgba(24, 199, 223, 0.82)",
-        outlineOffset: 3,
-        outlineStyle: "solid",
-        outlineWidth: 2,
-      } as unknown as ViewStyle)
-    : null;
+const focusRingWebStyle = InteractionStyles.focusRing;
 type WebPressableState = {
   focused?: boolean;
   hovered?: boolean;
@@ -1107,6 +1093,7 @@ export default function RabaiHomePage({
           styles.content,
           { paddingHorizontal: responsive.horizontalPadding },
         ]}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         <View
@@ -2048,10 +2035,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.sm,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.09,
-    shadowRadius: 34,
+    ...Shadows.elevated,
     width: "100%",
     elevation: 4,
   },
@@ -2075,10 +2059,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 38,
     justifyContent: "center",
-    shadowColor: palette.violet,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius: 14,
+    ...Shadows.button,
     width: 38,
     elevation: 3,
   },
@@ -2181,10 +2162,7 @@ const styles = StyleSheet.create({
   },
   languageButtonActive: {
     borderColor: palette.blue,
-    shadowColor: palette.blue,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 12,
+    ...Shadows.button,
   },
   authSummary: {
     alignItems: "center",
@@ -2419,10 +2397,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
     maxWidth: layout.contentMaxWidth,
     padding: Spacing.lg,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.14,
-    shadowRadius: 30,
+    ...Shadows.floating,
     width: "100%",
     elevation: 5,
   },
@@ -2666,10 +2641,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: Spacing.lg,
     padding: Spacing.md,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.18,
-    shadowRadius: 34,
+    ...Shadows.floating,
     overflow: "visible",
     width: "100%",
     zIndex: 30,
@@ -2687,15 +2659,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: 52,
     minWidth: 158,
-    shadowColor: palette.blue,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
+    ...Shadows.button,
     elevation: 5,
   },
-  heroSearchButtonHover: {
-    shadowOpacity: 0.30,
-  },
+  heroSearchButtonHover: {},
   heroSearchButtonFocus: {
     borderColor: "rgba(24, 199, 223, 0.86)",
   },
@@ -2732,10 +2699,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: Spacing.md,
     paddingVertical: 0,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
+    ...Shadows.card,
   },
   heroCategoryPhone: {
     flexBasis: "47%",
@@ -2752,9 +2716,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(12, 24, 54, 0.42)",
     borderColor: "rgba(255, 255, 255, 0.34)",
   },
-  heroCategoryHoverLift: {
-    shadowOpacity: 0.14,
-  },
+  heroCategoryHoverLift: {},
   heroCategoryFocus: {
     borderColor: "rgba(24, 199, 223, 0.78)",
   },
@@ -2907,10 +2869,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     padding: Spacing.four,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.07,
-    shadowRadius: 28,
+    ...Shadows.card,
     elevation: 2,
   },
   sectionCardHeader: {
@@ -2989,16 +2948,12 @@ const styles = StyleSheet.create({
     minHeight: 76,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.045,
-    shadowRadius: 20,
+    ...Shadows.card,
     elevation: 1,
   },
   quickActionCardHover: {
     backgroundColor: palette.surface,
     borderColor: "rgba(20, 92, 255, 0.24)",
-    shadowOpacity: 0.075,
     transform: [{ translateY: -1 }],
   },
   quickActionCardFocus: {
@@ -3023,16 +2978,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     minHeight: 194,
     padding: Spacing.lg,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.055,
-    shadowRadius: 22,
+    ...Shadows.card,
     elevation: 1,
   },
   listingCardHover: {
     backgroundColor: palette.surface,
     borderColor: "rgba(20, 92, 255, 0.26)",
-    shadowOpacity: 0.09,
     transform: [{ translateY: -1 }],
   },
   listingCardFocus: {
@@ -3201,10 +3152,7 @@ const styles = StyleSheet.create({
     minHeight: 132,
     minWidth: 240,
     padding: Spacing.lg,
-    shadowColor: palette.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.045,
-    shadowRadius: 22,
+    ...Shadows.card,
     elevation: 1,
   },
   supportItemBlue: {

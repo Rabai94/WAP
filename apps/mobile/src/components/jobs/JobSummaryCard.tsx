@@ -1,14 +1,8 @@
 import type { LanguageCode } from "@/i18n/translations";
 import type { SearchJobResult } from "@/services/jobs/jobFlowService";
+import { RabAIButton, RabAICard } from "@/components/ui";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 type JobSummaryCardVariant = "list" | "compact";
 
@@ -21,29 +15,6 @@ type JobSummaryCardProps = {
   returnLabel?: string;
   variant?: JobSummaryCardVariant;
 };
-
-type WebPressableState = {
-  focused?: boolean;
-  hovered?: boolean;
-  pressed?: boolean;
-};
-
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({
-        cursor: "pointer",
-      } as unknown as ViewStyle)
-    : null;
-
-const focusRingWebStyle =
-  Platform.OS === "web"
-    ? ({
-        outlineColor: "rgba(20, 92, 255, 0.72)",
-        outlineOffset: 3,
-        outlineStyle: "solid",
-        outlineWidth: 2,
-      } as unknown as ViewStyle)
-    : null;
 
 export default function JobSummaryCard({
   job,
@@ -65,7 +36,11 @@ export default function JobSummaryCard({
     job.location_label || [job.postal_code, job.city, job.state].filter(Boolean).join(" ");
 
   return (
-    <View style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}>
+    <RabAICard
+      padding="md"
+      style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}
+      variant={isCompact ? "filled" : "outlined"}
+    >
       <View style={styles.body}>
         <View style={styles.header}>
           <View style={styles.titleWrap}>
@@ -110,56 +85,29 @@ export default function JobSummaryCard({
           </Text>
         ) : null}
         <View style={styles.actionRow}>
-          <Pressable
+          <RabAIButton
             accessibilityHint={
               returnLabel
                 ? `Deschide vizualizarea rapidă. ${returnLabel}.`
                 : "Deschide vizualizarea rapidă a jobului."
             }
             accessibilityLabel={`Vezi jobul ${displayTitle}`}
-            accessibilityRole="button"
             onPress={() => onAction(job, "view")}
-            style={(state) => {
-              const webState = state as WebPressableState;
-
-              return [
-                styles.viewButton,
-                isCompact && styles.actionButtonCompact,
-                pointerWebStyle,
-                webState.hovered && styles.viewButtonHover,
-                webState.pressed && styles.actionButtonPressed,
-                webState.focused && focusRingWebStyle,
-              ];
-            }}
-          >
-            <Text numberOfLines={1} style={styles.viewButtonText}>
-              Vezi jobul
-            </Text>
-          </Pressable>
-          <Pressable
+            size="sm"
+            style={[styles.actionButton, isCompact && styles.actionButtonCompact]}
+            title="Vezi jobul"
+            variant="outline"
+          />
+          <RabAIButton
             accessibilityLabel={`Aplică la jobul ${displayTitle}`}
-            accessibilityRole="button"
             onPress={() => onAction(job, "apply")}
-            style={(state) => {
-              const webState = state as WebPressableState;
-
-              return [
-                styles.applyButton,
-                isCompact && styles.actionButtonCompact,
-                pointerWebStyle,
-                webState.hovered && styles.applyButtonHover,
-                webState.pressed && styles.actionButtonPressed,
-                webState.focused && focusRingWebStyle,
-              ];
-            }}
-          >
-            <Text numberOfLines={1} style={styles.applyButtonText}>
-              Aplică
-            </Text>
-          </Pressable>
+            size="sm"
+            style={[styles.actionButton, isCompact && styles.actionButtonCompact]}
+            title="Aplică"
+          />
         </View>
       </View>
-    </View>
+    </RabAICard>
   );
 }
 
@@ -287,25 +235,13 @@ function formatPublishedDate(value: string, language: LanguageCode) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xl,
-    borderWidth: 1,
     justifyContent: "space-between",
-    padding: Spacing.lg,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    elevation: 1,
   },
   cardList: {
     marginBottom: Spacing.md,
     minHeight: 190,
   },
   cardCompact: {
-    backgroundColor: "rgba(243, 247, 255, 0.78)",
-    borderColor: "rgba(218, 227, 245, 0.70)",
     flexBasis: 220,
     flexGrow: 1,
     minHeight: 194,
@@ -325,13 +261,13 @@ const styles = StyleSheet.create({
     minWidth: 180,
   },
   title: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: 22,
+    lineHeight: Typography.lineHeight.body,
   },
   company: {
-    color: "#17213F",
+    color: Colors.textBody,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
     marginTop: Spacing.xs,
@@ -339,7 +275,7 @@ const styles = StyleSheet.create({
   meta: {
     color: Colors.textMuted,
     fontSize: Typography.small,
-    marginTop: 3,
+    marginTop: Spacing.compact,
   },
   publishedAt: {
     color: Colors.textMuted,
@@ -353,17 +289,17 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   infoPill: {
-    backgroundColor: "#F7FAFF",
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.borderMuted,
+    borderRadius: Radius.control,
     borderWidth: 1,
     minWidth: 150,
     padding: Spacing.md,
   },
   infoPillCompact: {
-    backgroundColor: Colors.white,
-    borderColor: "#EEF2FB",
-    borderRadius: Radius.round,
+    backgroundColor: Colors.surface,
+    borderColor: Colors.borderMuted,
+    borderRadius: Radius.pill,
     minWidth: 0,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
@@ -371,10 +307,10 @@ const styles = StyleSheet.create({
   infoLabel: {
     color: Colors.textMuted,
     fontSize: Typography.small,
-    marginBottom: 3,
+    marginBottom: Spacing.compact,
   },
   infoValue: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
   },
@@ -388,59 +324,20 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.control,
     justifyContent: "flex-end",
     marginLeft: "auto",
   },
   date: {
-    color: "#8B96B3",
+    color: Colors.textMuted,
     flex: 1,
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
   },
-  viewButton: {
-    alignItems: "center",
-    backgroundColor: "#F3F7FF",
-    borderColor: "#D9E5FF",
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 0,
+  actionButton: {
+    flexGrow: 1,
   },
   actionButtonCompact: {
-    minHeight: 44,
-    paddingHorizontal: Spacing.xl,
-  },
-  viewButtonText: {
-    color: "#145CFF",
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  viewButtonHover: {
-    backgroundColor: "#E9F0FF",
-  },
-  applyButton: {
-    alignItems: "center",
-    backgroundColor: Colors.brand,
-    borderColor: Colors.brand,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: Spacing.lg,
-  },
-  applyButtonHover: {
-    backgroundColor: Colors.brandDeep,
-    borderColor: Colors.brandDeep,
-  },
-  applyButtonText: {
-    color: Colors.white,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  actionButtonPressed: {
-    opacity: 0.82,
+    flexBasis: 104,
   },
 });

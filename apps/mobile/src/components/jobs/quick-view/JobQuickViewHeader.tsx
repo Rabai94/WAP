@@ -1,15 +1,22 @@
 import AppIcon from "@/components/navigation/AppIcon";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import {
+  Colors,
+  ControlHeight,
+  InteractionStyles,
+  Radius,
+  Shadows,
+  Spacing,
+  TextShadows,
+  Typography,
+} from "@/theme";
 import { useState } from "react";
 import {
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
-  type ViewStyle,
 } from "react-native";
 import { getInitials } from "./CompanyPublicSummary";
 
@@ -28,11 +35,6 @@ type JobQuickViewHeaderProps = {
   verified: boolean;
 };
 
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
-
 export default function JobQuickViewHeader({
   companyCoverUrl,
   companyLogoUrl,
@@ -49,6 +51,8 @@ export default function JobQuickViewHeader({
   const logoSize = isPhone ? 48 : 64;
   const [failedCoverUrl, setFailedCoverUrl] = useState<string | null>(null);
   const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
+  const [closeFocused, setCloseFocused] = useState(false);
+  const [closeHovered, setCloseHovered] = useState(false);
   const resolvedCoverUrl = companyCoverUrl?.trim() || null;
   const resolvedLogoUrl = companyLogoUrl?.trim() || null;
 
@@ -64,18 +68,23 @@ export default function JobQuickViewHeader({
             style={styles.coverImage}
           />
         ) : null}
-        <View pointerEvents="none" style={styles.coverOverlay} />
-        <View pointerEvents="none" style={styles.neutralAccent} />
+        <View style={[styles.coverOverlay, styles.nonInteractive]} />
+        <View style={[styles.neutralAccent, styles.nonInteractive]} />
 
         <Pressable
           accessibilityLabel="Închide"
           accessibilityRole="button"
+          onBlur={() => setCloseFocused(false)}
+          onFocus={() => setCloseFocused(true)}
+          onHoverIn={() => setCloseHovered(true)}
+          onHoverOut={() => setCloseHovered(false)}
           onPress={onClose}
-          style={({ hovered, pressed }) => [
+          style={({ pressed }) => [
             styles.closeButton,
-            pointerWebStyle,
-            hovered && styles.closeButtonHover,
+            InteractionStyles.pointer,
+            closeHovered && styles.closeButtonHover,
             pressed && styles.closeButtonPressed,
+            closeFocused && InteractionStyles.focusRing,
           ]}
           testID="job-quick-view-close"
         >
@@ -162,7 +171,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   cover: {
-    backgroundColor: "#17213F",
+    backgroundColor: Colors.textPrimary,
     overflow: "visible",
     position: "relative",
   },
@@ -171,10 +180,10 @@ const styles = StyleSheet.create({
   },
   coverOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(6, 14, 34, 0.68)",
+    backgroundColor: Colors.overlay,
   },
   neutralAccent: {
-    backgroundColor: "rgba(91, 119, 184, 0.16)",
+    backgroundColor: Colors.primarySoft,
     borderRadius: Radius.round,
     height: 180,
     position: "absolute",
@@ -182,23 +191,27 @@ const styles = StyleSheet.create({
     top: -76,
     transform: [{ rotate: "14deg" }],
     width: 260,
+    opacity: 0.16,
+  },
+  nonInteractive: {
+    pointerEvents: "none",
   },
   closeButton: {
     alignItems: "center",
-    backgroundColor: "rgba(4, 10, 25, 0.62)",
-    borderColor: "rgba(255, 255, 255, 0.32)",
+    backgroundColor: Colors.overlay,
+    borderColor: Colors.borderStrong,
     borderRadius: Radius.round,
     borderWidth: 1,
-    height: 44,
+    height: ControlHeight.minimumTouch,
     justifyContent: "center",
     position: "absolute",
     right: Spacing.three,
     top: Spacing.three,
-    width: 44,
+    width: ControlHeight.minimumTouch,
     zIndex: 2,
   },
   closeButtonHover: {
-    backgroundColor: "rgba(4, 10, 25, 0.82)",
+    backgroundColor: Colors.textPrimary,
   },
   closeButtonPressed: {
     opacity: 0.82,
@@ -217,9 +230,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.headline,
     fontWeight: Typography.fontWeight.black,
     lineHeight: 34,
-    textShadowColor: "rgba(0, 0, 0, 0.38)",
-    textShadowOffset: { height: 1, width: 0 },
-    textShadowRadius: 4,
+    ...TextShadows.onImage,
   },
   titlePhone: {
     fontSize: Typography.h4,
@@ -232,14 +243,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   companyName: {
-    color: "rgba(255, 255, 255, 0.92)",
+    color: Colors.onPrimary,
     flexShrink: 1,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
   },
   verifiedBadge: {
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.94)",
+    backgroundColor: Colors.surface,
     borderRadius: Radius.round,
     flexDirection: "row",
     gap: Spacing.xs,
@@ -252,7 +263,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.extraBold,
   },
   verifiedText: {
-    color: "#116149",
+    color: Colors.success,
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
   },
@@ -266,11 +277,8 @@ const styles = StyleSheet.create({
     left: Spacing.screen,
     overflow: "hidden",
     position: "absolute",
-    shadowColor: "#06102B",
-    shadowOffset: { height: 6, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
     zIndex: 2,
+    ...Shadows.elevated,
   },
   logoImage: {
     height: "100%",

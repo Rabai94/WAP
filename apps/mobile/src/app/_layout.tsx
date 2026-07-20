@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import DesktopAppShell from "@/components/navigation/DesktopAppShell";
-import FloatingMessagesButton from "@/components/navigation/FloatingMessagesButton";
 import { LanguageProvider } from "../i18n/LanguageProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
 
@@ -30,7 +29,6 @@ export default function RootLayout() {
         <AuthProvider>
           <View style={styles.root}>
             <AuthenticatedAppFrame />
-            <FloatingMessagesButton />
           </View>
         </AuthProvider>
       </LanguageProvider>

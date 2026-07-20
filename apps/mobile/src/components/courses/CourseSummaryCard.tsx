@@ -1,16 +1,10 @@
 import type { LanguageCode } from "@/i18n/translations";
 import { buildCourseDetailsPath } from "@/services/courses/courseNavigation";
 import type { SearchCourseResult } from "@/services/courses/courseService";
+import { RabAICard } from "@/components/ui";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 type CourseSummaryCardVariant = "list" | "compact";
 
@@ -21,29 +15,6 @@ type CourseSummaryCardProps = {
   returnTo: string;
   variant?: CourseSummaryCardVariant;
 };
-
-type WebPressableState = {
-  focused?: boolean;
-  hovered?: boolean;
-  pressed?: boolean;
-};
-
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({
-        cursor: "pointer",
-      } as unknown as ViewStyle)
-    : null;
-
-const focusRingWebStyle =
-  Platform.OS === "web"
-    ? ({
-        outlineColor: "rgba(20, 92, 255, 0.72)",
-        outlineOffset: 3,
-        outlineStyle: "solid",
-        outlineWidth: 2,
-      } as unknown as ViewStyle)
-    : null;
 
 export default function CourseSummaryCard({
   course,
@@ -58,30 +29,19 @@ export default function CourseSummaryCard({
   const categoryLabel = getCategoryLabel(course, language);
 
   return (
-    <Pressable
-      accessibilityHint={
+    <RabAICard
+      accessibilityLabel={
         returnLabel
-          ? `Deschide pagina de detaliu a cursului. ${returnLabel}.`
-          : "Deschide pagina de detaliu a cursului."
+          ? `Vezi cursul ${course.title}. ${returnLabel}.`
+          : `Vezi cursul ${course.title}`
       }
-      accessibilityLabel={`Vezi cursul ${course.title}`}
-      accessibilityRole="button"
+      interactive
       onPress={() => {
         router.push(detailsPath as any);
       }}
-      style={(state) => {
-        const webState = state as WebPressableState;
-
-        return [
-          styles.card,
-          isCompact ? styles.cardCompact : styles.cardList,
-          pointerWebStyle,
-          webState.hovered && styles.cardHover,
-          webState.pressed && styles.cardPressed,
-          webState.focused && styles.cardFocus,
-          webState.focused && focusRingWebStyle,
-        ];
-      }}
+      padding="md"
+      style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}
+      variant={isCompact ? "filled" : "outlined"}
     >
       <View style={styles.body}>
         <View style={styles.header}>
@@ -151,7 +111,7 @@ export default function CourseSummaryCard({
           </Text>
         </View>
       </View>
-    </Pressable>
+    </RabAICard>
   );
 }
 
@@ -267,39 +227,16 @@ function formatDate(value: string | null, language: LanguageCode) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xl,
-    borderWidth: 1,
     justifyContent: "space-between",
-    padding: Spacing.lg,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    elevation: 1,
   },
   cardList: {
     marginBottom: Spacing.md,
     minHeight: 220,
   },
   cardCompact: {
-    backgroundColor: "rgba(243, 247, 255, 0.78)",
-    borderColor: "rgba(218, 227, 245, 0.70)",
     flexBasis: 220,
     flexGrow: 1,
     minHeight: 194,
-  },
-  cardHover: {
-    borderColor: "rgba(110, 29, 255, 0.30)",
-    shadowOpacity: 0.09,
-    transform: [{ translateY: -1 }],
-  },
-  cardPressed: {
-    transform: [{ translateY: 0 }],
-  },
-  cardFocus: {
-    borderColor: "#145CFF",
   },
   body: {
     gap: Spacing.sm,
@@ -316,13 +253,13 @@ const styles = StyleSheet.create({
     minWidth: 180,
   },
   title: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: 22,
+    lineHeight: Typography.lineHeight.body,
   },
   provider: {
-    color: "#17213F",
+    color: Colors.textBody,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
     marginTop: Spacing.xs,
@@ -330,7 +267,7 @@ const styles = StyleSheet.create({
   meta: {
     color: Colors.textMuted,
     fontSize: Typography.small,
-    marginTop: 3,
+    marginTop: Spacing.compact,
   },
   startDate: {
     color: Colors.textMuted,
@@ -349,17 +286,17 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   infoPill: {
-    backgroundColor: "#F7FAFF",
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.borderMuted,
+    borderRadius: Radius.control,
     borderWidth: 1,
     minWidth: 142,
     padding: Spacing.md,
   },
   infoPillCompact: {
-    backgroundColor: Colors.white,
-    borderColor: "#EEF2FB",
-    borderRadius: Radius.round,
+    backgroundColor: Colors.surface,
+    borderColor: Colors.borderMuted,
+    borderRadius: Radius.pill,
     minWidth: 0,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
@@ -367,10 +304,10 @@ const styles = StyleSheet.create({
   infoLabel: {
     color: Colors.textMuted,
     fontSize: Typography.small,
-    marginBottom: 3,
+    marginBottom: Spacing.compact,
   },
   infoValue: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
   },
@@ -382,31 +319,30 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   date: {
-    color: "#8B96B3",
+    color: Colors.textMuted,
     flex: 1,
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
   },
   viewButton: {
     alignItems: "center",
-    backgroundColor: "#F1E9FF",
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.control,
     justifyContent: "center",
     minHeight: 44,
     paddingHorizontal: Spacing.lg,
     paddingVertical: 0,
   },
   viewButtonCompact: {
-    backgroundColor: "#6E1DFF",
-    minHeight: 34,
+    backgroundColor: Colors.primary,
     paddingHorizontal: Spacing.md,
   },
   viewButtonText: {
-    color: "#5D37EA",
+    color: Colors.primaryPressed,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
   },
   viewButtonTextCompact: {
-    color: Colors.white,
+    color: Colors.onPrimary,
   },
 });

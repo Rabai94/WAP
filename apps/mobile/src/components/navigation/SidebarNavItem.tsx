@@ -1,6 +1,14 @@
 import AppIcon, { type AppIconName } from "@/components/navigation/AppIcon";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
-import { Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import {
+  Colors,
+  ControlHeight,
+  InteractionStyles,
+  Radius,
+  Spacing,
+  Typography,
+} from "@/theme";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type SidebarNavItemProps = {
   active?: boolean;
@@ -12,32 +20,6 @@ type SidebarNavItemProps = {
   soonLabel?: string;
 };
 
-type WebPressableState = {
-  focused?: boolean;
-  hovered?: boolean;
-  pressed?: boolean;
-};
-
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
-
-const disabledWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "not-allowed" } as unknown as ViewStyle)
-    : null;
-
-const focusRingWebStyle =
-  Platform.OS === "web"
-    ? ({
-        outlineColor: "rgba(20, 92, 255, 0.55)",
-        outlineOffset: 2,
-        outlineStyle: "solid",
-        outlineWidth: 2,
-      } as unknown as ViewStyle)
-    : null;
-
 export default function SidebarNavItem({
   active = false,
   collapsed,
@@ -47,7 +29,10 @@ export default function SidebarNavItem({
   onPress,
   soonLabel,
 }: SidebarNavItemProps) {
-  const color = disabled
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const isDisabled = disabled || !onPress;
+  const color = isDisabled
     ? Colors.placeholder
     : active
       ? Colors.brandDeep
@@ -57,23 +42,23 @@ export default function SidebarNavItem({
     <Pressable
       accessibilityLabel={`${label}${soonLabel ? `. ${soonLabel}` : ""}`}
       accessibilityRole="button"
-      accessibilityState={{ disabled, selected: active }}
-      disabled={disabled}
+      accessibilityState={{ disabled: isDisabled, selected: active }}
+      disabled={isDisabled}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       onPress={onPress}
-      style={(state) => {
-        const webState = state as WebPressableState;
-
-        return [
-          styles.item,
-          collapsed && styles.itemCollapsed,
-          active && styles.itemActive,
-          disabled && styles.itemDisabled,
-          disabled ? disabledWebStyle : pointerWebStyle,
-          webState.hovered && !disabled && !active && styles.itemHovered,
-          webState.pressed && !disabled && styles.itemPressed,
-          webState.focused && focusRingWebStyle,
-        ];
-      }}
+      style={({ pressed }) => [
+        styles.item,
+        collapsed && styles.itemCollapsed,
+        active && styles.itemActive,
+        isDisabled && styles.itemDisabled,
+        !isDisabled && InteractionStyles.pointer,
+        hovered && !isDisabled && !active && styles.itemHovered,
+        pressed && !isDisabled && styles.itemPressed,
+        focused && InteractionStyles.focusRing,
+      ]}
     >
       {active ? <View style={styles.activeMarker} /> : null}
 
@@ -107,7 +92,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: "row",
     gap: Spacing.xl,
-    minHeight: 44,
+    minHeight: ControlHeight.minimumTouch,
     paddingHorizontal: Spacing.xl,
     position: "relative",
     width: "100%",
@@ -118,16 +103,16 @@ const styles = StyleSheet.create({
   },
   itemActive: {
     backgroundColor: Colors.brandSoft,
-    borderColor: "rgba(20, 92, 255, 0.13)",
+    borderColor: Colors.informationBorder,
   },
   itemDisabled: {
     opacity: 0.72,
   },
   itemHovered: {
-    backgroundColor: "rgba(234, 241, 255, 0.58)",
+    backgroundColor: Colors.surfaceInteractive,
   },
   itemPressed: {
-    opacity: 0.78,
+    backgroundColor: Colors.selection,
   },
   activeMarker: {
     backgroundColor: Colors.brand,

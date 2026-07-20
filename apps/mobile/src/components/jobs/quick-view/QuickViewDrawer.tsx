@@ -1,7 +1,15 @@
-import { Colors, Radius, Shadows, Spacing } from "@/theme";
-import type { ReactNode } from "react";
-import { useEffect } from "react";
 import {
+  Colors,
+  InteractionStyles,
+  Layers,
+  Radius,
+  Shadows,
+  Spacing,
+} from "@/theme";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  AccessibilityInfo,
+  findNodeHandle,
   Modal,
   Platform,
   Pressable,
@@ -9,7 +17,6 @@ import {
   StyleSheet,
   useWindowDimensions,
   View,
-  type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -22,22 +29,6 @@ type QuickViewDrawerProps = {
   visible: boolean;
 };
 
-type GlobalKeyboardTarget = {
-  addEventListener?: (
-    type: "keydown",
-    listener: (event: { key?: string }) => void
-  ) => void;
-  removeEventListener?: (
-    type: "keydown",
-    listener: (event: { key?: string }) => void
-  ) => void;
-};
-
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
-
 export default function QuickViewDrawer({
   accessibilityLabel,
   children,
@@ -48,6 +39,9 @@ export default function QuickViewDrawer({
 }: QuickViewDrawerProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const drawerRef = useRef<View>(null);
+  const returnFocusRef = useRef<{ focus?: () => void } | null>(null);
+  const [drawerFocused, setDrawerFocused] = useState(false);
   const isPhone = width < 640;
   const isTablet = width >= 640 && width < 1120;
   const drawerWidth = isPhone
@@ -57,22 +51,26 @@ export default function QuickViewDrawer({
       : Math.min(840, width * 0.9);
 
   useEffect(() => {
-    if (!visible || Platform.OS !== "web") {
+    if (!visible) {
       return;
     }
 
-    const keyboardTarget = globalThis as unknown as GlobalKeyboardTarget;
-    const handleKeyDown = (event: { key?: string }) => {
-      if (event.key === "Escape") {
-        onRequestClose();
+    if (Platform.OS === "web") {
+      returnFocusRef.current = globalThis.document
+        ?.activeElement as { focus?: () => void } | null;
+    }
+
+    const focusTimeoutId = setTimeout(() => focusView(drawerRef.current), 0);
+
+    return () => {
+      clearTimeout(focusTimeoutId);
+      if (Platform.OS === "web") {
+        const target = returnFocusRef.current;
+        returnFocusRef.current = null;
+        setTimeout(() => target?.focus?.(), 0);
       }
     };
-
-    keyboardTarget.addEventListener?.("keydown", handleKeyDown);
-    return () => {
-      keyboardTarget.removeEventListener?.("keydown", handleKeyDown);
-    };
-  }, [onRequestClose, visible]);
+  }, [visible]);
 
   return (
     <Modal
@@ -87,17 +85,32 @@ export default function QuickViewDrawer({
           accessibilityLabel="Închide vizualizarea rapidă"
           accessibilityRole="button"
           onPress={onRequestClose}
-          style={[styles.backdrop, pointerWebStyle]}
+          style={[styles.backdrop, InteractionStyles.pointer]}
         />
         <View
           accessibilityLabel={accessibilityLabel}
           accessibilityViewIsModal
+          focusable
+          onAccessibilityEscape={onRequestClose}
+          onBlur={(event) => {
+            if (event.target === event.currentTarget) {
+              setDrawerFocused(false);
+            }
+          }}
+          onFocus={(event) => {
+            if (event.target === event.currentTarget) {
+              setDrawerFocused(true);
+            }
+          }}
+          ref={drawerRef}
           role="dialog"
           style={[
             styles.drawer,
             { width: drawerWidth },
             isPhone ? styles.drawerPhone : styles.drawerRaised,
+            drawerFocused && InteractionStyles.focusRing,
           ]}
+          tabIndex={-1}
           testID="job-quick-view-drawer"
         >
           <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -129,10 +142,11 @@ const styles = StyleSheet.create({
   modalRoot: {
     flex: 1,
     justifyContent: "flex-end",
+    zIndex: Layers.modal,
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(6, 14, 34, 0.54)",
+    backgroundColor: Colors.overlay,
   },
   drawer: {
     alignSelf: "flex-end",
@@ -146,13 +160,13 @@ const styles = StyleSheet.create({
   drawerRaised: {
     borderBottomLeftRadius: Radius.xxl,
     borderTopLeftRadius: Radius.xxl,
-    ...Shadows.card,
+    ...Shadows.elevated,
   },
   drawerPhone: {
     borderLeftWidth: 0,
   },
   header: {
-    backgroundColor: "#17213F",
+    backgroundColor: Colors.textPrimary,
     flexShrink: 0,
   },
   body: {
@@ -172,3 +186,19 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.three,
   },
 });
+
+function focusView(node: View | null) {
+  if (!node) {
+    return;
+  }
+
+  if (Platform.OS === "web") {
+    (node as View & { focus?: () => void }).focus?.();
+    return;
+  }
+
+  const handle = findNodeHandle(node);
+  if (handle) {
+    AccessibilityInfo.setAccessibilityFocus(handle);
+  }
+}

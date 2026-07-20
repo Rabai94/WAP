@@ -1,7 +1,14 @@
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Input, Screen } from "@/components/ui";
+import {
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  RabAIButton as Button,
+  RabAICard as Card,
+  RabAIInput as Input,
+} from "@/components/ui";
 import type { OrganizationType } from "@/domain/account";
-import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -11,8 +18,8 @@ import {
 } from "@/services/company/companyService";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 type FormErrors = Partial<
   Record<
@@ -48,9 +55,9 @@ export default function OrganizationCreateScreen() {
 
 function OrganizationCreateContent() {
   const router = useRouter();
-  const responsive = useResponsiveLayout();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const { user } = useAuth();
+  const userId = user?.id;
   const [organizationType, setOrganizationType] =
     useState<OrganizationType>("company");
   const [company, setCompany] = useState<CompanyProfile | null>(null);
@@ -77,60 +84,67 @@ function OrganizationCreateContent() {
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [loadError, setLoadError] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const companyLoadRequestId = useRef(0);
   const canEditOrganizationFields = !submitting;
-  const canSaveCompany = !loading && !submitting && organizationType === "company";
+  const canSaveCompany = !submitting && organizationType === "company";
 
-  useEffect(() => {
-    let mounted = true;
+  const loadCompany = useCallback(async () => {
+    const requestId = companyLoadRequestId.current + 1;
+    companyLoadRequestId.current = requestId;
 
-    async function loadCompany() {
-      if (!user?.id) {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const nextCompany = await fetchOwnCompany(userId);
+
+      if (companyLoadRequestId.current !== requestId) {
         return;
       }
 
-      setLoading(true);
-      setLoadError("");
+      setCompany(nextCompany);
 
-      try {
-        const nextCompany = await fetchOwnCompany(user.id);
-
-        if (!mounted) {
-          return;
-        }
-
-        setCompany(nextCompany);
-
-        if (nextCompany) {
-          setName(nextCompany.name ?? "");
-          setLegalName(nextCompany.legal_name ?? "");
-          setCountry(nextCompany.country_code ?? "DE");
-          setIndustry(nextCompany.industry ?? "");
-          setCity(nextCompany.city ?? "");
-          setPostalCode(nextCompany.postal_code ?? "");
-          setAddress(nextCompany.address ?? "");
-          setWebsite(nextCompany.website ?? "");
-          setEmployeeCountRange(nextCompany.employee_count_range ?? "");
-          setDescription(nextCompany.description ?? "");
-        }
-      } catch (error) {
-        if (mounted) {
-          setLoadError(readError(error, t));
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+      if (nextCompany) {
+        setName(nextCompany.name ?? "");
+        setLegalName(nextCompany.legal_name ?? "");
+        setCountry(nextCompany.country_code ?? "DE");
+        setIndustry(nextCompany.industry ?? "");
+        setCity(nextCompany.city ?? "");
+        setPostalCode(nextCompany.postal_code ?? "");
+        setAddress(nextCompany.address ?? "");
+        setWebsite(nextCompany.website ?? "");
+        setEmployeeCountRange(nextCompany.employee_count_range ?? "");
+        setDescription(nextCompany.description ?? "");
+      }
+    } catch (error) {
+      if (companyLoadRequestId.current === requestId) {
+        setLoadError(readError(error, t));
+      }
+    } finally {
+      if (companyLoadRequestId.current === requestId) {
+        setLoading(false);
       }
     }
+  }, [t, userId]);
 
-    void loadCompany();
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void loadCompany();
+    }, 0);
 
     return () => {
-      mounted = false;
+      clearTimeout(timeoutId);
+      companyLoadRequestId.current += 1;
     };
-  }, [t, user?.id]);
+  }, [loadCompany]);
 
   async function handleSubmit() {
     if (submitting || organizationType !== "company") {
@@ -155,7 +169,7 @@ function OrganizationCreateContent() {
     }
 
     setSubmitting(true);
-    setLoadError("");
+    setSaveError("");
 
     try {
       await saveOwnCompany({
@@ -173,7 +187,7 @@ function OrganizationCreateContent() {
 
       router.replace("/organizations" as any);
     } catch (error) {
-      setLoadError(readError(error, t));
+      setSaveError(readError(error, t));
     } finally {
       setSubmitting(false);
     }
@@ -190,48 +204,58 @@ function OrganizationCreateContent() {
   }
 
   return (
-    <Screen
-      centered={false}
-      style={{
-        paddingHorizontal: responsive.horizontalPadding,
-        paddingVertical: responsive.isMobile ? Spacing.three : Spacing.screen,
-      }}
+    <PageContainer
+      contentStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      maxWidth="form"
+      scroll
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            gap: responsive.isMobile ? Spacing.sm : Spacing.md,
-            maxWidth: responsive.contentMaxWidth,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Header
-          title={t("organizations.createTitle")}
-          subtitle={t("organizations.createSubtitle")}
+      <PageHeader
+        description={t("organizations.createSubtitle")}
+        title={t("organizations.createTitle")}
+      />
+
+      {loading ? (
+        <LoadingState title={t("organizations.createLoading")} />
+      ) : loadError ? (
+        <ErrorState
+          description={loadError}
+          onRetry={() => void loadCompany()}
+          retryLabel={getRetryLabel(language)}
+          title={t("organizations.loadError")}
         />
+      ) : (
+        <>
+        {saveError ? (
+          <ErrorState
+            compact
+            description={saveError}
+            title={t("organizations.saveError")}
+          />
+        ) : null}
 
         <Card title={t("organizations.type")}>
-          <View style={styles.optionGrid}>
+          <View
+            accessibilityLabel={t("organizations.type")}
+            accessibilityRole="radiogroup"
+            style={styles.optionGrid}
+          >
             {organizationTypes.map((type) => {
               const active = organizationType === type;
               const disabled = type === "institution";
 
               return (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled, selected: active }}
+                <Card
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active, disabled }}
                   disabled={disabled}
+                  interactive
                   key={type}
                   onPress={() => setOrganizationType(type)}
-                  style={[
-                    styles.typeButton,
-                    responsive.isMobile && styles.fullWidthItem,
-                    active && styles.typeButtonActive,
-                    disabled && styles.typeButtonDisabled,
-                  ]}
+                  padding="sm"
+                  selected={active}
+                  style={styles.typeButton}
+                  variant="filled"
                 >
                   <Text
                     style={[
@@ -250,7 +274,7 @@ function OrganizationCreateContent() {
                       {t("organizations.academyPrepared")}
                     </Text>
                   ) : null}
-                </Pressable>
+                </Card>
               );
             })}
           </View>
@@ -271,16 +295,6 @@ function OrganizationCreateContent() {
             </Text>
           </Card>
         ) : null}
-
-        {loading ? (
-          <Card>
-            <Text style={styles.mutedText}>
-              {t("organizations.createLoading")}
-            </Text>
-          </Card>
-        ) : null}
-
-        {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
 
         <Card title={t("organizations.verificationStatusTitle")}>
           <View style={styles.statusBox}>
@@ -307,58 +321,47 @@ function OrganizationCreateContent() {
         <Card title={t("organizations.organizationData")}>
           <Input
             editable={canEditOrganizationFields}
+            errorText={errors.name}
             label={t("organizations.displayName")}
             onChangeText={setName}
             placeholder={t("organizations.displayNamePlaceholder")}
+            required
             value={name}
           />
-          <FieldError message={errors.name} />
 
           <Input
             editable={canEditOrganizationFields}
+            errorText={errors.legalName}
             label={t("organizations.legalName")}
             onChangeText={setLegalName}
             placeholder={t("organizations.legalNamePlaceholder")}
+            required
             value={legalName}
           />
-          <FieldError message={errors.legalName} />
 
-          <View
-            style={[
-              styles.twoColumn,
-              responsive.isMobile && styles.twoColumnMobile,
-            ]}
-          >
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
+          <View style={styles.twoColumn}>
+            <View style={styles.column}>
               <Input
                 autoCapitalize="characters"
                 editable={canEditOrganizationFields}
+                errorText={errors.country}
                 label={t("organizations.country")}
                 onChangeText={setCountry}
                 placeholder={t("organizations.countryPlaceholder")}
+                required
                 value={country}
               />
-              <FieldError message={errors.country} />
             </View>
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
+            <View style={styles.column}>
               <Input
                 editable={canEditOrganizationFields}
+                errorText={errors.city}
                 label={t("common.city")}
                 onChangeText={setCity}
                 placeholder={t("organizations.cityPlaceholder")}
+                required
                 value={city}
               />
-              <FieldError message={errors.city} />
             </View>
           </View>
 
@@ -370,18 +373,8 @@ function OrganizationCreateContent() {
             value={address}
           />
 
-          <View
-            style={[
-              styles.twoColumn,
-              responsive.isMobile && styles.twoColumnMobile,
-            ]}
-          >
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
+          <View style={styles.twoColumn}>
+            <View style={styles.column}>
               <Input
                 autoCapitalize="none"
                 editable={canEditOrganizationFields}
@@ -392,12 +385,7 @@ function OrganizationCreateContent() {
                 value={contactEmail}
               />
             </View>
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
+            <View style={styles.column}>
               <Input
                 editable={canEditOrganizationFields}
                 keyboardType="phone-pad"
@@ -412,22 +400,23 @@ function OrganizationCreateContent() {
           <Input
             autoCapitalize="none"
             editable={canEditOrganizationFields}
+            errorText={errors.website}
             keyboardType="url"
             label={t("organizations.website")}
             onChangeText={setWebsite}
             placeholder="https://example.com"
             value={website}
           />
-          <FieldError message={errors.website} />
 
           <Input
             editable={canEditOrganizationFields}
+            errorText={errors.industry}
             label={t("organizations.activityArea")}
             onChangeText={setIndustry}
             placeholder={t("organizations.industryPlaceholder")}
+            required
             value={industry}
           />
-          <FieldError message={errors.industry} />
 
           <Input
             editable={canEditOrganizationFields}
@@ -435,22 +424,11 @@ function OrganizationCreateContent() {
             multiline
             onChangeText={setDescription}
             placeholder={t("organizations.descriptionPlaceholder")}
-            style={styles.bigInput}
             value={description}
           />
 
-          <View
-            style={[
-              styles.twoColumn,
-              responsive.isMobile && styles.twoColumnMobile,
-            ]}
-          >
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
+          <View style={styles.twoColumn}>
+            <View style={styles.column}>
               <Input
                 editable={canEditOrganizationFields}
                 label={t("organizations.registrationNumber")}
@@ -459,12 +437,7 @@ function OrganizationCreateContent() {
                 value={registrationNumber}
               />
             </View>
-            <View
-              style={[
-                styles.column,
-                responsive.isMobile && styles.fullWidthItem,
-              ]}
-            >
+            <View style={styles.column}>
               <Input
                 editable={canEditOrganizationFields}
                 label={t("organizations.vatId")}
@@ -489,32 +462,26 @@ function OrganizationCreateContent() {
               <Text style={styles.optionLabel}>
                 {t("organizations.courseDeliveryMode")}
               </Text>
-              <View style={styles.optionGrid}>
+              <View
+                accessibilityLabel={t("organizations.courseDeliveryMode")}
+                accessibilityRole="radiogroup"
+                style={styles.optionGrid}
+              >
                 {courseDeliveryModes.map((mode) => {
                   const active = courseDeliveryMode === mode;
 
                   return (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
+                    <Button
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: active }}
                       disabled={submitting}
                       key={mode}
                       onPress={() => setCourseDeliveryMode(mode)}
-                      style={[
-                        styles.optionButton,
-                        active && styles.optionButtonActive,
-                        submitting && styles.optionButtonDisabled,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          active && styles.optionTextActive,
-                        ]}
-                      >
-                        {t(`organizations.courseDeliveryMode.${mode}`)}
-                      </Text>
-                    </Pressable>
+                      size="sm"
+                      style={styles.optionButton}
+                      title={t(`organizations.courseDeliveryMode.${mode}`)}
+                      variant={active ? "secondary" : "outline"}
+                    />
                   );
                 })}
               </View>
@@ -529,33 +496,26 @@ function OrganizationCreateContent() {
           ) : (
             <>
               <Text style={styles.optionLabel}>{t("organizations.employeeCount")}</Text>
-              <View style={styles.optionGrid}>
+              <View
+                accessibilityLabel={t("organizations.employeeCount")}
+                accessibilityRole="radiogroup"
+                style={styles.optionGrid}
+              >
                 {employeeCountOptions.map((option) => {
                   const active = employeeCountRange === option;
 
                   return (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
+                    <Button
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: active }}
                       disabled={submitting || organizationType !== "company"}
                       key={option}
                       onPress={() => setEmployeeCountRange(option)}
-                      style={[
-                        styles.optionButton,
-                        active && styles.optionButtonActive,
-                        (submitting || organizationType !== "company") &&
-                          styles.optionButtonDisabled,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          active && styles.optionTextActive,
-                        ]}
-                      >
-                        {option}
-                      </Text>
-                    </Pressable>
+                      size="sm"
+                      style={styles.optionButton}
+                      title={option}
+                      variant={active ? "secondary" : "outline"}
+                    />
                   );
                 })}
               </View>
@@ -563,33 +523,25 @@ function OrganizationCreateContent() {
               <Text style={styles.optionLabel}>
                 {t("organizations.companyCapabilities")}
               </Text>
-              <View style={styles.optionGrid}>
+              <View
+                accessibilityLabel={t("organizations.companyCapabilities")}
+                style={styles.optionGrid}
+              >
                 {companyCapabilityOptions.map((option) => {
                   const active = companyCapabilities.includes(option);
 
                   return (
-                    <Pressable
+                    <Button
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: active }}
                       disabled={submitting || organizationType !== "company"}
                       key={option}
                       onPress={() => toggleCompanyCapability(option)}
-                      style={[
-                        styles.optionButton,
-                        active && styles.optionButtonActive,
-                        (submitting || organizationType !== "company") &&
-                          styles.optionButtonDisabled,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          active && styles.optionTextActive,
-                        ]}
-                      >
-                        {t(`organizations.capability.${option}`)}
-                      </Text>
-                    </Pressable>
+                      size="sm"
+                      style={styles.optionButton}
+                      title={t(`organizations.capability.${option}`)}
+                      variant={active ? "secondary" : "outline"}
+                    />
                   );
                 })}
               </View>
@@ -603,16 +555,15 @@ function OrganizationCreateContent() {
 
         <Button
           disabled={!canSaveCompany}
-          title={submitting ? t("organizations.saving") : t("organizations.save")}
-          onPress={handleSubmit}
+          loading={submitting}
+          loadingLabel={t("organizations.saving")}
+          onPress={() => void handleSubmit()}
+          title={t("organizations.save")}
         />
-      </ScrollView>
-    </Screen>
+        </>
+      )}
+    </PageContainer>
   );
-}
-
-function FieldError({ message }: { message?: string }) {
-  return message ? <Text style={styles.fieldError}>{message}</Text> : null;
 }
 
 function InfoListItem({ label }: { label: string }) {
@@ -699,56 +650,55 @@ function emptyToNull(value: string) {
   return trimmed ? trimmed : null;
 }
 
+function getRetryLabel(language: string) {
+  if (language === "de") {
+    return "Erneut versuchen";
+  }
+
+  if (language === "en") {
+    return "Try again";
+  }
+
+  return "Reîncearcă";
+}
+
 function readError(error: unknown, t: (key: string) => string) {
   return error instanceof Error ? error.message : t("organizations.saveError");
 }
 
 const styles = StyleSheet.create({
   content: {
-    alignSelf: "center",
-    gap: Spacing.md,
-    paddingBottom: Spacing.five,
-    width: "100%",
+    gap: Spacing.section,
   },
   bodyText: {
     color: Colors.textBody,
     fontSize: Typography.body,
     lineHeight: Typography.lineHeight.body,
   },
-  mutedText: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.body,
-  },
-  errorText: {
-    color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
   statusBox: {
-    backgroundColor: "#FFF7E8",
-    borderColor: "#F6D7A8",
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.warningSurface,
+    borderColor: Colors.warningBorder,
+    borderRadius: Radius.control,
     borderWidth: 1,
-    padding: Spacing.lg,
+    padding: Spacing.component,
   },
   statusTitle: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.control,
   },
   exampleList: {
-    gap: Spacing.sm,
-    marginTop: Spacing.lg,
+    gap: Spacing.control,
+    marginTop: Spacing.component,
   },
   exampleItem: {
     alignItems: "flex-start",
     flexDirection: "row",
-    gap: Spacing.sm,
+    gap: Spacing.control,
   },
   exampleBullet: {
-    color: Colors.brand,
+    color: Colors.primary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
     lineHeight: Typography.lineHeight.body,
@@ -759,33 +709,15 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySmall,
     lineHeight: Typography.lineHeight.body,
   },
-  fieldError: {
-    color: Colors.danger,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.md,
-    marginTop: -Spacing.md,
-  },
   optionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: Spacing.control,
   },
   typeButton: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexBasis: 220,
+    flexBasis: 200,
     flexGrow: 1,
-    padding: Spacing.lg,
-  },
-  typeButtonActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
-  },
-  typeButtonDisabled: {
-    opacity: 0.56,
+    minWidth: 0,
   },
   typeButtonText: {
     color: Colors.textBody,
@@ -793,67 +725,40 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.extraBold,
   },
   typeButtonTextActive: {
-    color: "#145CFF",
+    color: Colors.primaryPressed,
   },
   comingSoonText: {
     color: Colors.textMuted,
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.compact,
   },
   twoColumn: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
-  },
-  twoColumnMobile: {
-    flexDirection: "column",
+    gap: Spacing.component,
   },
   column: {
-    flexBasis: 220,
+    flexBasis: 240,
     flexGrow: 1,
-  },
-  fullWidthItem: {
-    flexBasis: "100%",
+    minWidth: 0,
   },
   optionLabel: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.label,
     fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
+    marginBottom: Spacing.control,
+    marginTop: Spacing.component,
   },
   optionButton: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  optionButtonActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
-  },
-  optionButtonDisabled: {
-    opacity: 0.56,
-  },
-  optionText: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  optionTextActive: {
-    color: "#145CFF",
+    flexBasis: 120,
+    flexGrow: 1,
+    minWidth: 0,
   },
   hintText: {
     color: Colors.textMuted,
     fontSize: Typography.bodySmall,
     lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.lg,
-  },
-  bigInput: {
-    height: 120,
-    textAlignVertical: "top",
+    marginTop: Spacing.component,
   },
 });

@@ -1,150 +1,316 @@
-import { Pressable, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from "react-native";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import {
+  forwardRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type PressableProps,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
+import {
+  Colors,
+  ControlHeight,
+  InteractionStyles,
+  Opacity,
+  Radius,
+  Spacing,
+  Typography,
+} from "@/theme";
 
-type ButtonVariant = "primary" | "secondary" | "danger" | "success" | "ghost";
+export type RabAIButtonVariant =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "ghost"
+  | "destructive"
+  | "danger"
+  | "success";
 
-type ButtonProps = {
+export type RabAIButtonSize = "sm" | "md" | "lg";
+
+export type RabAIButtonProps = Omit<
+  PressableProps,
+  | "children"
+  | "disabled"
+  | "onBlur"
+  | "onFocus"
+  | "onHoverIn"
+  | "onHoverOut"
+  | "style"
+> & {
   title: string;
-  onPress?: () => void;
-  variant?: ButtonVariant;
+  variant?: RabAIButtonVariant;
+  size?: RabAIButtonSize;
+  loading?: boolean;
+  loadingLabel?: string;
   disabled?: boolean;
+  fullWidth?: boolean;
+  iconBefore?: ReactNode;
+  iconAfter?: ReactNode;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
 };
 
-export default function Button({
-  title,
-  onPress,
-  variant = "primary",
-  disabled = false,
-  style,
-  textStyle,
-}: ButtonProps) {
+const RabAIButton = forwardRef<View, RabAIButtonProps>(function RabAIButton(
+  {
+    accessibilityLabel,
+    accessibilityRole = "button",
+    accessibilityState,
+    disabled = false,
+    fullWidth = false,
+    iconAfter,
+    iconBefore,
+    loading = false,
+    loadingLabel,
+    onPress,
+    size = "md",
+    style,
+    textStyle,
+    title,
+    variant = "primary",
+    ...pressableProps
+  },
+  ref
+) {
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const normalizedVariant = variant === "danger" ? "destructive" : variant;
+  const isDisabled = disabled || loading || !onPress;
+  const foreground = foregroundColors[normalizedVariant];
+
   return (
     <Pressable
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      style={[
-        styles.button,
-        buttonStyles[variant],
-        disabled && styles.disabledButton,
+      {...pressableProps}
+      ref={ref}
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityRole={accessibilityRole}
+      accessibilityState={{
+        ...accessibilityState,
+        busy: loading || accessibilityState?.busy,
+        disabled: isDisabled,
+      }}
+      disabled={isDisabled}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onPress={(event) => {
+        if (!isDisabled) {
+          onPress?.(event);
+        }
+      }}
+      style={({ pressed }) => [
+        styles.base,
+        sizeStyles[size],
+        variantStyles[normalizedVariant],
+        hovered && hoverStyles[normalizedVariant],
+        pressed && styles.pressed,
+        focused && InteractionStyles.focusRing,
+        fullWidth && styles.fullWidth,
+        isDisabled && styles.disabled,
         style,
       ]}
-      onPress={onPress}
     >
-      <Text
-        style={[
-          styles.text,
-          textStyles[variant],
-          disabled && styles.disabledText,
-          textStyle,
-        ]}
-      >
-        {title}
-      </Text>
+      <View style={styles.content}>
+        {loading ? (
+          <ActivityIndicator
+            accessibilityElementsHidden
+            color={foreground}
+            size="small"
+          />
+        ) : (
+          iconBefore
+        )}
+        <Text
+          numberOfLines={2}
+          style={[
+            styles.label,
+            sizeTextStyles[size],
+            { color: foreground },
+            isDisabled && styles.disabledLabel,
+            textStyle,
+          ]}
+        >
+          {loading ? loadingLabel ?? title : title}
+        </Text>
+        {!loading ? iconAfter : null}
+      </View>
     </Pressable>
   );
+});
+
+export default RabAIButton;
+export { RabAIButton };
+
+export function PrimaryButton(props: Omit<RabAIButtonProps, "variant">) {
+  return <RabAIButton {...props} variant="primary" />;
 }
 
-export function PrimaryButton(props: Omit<ButtonProps, "variant">) {
-  return <Button {...props} variant="primary" />;
+export function SecondaryButton(props: Omit<RabAIButtonProps, "variant">) {
+  return <RabAIButton {...props} variant="secondary" />;
 }
 
-export function SecondaryButton(props: Omit<ButtonProps, "variant">) {
-  return <Button {...props} variant="secondary" />;
-}
-
-export function DisabledButton(props: Omit<ButtonProps, "disabled">) {
-  return <Button {...props} disabled />;
+export function DisabledButton(
+  props: Omit<RabAIButtonProps, "disabled" | "onPress"> & {
+    onPress?: RabAIButtonProps["onPress"];
+  }
+) {
+  return <RabAIButton {...props} disabled />;
 }
 
 const styles = StyleSheet.create({
-  button: {
+  base: {
     alignItems: "center",
-    borderRadius: Radius.lg,
-    justifyContent: "center",
-    minHeight: 48,
-    minWidth: 148,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 0,
-  },
-
-  primaryButton: {
-    backgroundColor: Colors.brand,
-    ...Shadows.button,
-  },
-
-  secondaryButton: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.brand,
+    borderRadius: Radius.control,
     borderWidth: 1,
+    justifyContent: "center",
+    maxWidth: "100%",
+    ...InteractionStyles.pointer,
   },
-
-  dangerButton: {
-    backgroundColor: Colors.danger,
-  },
-
-  successButton: {
-    backgroundColor: Colors.success,
-  },
-
-  ghostButton: {
-    backgroundColor: "transparent",
+  content: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.control,
+    justifyContent: "center",
     minWidth: 0,
-    paddingHorizontal: Spacing.xl,
   },
-
-  disabledButton: {
-    backgroundColor: Colors.borderMuted,
-    borderColor: Colors.borderNeutral,
-    opacity: 1,
+  fullWidth: {
+    alignSelf: "stretch",
+    width: "100%",
   },
-
-  text: {
-    fontSize: Typography.button,
-    fontWeight: Typography.fontWeight.extraBold,
+  pressed: {
+    opacity: Opacity.pressed,
+    transform: [{ scale: 0.99 }],
+  },
+  disabled: {
+    backgroundColor: Colors.surfaceDisabled,
+    borderColor: Colors.borderMuted,
+    opacity: Opacity.disabled,
+  },
+  disabledLabel: {
+    color: Colors.textDisabled,
+  },
+  label: {
+    flexShrink: 1,
+    fontWeight: Typography.fontWeight.bold,
     textAlign: "center",
   },
-
-  primaryText: {
-    color: Colors.brandOn,
+  sm: {
+    minHeight: ControlHeight.minimumTouch,
+    paddingHorizontal: Spacing.inline,
   },
-
-  secondaryText: {
-    color: Colors.brand,
+  md: {
+    minHeight: ControlHeight.medium,
+    paddingHorizontal: Spacing.component,
   },
-
-  dangerText: {
-    color: Colors.brandOn,
+  lg: {
+    minHeight: ControlHeight.large,
+    paddingHorizontal: Spacing.content,
   },
-
-  successText: {
-    color: Colors.brandOn,
+  textSm: {
+    fontSize: Typography.bodySmall,
   },
-
-  ghostText: {
-    color: Colors.brand,
+  textMd: {
+    fontSize: Typography.label,
+  },
+  textLg: {
     fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
   },
-
-  disabledText: {
-    color: Colors.textMuted,
+  primary: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  primaryHover: {
+    backgroundColor: Colors.primaryHover,
+    borderColor: Colors.primaryHover,
+  },
+  secondary: {
+    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.primarySoft,
+  },
+  secondaryHover: {
+    backgroundColor: Colors.selection,
+    borderColor: Colors.informationBorder,
+  },
+  outline: {
+    backgroundColor: Colors.surface,
+    borderColor: Colors.borderStrong,
+  },
+  outlineHover: {
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.primary,
+  },
+  ghost: {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+  },
+  ghostHover: {
+    backgroundColor: Colors.primarySoft,
+  },
+  destructive: {
+    backgroundColor: Colors.danger,
+    borderColor: Colors.danger,
+  },
+  destructiveHover: {
+    backgroundColor: Colors.dangerHover,
+    borderColor: Colors.dangerHover,
+  },
+  success: {
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
+  },
+  successHover: {
+    opacity: 0.9,
   },
 });
 
-const buttonStyles: Record<ButtonVariant, ViewStyle> = {
-  primary: styles.primaryButton,
-  secondary: styles.secondaryButton,
-  danger: styles.dangerButton,
-  success: styles.successButton,
-  ghost: styles.ghostButton,
+const sizeStyles: Record<RabAIButtonSize, ViewStyle> = {
+  sm: styles.sm,
+  md: styles.md,
+  lg: styles.lg,
 };
 
-const textStyles: Record<ButtonVariant, TextStyle> = {
-  primary: styles.primaryText,
-  secondary: styles.secondaryText,
-  danger: styles.dangerText,
-  success: styles.successText,
-  ghost: styles.ghostText,
+const sizeTextStyles: Record<RabAIButtonSize, TextStyle> = {
+  sm: styles.textSm,
+  md: styles.textMd,
+  lg: styles.textLg,
 };
+
+type NormalizedVariant = Exclude<RabAIButtonVariant, "danger">;
+
+const variantStyles: Record<NormalizedVariant, ViewStyle> = {
+  primary: styles.primary,
+  secondary: styles.secondary,
+  outline: styles.outline,
+  ghost: styles.ghost,
+  destructive: styles.destructive,
+  success: styles.success,
+};
+
+const hoverStyles: Record<NormalizedVariant, ViewStyle> = {
+  primary: styles.primaryHover,
+  secondary: styles.secondaryHover,
+  outline: styles.outlineHover,
+  ghost: styles.ghostHover,
+  destructive: styles.destructiveHover,
+  success: styles.successHover,
+};
+
+const foregroundColors: Record<NormalizedVariant, string> = {
+  primary: Colors.onPrimary,
+  secondary: Colors.primaryPressed,
+  outline: Colors.textPrimary,
+  ghost: Colors.primaryPressed,
+  destructive: Colors.onDanger,
+  success: Colors.onSuccess,
+};
+
+export type RabAIButtonRef = Ref<View>;
