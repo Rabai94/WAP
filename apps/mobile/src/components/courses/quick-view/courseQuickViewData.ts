@@ -43,6 +43,10 @@ const courseEnrollmentsRequests = new Map<
   string,
   Promise<UserCourseEnrollment[]>
 >();
+const courseEnrollmentsForceRequests = new Map<
+  string,
+  Promise<UserCourseEnrollment[]>
+>();
 const courseEnrollmentsCacheVersions = new Map<string, number>();
 const localCourseEnrollments = new Map<
   string,
@@ -156,6 +160,7 @@ export function subscribeCourseEnrollments(
 export function invalidateCachedCourseEnrollments(userId: string): void {
   courseEnrollmentsCache.delete(userId);
   courseEnrollmentsRequests.delete(userId);
+  courseEnrollmentsForceRequests.delete(userId);
   courseEnrollmentsCacheVersions.set(
     userId,
     readCourseEnrollmentsCacheVersion(userId) + 1
@@ -171,13 +176,22 @@ export async function fetchCachedCourseEnrollments(
   }
 
   const activeRequest = courseEnrollmentsRequests.get(userId);
+  const activeForceRequest = courseEnrollmentsForceRequests.get(userId);
 
-  if (activeRequest) {
+  if (force && activeForceRequest) {
+    return activeForceRequest;
+  }
+
+  if (activeRequest && !force) {
     return activeRequest;
   }
 
   if (force) {
     courseEnrollmentsCache.delete(userId);
+    courseEnrollmentsCacheVersions.set(
+      userId,
+      readCourseEnrollmentsCacheVersion(userId) + 1
+    );
   }
 
   const requestVersion = readCourseEnrollmentsCacheVersion(userId);
@@ -195,9 +209,18 @@ export async function fetchCachedCourseEnrollments(
       if (courseEnrollmentsRequests.get(userId) === request) {
         courseEnrollmentsRequests.delete(userId);
       }
+
+      if (courseEnrollmentsForceRequests.get(userId) === request) {
+        courseEnrollmentsForceRequests.delete(userId);
+      }
     });
 
   courseEnrollmentsRequests.set(userId, request);
+
+  if (force) {
+    courseEnrollmentsForceRequests.set(userId, request);
+  }
+
   return request;
 }
 

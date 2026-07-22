@@ -132,9 +132,7 @@ function CourseQuickViewPanel({
   const [enrollments, setEnrollments] = useState<UserCourseEnrollment[]>(
     initialEnrollments ?? []
   );
-  const [loadingEnrollments, setLoadingEnrollments] = useState(
-    Boolean(userId && (!initialEnrollments || selection.intent === "enroll"))
-  );
+  const [loadingEnrollments, setLoadingEnrollments] = useState(Boolean(userId));
   const [enrollmentContextError, setEnrollmentContextError] = useState<
     string | null
   >(null);
@@ -212,18 +210,20 @@ function CourseQuickViewPanel({
         );
 
         if (!mountedRef.current) {
-          return;
+          return null;
         }
 
         setEnrollments(nextEnrollments);
+        return nextEnrollments;
       } catch (error) {
         if (!mountedRef.current) {
-          return;
+          return null;
         }
 
         setEnrollmentContextError(
           readError(error, "Nu am putut verifica înscrierile existente.")
         );
+        return null;
       } finally {
         if (mountedRef.current) {
           setLoadingEnrollments(false);
@@ -271,15 +271,9 @@ function CourseQuickViewPanel({
       return;
     }
 
-    const forceRefresh = selection.intent !== "view";
-
-    if (initialEnrollments && !forceRefresh) {
-      return;
-    }
-
     let active = true;
 
-    fetchCachedCourseEnrollments(userId, forceRefresh)
+    fetchCachedCourseEnrollments(userId, true)
       .then((nextEnrollments) => {
         if (!active || !mountedRef.current) {
           return;
@@ -302,7 +296,7 @@ function CourseQuickViewPanel({
     return () => {
       active = false;
     };
-  }, [initialEnrollments, selection.intent, userId]);
+  }, [userId]);
 
   useEffect(() => {
     if (selection.intent !== "enroll" || authLoading) {
@@ -338,9 +332,12 @@ function CourseQuickViewPanel({
   const enrollmentStatusLabel = existingEnrollment
     ? formatCourseEnrollmentStatus(existingEnrollment.status)
     : null;
-  const withdrawalAllowed = existingEnrollment
+  const withdrawalEligible = existingEnrollment
     ? canWithdrawCourseEnrollment(existingEnrollment.status)
     : false;
+  const enrollmentStatusReady =
+    !loadingEnrollments && !enrollmentContextError;
+  const withdrawalAllowed = withdrawalEligible && enrollmentStatusReady;
   const enrollmentAvailability = getEnrollmentAvailability(details);
   const confirmVisible =
     Boolean(session) &&
@@ -358,7 +355,7 @@ function CourseQuickViewPanel({
       return;
     }
 
-    if (withdrawalConfirmVisible && withdrawalAllowed) {
+    if (withdrawalConfirmVisible && withdrawalEligible) {
       withdrawalOpenLockRef.current = false;
       setWithdrawalConfirmVisible(false);
       setWithdrawalError(null);
@@ -392,7 +389,7 @@ function CourseQuickViewPanel({
     statusDialogVisible,
     submitting,
     withdrawalConfirmVisible,
-    withdrawalAllowed,
+    withdrawalEligible,
     withdrawing,
   ]);
 
@@ -561,8 +558,7 @@ function CourseQuickViewPanel({
   const requestWithdrawal = useCallback(
     (returnToStatus: boolean) => {
       if (
-        !existingEnrollment ||
-        !canWithdrawCourseEnrollment(existingEnrollment.status) ||
+        !withdrawalAllowed ||
         withdrawalOpenLockRef.current ||
         withdrawalLockRef.current ||
         withdrawing
@@ -576,7 +572,7 @@ function CourseQuickViewPanel({
       setWithdrawalError(null);
       setWithdrawalConfirmVisible(true);
     },
-    [existingEnrollment, withdrawing]
+    [withdrawalAllowed, withdrawing]
   );
 
   const submitWithdrawal = useCallback(async () => {
@@ -640,17 +636,59 @@ function CourseQuickViewPanel({
         return;
       }
 
-      setWithdrawalError(readWithdrawalError(error));
+      const withdrawalFailure = readWithdrawalError(error);
+
       invalidateCachedCourseEnrollments(userId);
-      void fetchCachedCourseEnrollments(userId, true)
-        .then((nextEnrollments) => {
-          if (mountedRef.current) {
-            setEnrollments(nextEnrollments);
-          }
-        })
-        .catch(() => {
-          // Păstrează eroarea RPC dacă reverificarea nu este disponibilă.
-        });
+      const refreshedEnrollments = await loadEnrollments(userId, true);
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+      const refreshedEnrollment = refreshedEnrollments
+        ? findExistingCourseEnrollment(
+            userId,
+            course.course_id,
+            refreshedEnrollments
+          )
+        : null;
+
+      if (refreshedEnrollment?.status === "withdrawn") {
+        setEnrollmentNotice("Înscrierea a fost retrasă cu succes.");
+        setStatusDialogNotice(
+          "Cererea a fost retrasă și păstrată în istoric."
+        );
+        setWithdrawalConfirmVisible(false);
+        setStatusDialogVisible(true);
+        withdrawalOpenLockRef.current = false;
+        withdrawalReturnsToStatusRef.current = false;
+        void fetchCachedCourseDetails(course.course_id, true)
+          .then((nextDetails) => {
+            if (mountedRef.current) {
+              setDetails(nextDetails);
+              setDetailsState(nextDetails ? "loaded" : "missing");
+            }
+          })
+          .catch(() => {
+            // Statusul confirmat nu depinde de refresh-ul detaliilor cursului.
+          });
+        return;
+      }
+
+      if (
+        refreshedEnrollment?.status === "accepted" ||
+        refreshedEnrollment?.status === "rejected"
+      ) {
+        setWithdrawalError(null);
+        setStatusDialogNotice(null);
+        setWithdrawalConfirmVisible(false);
+        setStatusDialogVisible(true);
+        withdrawalOpenLockRef.current = false;
+        withdrawalReturnsToStatusRef.current = false;
+        return;
+      }
+
+      setWithdrawalError(withdrawalFailure);
     } finally {
       withdrawalLockRef.current = false;
 
@@ -658,7 +696,13 @@ function CourseQuickViewPanel({
         setWithdrawing(false);
       }
     }
-  }, [course.course_id, existingEnrollment, userId, withdrawing]);
+  }, [
+    course.course_id,
+    existingEnrollment,
+    loadEnrollments,
+    userId,
+    withdrawing,
+  ]);
 
   const openFullPage = useCallback(() => {
     const detailsPath = buildCourseDetailsPath(
@@ -759,21 +803,32 @@ function CourseQuickViewPanel({
                     <Text style={styles.primaryButtonText}>Vezi starea</Text>
                   </Pressable>
 
-                  {withdrawalAllowed ? (
+                  {withdrawalEligible ? (
                     <Pressable
                       accessibilityHint="Deschide confirmarea; înscrierea nu este retrasă la primul click."
                       accessibilityLabel={`Retrage înscrierea la cursul ${course.title}`}
                       accessibilityRole="button"
+                      accessibilityState={{
+                        busy: loadingEnrollments,
+                        disabled: !enrollmentStatusReady,
+                      }}
+                      disabled={!enrollmentStatusReady}
                       onPress={() => requestWithdrawal(false)}
                       style={(state) => {
                         const webState = state as WebPressableState;
 
                         return [
                           styles.dangerButton,
-                          pointerWebStyle,
-                          webState.hovered && styles.dangerButtonHover,
+                          enrollmentStatusReady && pointerWebStyle,
+                          !enrollmentStatusReady &&
+                            styles.dangerButtonDisabled,
+                          enrollmentStatusReady &&
+                            webState.hovered &&
+                            styles.dangerButtonHover,
                           webState.focused && styles.buttonFocus,
-                          webState.pressed && styles.buttonPressed,
+                          enrollmentStatusReady &&
+                            webState.pressed &&
+                            styles.buttonPressed,
                         ];
                       }}
                       testID="course-quick-view-request-withdrawal"
@@ -909,15 +964,23 @@ function CourseQuickViewPanel({
               setStatusDialogNotice(null);
             }
           }}
+          onRetryWithdrawalVerification={() => {
+            if (userId) {
+              void loadEnrollments(userId, true);
+            }
+          }}
           onRequestWithdrawal={() => requestWithdrawal(true)}
           providerName={course.provider_name}
           visible
+          withdrawalDisabled={!enrollmentStatusReady}
+          withdrawalVerificationError={enrollmentContextError}
+          withdrawalVerificationLoading={loadingEnrollments}
         />
       ) : null}
 
       {existingEnrollment &&
       withdrawalConfirmVisible &&
-      canWithdrawCourseEnrollment(existingEnrollment.status) ? (
+      withdrawalEligible ? (
         <CourseEnrollmentWithdrawalConfirmDialog
           courseTitle={course.title}
           error={withdrawalError}
@@ -1446,6 +1509,9 @@ const styles = StyleSheet.create({
   dangerButtonHover: {
     backgroundColor: "#BE123C",
     borderColor: "#BE123C",
+  },
+  dangerButtonDisabled: {
+    opacity: 0.55,
   },
   dangerButtonText: {
     color: Colors.white,
