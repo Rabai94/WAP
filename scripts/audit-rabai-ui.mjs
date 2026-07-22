@@ -19,6 +19,7 @@ const appDirectory = path.join(
   "src",
   "app",
 );
+const sourceDirectory = path.join(repositoryRoot, "apps", "mobile", "src");
 const appPrefix = "apps/mobile/src/app/";
 const supportedExtensions = new Set([".ts", ".tsx"]);
 
@@ -39,6 +40,8 @@ const findings = [];
 for (const target of targets) {
   auditFile(target, findings);
 }
+
+auditDesignLabImports(findings);
 
 for (const warning of collectionWarnings) {
   console.warn(`[rabai-ui-audit] ${warning}`);
@@ -216,7 +219,11 @@ function auditFile(filePath, output) {
   const repositoryPath = toRepositoryPath(filePath);
   const fileName = path.basename(filePath);
 
-  if (fileName === "_layout.ts" || fileName === "_layout.tsx") {
+  if (
+    fileName === "_layout.ts" ||
+    fileName === "_layout.tsx" ||
+    isDesignLabRoute(repositoryPath)
+  ) {
     return;
   }
 
@@ -237,17 +244,29 @@ function auditFile(filePath, output) {
       });
     }
 
-    if (/<Pressable\b/u.test(line)) {
+    const fontSizeMatch = line.match(/\bfontSize\s*:\s*(\d+(?:\.\d+)?)/u);
+    if (
+      fontSizeMatch &&
+      Number(fontSizeMatch[1]) < 13 &&
+      !hasSmallTextException(lines, index)
+    ) {
       output.push({
         file: repositoryPath,
         line: index + 1,
-        message: "Raw Pressable found; reuse a components/ui primitive or document why a semantic control cannot be used.",
-        rule: "raw-pressable",
+        message: `fontSize ${fontSizeMatch[1]} is below the 13px minimum; document a justified exception with rabai-ui-audit: allow-small-text — motiv.`,
+        rule: "small-text",
       });
     }
   });
 
-  if (!isRedirectOnly(source) && !/<PageContainer(?:\s|>)/u.test(source)) {
+  auditNestedPressables(source, repositoryPath, output);
+  auditOneOffUiComponents(lines, repositoryPath, output);
+
+  if (
+    !isRedirectOnly(source) &&
+    !isRouteDelegate(source) &&
+    !/<PageContainer(?:\s|>)/u.test(source)
+  ) {
     output.push({
       file: repositoryPath,
       line: null,
@@ -255,6 +274,121 @@ function auditFile(filePath, output) {
       rule: "missing-page-container",
     });
   }
+}
+
+function hasSmallTextException(lines, index) {
+  const documentedLines = [lines[index], lines[index - 1]]
+    .filter(Boolean)
+    .join(" ");
+  return /rabai-ui-audit:\s*allow-small-text\s+[—-]\s+\S/u.test(documentedLines);
+}
+
+function auditNestedPressables(source, repositoryPath, output) {
+  const tagPattern = /<\/?Pressable\b[^>]*>/gu;
+  const openPressables = [];
+
+  for (const match of source.matchAll(tagPattern)) {
+    const tag = match[0];
+
+    if (tag.startsWith("</")) {
+      openPressables.pop();
+      continue;
+    }
+
+    if (tag.endsWith("/>")) {
+      continue;
+    }
+
+    if (openPressables.length > 0) {
+      output.push({
+        file: repositoryPath,
+        line: lineForOffset(source, match.index ?? 0),
+        message: "Nested Pressable found; compose semantic controls without nesting interactive targets.",
+        rule: "nested-pressable",
+      });
+    }
+
+    openPressables.push(match.index ?? 0);
+  }
+}
+
+function auditOneOffUiComponents(lines, repositoryPath, output) {
+  lines.forEach((line, index) => {
+    const match = line.match(
+      /\b(?:function|const)\s+([A-Z][A-Za-z0-9]*(?:Button|Card|Input))\b/u,
+    );
+
+    if (match) {
+      output.push({
+        file: repositoryPath,
+        line: index + 1,
+        message: `Local UI component ${match[1]} found; reuse a components/ui primitive or move an approved primitive into the shared UI layer.`,
+        rule: "one-off-ui-component",
+      });
+    }
+  });
+}
+
+function auditDesignLabImports(output) {
+  for (const filePath of walkDirectory(sourceDirectory)) {
+    if (!isSourceFile(filePath) || isDesignLabSourceFile(filePath)) {
+      continue;
+    }
+
+    const source = readFileSync(filePath, "utf8");
+    const lines = source.split(/\r?\n/u);
+
+    lines.forEach((line, index) => {
+      if (/\bfrom\s+["']@\/design-lab(?:\/|["'])/u.test(line)) {
+        output.push({
+          file: toRepositoryPath(filePath),
+          line: index + 1,
+          message: "Product code imports from design-lab; migrate approved primitives first and keep experimental code isolated.",
+          rule: "design-lab-import",
+        });
+      }
+    });
+  }
+}
+
+function isSourceFile(filePath) {
+  return supportedExtensions.has(path.extname(filePath).toLowerCase());
+}
+
+function isDesignLabRoute(repositoryPath) {
+  return repositoryPath.startsWith("apps/mobile/src/app/design-lab/");
+}
+
+function isDesignLabSourceFile(filePath) {
+  const repositoryPath = toRepositoryPath(filePath);
+  return (
+    repositoryPath.startsWith("apps/mobile/src/design-lab/") ||
+    isDesignLabRoute(repositoryPath)
+  );
+}
+
+function isRouteDelegate(source) {
+  const defaultImport = source.match(
+    /^import\s+([A-Z][A-Za-z0-9_]*)\s+from\s+["'][^"']+["'];?\s*$/mu,
+  );
+
+  if (!defaultImport) {
+    return false;
+  }
+
+  const remainder = source
+    .replace(/^import\s+[^;]+;\s*$/gmu, "")
+    .replace(
+      new RegExp(`^export default ${defaultImport[1]};?\\s*$`, "mu"),
+      "",
+    )
+    .trim();
+
+  return remainder.length === 0;
+}
+
+function lineForOffset(source, offset) {
+  return source.slice(0, offset).split(/\r?\n/u).length;
 }
 
 function isRedirectOnly(source) {

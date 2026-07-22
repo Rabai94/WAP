@@ -4,6 +4,10 @@ Acest document este sursa oficiala pentru toate deciziile de design ale RabAI. E
 
 Documentul trebuie tratat ca un sistem viu: fiecare decizie majora de design trebuie sa fie aliniata cu aceste principii sau sa propuna o actualizare explicita a lor.
 
+## RabAI Signature in produs
+
+Acest document pastreaza intentia de brand. Contractul executabil pentru UI de produs este `docs/rabai-design-system.md`; acesta prevaleaza pentru tokeni, shell, navigatie, tipografie, liste, carduri si responsive. RabAI Signature urmareste un instrument matur si calm: shell intunecat, canvas cald, accent rar si fara spectacol tehnologic.
+
 ## 1. Vision
 
 ### Intentie
@@ -68,7 +72,7 @@ Interfata nu trebuie sa concureze cu continutul utilizatorului. Designul sustine
 
 ### Directie vizuala
 
-Limbajul vizual RabAI combina suprafete curate, lumina controlata, straturi subtile si semnale dinamice care sugereaza procesare, conexiune si progres.
+Limbajul vizual RabAI combina suprafete calde, neutre, ierarhie tipografica si semnale functionale discrete. El sugereaza precizie prin ordine si ritm, nu prin decor AI generic, wallpaper sau straturi concurente.
 
 ### Forme
 
@@ -76,7 +80,7 @@ Formele trebuie sa fie simple, echilibrate si precise. Geometria poate fi usor t
 
 ### Profunzime
 
-Profunzimea trebuie folosita pentru ierarhie si orientare, nu ca decor. Umbrele, blururile si suprapunerile trebuie sa fie subtile si consecvente.
+Profunzimea trebuie folosita pentru ierarhie si orientare, nu ca decor. Umbrele si suprapunerile trebuie sa fie rare, subtile si justificate de un nivel real.
 
 ### TODO
 
@@ -137,11 +141,11 @@ Lumina trebuie sa creeze focus, profunzime si atmosfera. Ea trebuie sa sustina s
 
 ### Directie
 
-Sursele de lumina trebuie sa para intentionale. Accentele luminoase pot ghida privirea, pot evidentia stari active si pot sugera energie computationala.
+Accentele trebuie sa ghideze privirea fara glow sau efecte spectaculoase. In UI operational, claritatea si contrastul au prioritate fata de atmosfera.
 
 ### Restrictii
 
-Efectele de glow, highlight si reflexie trebuie folosite moderat. Lumina nu trebuie sa ascunda continutul, sa oboseasca privirea sau sa creeze contraste necontrolate.
+Glow-ul, highlight-ul decorativ si reflexiile nu fac parte din UI-ul operational. Niciun efect vizual nu ascunde continutul, oboseste privirea sau creeaza contraste necontrolate.
 
 ### TODO
 
@@ -161,7 +165,7 @@ Particulele trebuie sa se miste coerent, cu densitate controlata si cu relatii c
 
 ### Context
 
-Particulele sunt potrivite pentru hero visuals, momente de procesare, fundaluri premium si stari de sistem. In interfetele operationale, ele trebuie folosite cu retinere.
+Particulele nu sunt un pattern pentru interfetele operationale RabAI. Ele pot fi evaluate separat numai pentru un moment de brand aprobat, fara a concura cu continutul sau accesibilitatea.
 
 ### TODO
 

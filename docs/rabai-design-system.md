@@ -1,200 +1,171 @@
-# RabAI Design System V1
+# RabAI Design System — RabAI Signature
 
-## Scop
+## Scop și autoritate
 
-Acest document este contractul tehnic pentru interfața RabAI pe web, Android și iOS. El transformă direcția din `design/01_Brand_DNA/RabAI_Design_DNA.md` în reguli aplicabile codului. Nu schimbă rute, autentificare, permisiuni, servicii, date sau logică business.
+Acesta este contractul vizual unic pentru produsul RabAI pe web, Android și iOS. El stabilește direcția RabAI Signature, utilizarea tokenilor, shell-ul, compoziția componentelor și patternurile responsive. Nu schimbă rute, autentificare, permisiuni, servicii, date sau logică business.
 
-Orice pagină nouă sau modificată trebuie să respecte `AGENTS.md`, acest document și `docs/rabai-new-page-checklist.md`.
-
-## Surse de adevăr
+Orice pagină nouă sau modificată respectă `AGENTS.md`, acest document și `docs/rabai-new-page-checklist.md`. `AGENTS.md` păstrează regulile generale, de siguranță și calitate; nu dublează regulile vizuale de aici. Când documentele intră în conflict asupra unei decizii vizuale, acest document prevalează.
 
 Ordinea de consultare este:
 
-1. `AGENTS.md` și `apps/mobile/AGENTS.md` pentru reguli obligatorii;
-2. `apps/mobile/src/theme` pentru design tokens;
-3. `apps/mobile/src/components/ui` pentru primitive și compoziție;
-4. acest document pentru utilizare și decizii de design;
-5. `design/01_Brand_DNA/RabAI_Design_DNA.md` pentru direcția de brand.
+1. `AGENTS.md` și `apps/mobile/AGENTS.md` pentru reguli generale și de siguranță;
+2. acest document pentru contractul vizual RabAI Signature;
+3. `apps/mobile/src/theme` pentru tokenii implementați;
+4. `apps/mobile/src/components/ui` pentru primitive și compoziție;
+5. `docs/rabai-new-page-checklist.md` pentru verificarea implementării;
+6. `design/01_Brand_DNA/RabAI_Design_DNA.md` pentru intenția de brand, fără a duplica reguli UI.
 
 Nu crea un al doilea sistem de tokeni sau o bibliotecă paralelă de componente.
 
-## Direcție vizuală
+## Direcția RabAI Signature
 
-RabAI este o aplicație profesională pentru muncă, firme, cursuri și servicii. Interfața trebuie să fie calmă, clară și eficientă:
+RabAI este un instrument de lucru profesionist pentru oportunități, învățare, firme și servicii. Interfața trebuie să pară calmă, matură și exactă: spațiul și tipografia explică structura înaintea chenarelor.
 
-- fundaluri neutre și luminoase;
-- navy și albastru RabAI folosite controlat pentru identitate și acțiuni;
-- contrast accesibil și ierarhie vizuală clară;
-- borduri fine, colțuri moderate și spațiere confortabilă;
-- densitate potrivită unei aplicații business;
-- umbre discrete numai când explică nivelul unei suprafețe;
-- fără neon, gradient excesiv sau glassmorphism greu;
-- fără carduri sau hero-uri autentificate supradimensionate;
-- fără cutie separată pentru fiecare text sau icon.
+- shell-ul desktop este charcoal foarte închis;
+- canvas-ul principal este warm ivory, lizibil și odihnitor;
+- suprafețele folosesc neutre calde, cu contrast accesibil;
+- gold mat este un accent rar, nu o culoare de umplere universală;
+- succesul folosește verde matur; roșul este rezervat danger/destructive;
+- listările se exprimă implicit prin rânduri scanabile;
+- cardurile apar numai când formează o unitate compusă sau o suprafață distinctă;
+- umbrele sunt rare și explică numai suprapunere sau nivel real.
 
-## Design tokens
+Nu sunt permise glow-uri aurii, gradiente aurii ostentative, estetică de casino/crypto/gaming, wallpaper AI, glassmorphism excesiv sau pagini complet negre greu de citit. Nu folosi gold pentru warning, succes, eroare sau acțiuni destructive.
 
-Codul de produs consumă tokeni semantici din `@/theme`. Numele semantice descriu rolul, nu culoarea brută.
+## Tokeni și culoare
 
-### Culori
+Codul de produs consumă numai tokeni semantici din `@/theme`. Numele publice descriu rolul, nu valoarea brută: `background`, `surface`, `surfaceMuted`, `surfaceElevated`, `border`, `borderStrong`, `textPrimary`, `textSecondary`, `textMuted`, `primary`, `primaryHover`, `primaryPressed`, `danger`, `success`, `warning`, `information` și `focusRing`.
 
-API-ul principal trebuie să acopere cel puțin:
+Migrarea paletei existente la RabAI Signature se face în tema globală, nu prin culori locale în pagini. Nu hardcoda hex, rgba, radius sau shadows în UI de produs. O valoare numerică locală este permisă doar pentru o constrângere unică de conținut și trebuie justificată printr-un comentariu scurt.
 
-- `background`, `surface`, `surfaceMuted`, `surfaceElevated`;
-- `border`, `borderStrong`;
-- `textPrimary`, `textSecondary`, `textMuted`;
-- `primary`, `primaryHover`, `primaryPressed`;
-- `danger`, `success`, `warning`, `information`;
-- `focusRing`.
+Folosește și familiile existente de tokeni pentru spacing, radius, typography, icon sizes, control heights, page widths, gutters, breakpoints, elevation, motion, opacity și layers.
 
-Nu folosi nume publice de forma `blue1` sau `gray2`. Valorile brute și aliasurile temporare pot exista numai în implementarea temei, nu în pagini.
+### Reguli pentru gold
 
-### Celelalte familii de tokeni
+Gold este permis numai pentru:
 
-Folosește tokenii publicați pentru:
+- un primary CTA în grupul său;
+- focus ring;
+- stare activă discretă;
+- detaliu de brand rar;
+- icon sau separator important.
 
-- spacing;
-- radius;
-- typography;
-- icon sizes;
-- control heights;
-- page widths și gutters;
-- breakpoints;
-- elevation/shadows;
-- motion durations;
-- opacity;
-- z-index/layers.
+Gold nu este permis pe fiecare border, icon sau titlu; ca text lung pe fundal deschis; sau ca semnal semantic pentru succes, warning, eroare și destructive.
 
-O valoare numerică locală este acceptabilă numai când reprezintă o constrângere de conținut unică și este justificată printr-un comentariu scurt. Culorile, radius-ul și umbrele nu se hardcodează în pagini.
+## Tipografie și spacing
 
-## API-ul componentelor UI
+Folosește aceeași scară din temă în toate paginile și maximum cinci roluri:
 
-Importă primitivele din barrel-ul `@/components/ui`. Numele canonice RabAI și aliasurile de migrare fac parte din aceeași familie; nu implementa o variantă locală cu `Pressable`, `View` sau `TextInput` dacă familia existentă acoperă cazul.
+| Rol | Utilizare |
+| --- | --- |
+| Display/page title | titlul principal al paginii |
+| Section heading | titlu de secțiune sau grup logic |
+| Body | conținut principal și informație de lucru |
+| Supporting text | explicații, metadata și descrieri secundare |
+| Label/caption | label de control, status scurt sau caption |
 
-- `RabAIButton` / `Button`: acțiuni primary, secondary, outline, ghost și destructive; suportă size, icon, loading, disabled și full width.
-- `RabAIIconButton`: acțiuni exclusiv prin icon, cu label/tooltip și target de minimum 44px.
-- `RabAICard` / `Card`: suprafețe outlined, filled, elevated, interactive, selected și disabled.
-- `RabAIInput` / `Input` și `FormField`: label, required, helper, error, prefix/suffix, loading, disabled și read-only.
-- `RabAISelect`: selecție dintr-o listă controlată.
-- `RabAIAutocomplete`: sugestii async, navigare din tastatură și layering controlat.
-- `RabAIBadge` / `StatusBadge`: status comunicat prin text și, când ajută, icon; niciodată doar prin culoare.
-- `PageContainer` / `Screen`: safe area, lățime maximă, gutters responsive și protecție împotriva overflow-ului orizontal.
-- `PageHeader` / `Header`: titlu, descriere, back/breadcrumbs și acțiuni responsive.
-- `Section`: grup logic cu titlu, descriere, acțiune și spacing standard.
-- `EmptyState`, `LoadingState`, `ErrorState` și `Skeleton`: stările explicite ale conținutului.
-- `ConfirmationDialog`: confirmare accesibilă, inclusiv acțiuni destructive, loading și management de focus.
+- body are 14–16 px;
+- supporting text are minimum 13 px;
+- textele de 9–10 px nu sunt permise;
+- folosește maximum trei greutăți principale; extraBold/black apare rar, pentru ierarhie reală;
+- line-height-ul rămâne confortabil și nu este comprimat pentru a obține densitate;
+- folosește spacing și separatori fini înainte de un card sau border nou.
 
-Aliasurile există pentru migrare. Codul nou preferă numele canonice RabAI atunci când acestea sunt exportate de API-ul curent. Verifică întotdeauna tipurile componentei înainte de utilizare; nu inventa props.
+## Primitive UI, butoane și interacțiuni
 
-## Butoane și interacțiuni
+Importă primitivele din barrel-ul `@/components/ui`. Codul nou preferă numele canonice RabAI atunci când sunt exportate și verifică tipurile înainte de utilizare.
 
-- Într-un grup există maximum o acțiune primary.
-- Acțiunile secundare folosesc secondary, outline sau ghost.
-- O acțiune periculoasă folosește destructive și un dialog de confirmare când efectul nu este ușor reversibil.
-- Niciun buton vizibil nu poate avea handler lipsă sau no-op.
-- `loading` trebuie să prevină apăsarea repetată și să păstreze un label accesibil.
-- `disabled` trebuie aplicat controlului, nu doar simulat prin opacity.
-- Hover, pressed și focus sunt discrete, vizibile și consecvente.
-- Touch target-ul minim este 44×44px, chiar dacă iconul este mai mic.
-- Nu imbrica `Pressable` în `Pressable`.
+- `RabAIButton` / `Button` pentru acțiuni primary, secondary, outline, ghost și destructive;
+- `RabAIIconButton` pentru acțiuni doar cu icon, cu label/tooltip și target de minimum 44 px;
+- `RabAICard` / `Card` numai pentru suprafețe compuse;
+- `RabAIInput` / `Input`, `FormField`, `RabAISelect` și `RabAIAutocomplete` pentru formulare;
+- `RabAIBadge` / `StatusBadge` pentru status comunicat prin text, nu doar culoare;
+- `PageContainer`, `PageHeader`, `Section`, `EmptyState`, `LoadingState`, `ErrorState`, `Skeleton` și `ConfirmationDialog` pentru structură și stări.
 
-## Carduri și chenare
+Într-un grup există maximum un primary CTA. Toate controalele vizibile au handler real; `loading` previne acțiunea repetată, iar `disabled` este aplicat controlului. Acțiunile destructive folosesc varianta dedicată și confirmare când efectul nu este ușor reversibil. Nu imbrica `Pressable` în `Pressable`.
 
-Un card grupează informații care aparțin aceleiași unități sau acțiuni. Folosește tipografie, spațiu și suprafețe înainte de a adăuga încă un border.
+## Liste, carduri, badge-uri și filtre
 
-- `outlined` este varianta implicită pentru grupare neutră;
-- `filled` separă discret o zonă de fundal;
-- `elevated` se folosește rar, pentru nivel sau suprapunere reală;
-- `interactive` trebuie să aibă hover, pressed, focus și semantică accesibilă;
-- `selected` și `disabled` trebuie să fie perceptibile și fără dependență exclusivă de culoare.
+Joburile, cursurile, aplicațiile și notificările folosesc implicit rânduri. Un rând separă informația prin spacing, tipografie și separator fin; nu printr-o cutie individuală pentru fiecare atribut.
 
-Nu transforma fiecare paragraf, label, statistică sau icon într-un card separat.
+- cardurile sunt rezervate unei unități compuse, unui panou distinct sau unei suprapuneri reale;
+- nu există card în card;
+- `outlined` nu este varianta implicită pentru toate grupările;
+- nu pune fiecare paragraf, statistică, label sau icon într-o cutie;
+- un rând de listă afișează maximum două badge-uri vizibile;
+- statusul rămâne explicit prin text și nu depinde exclusiv de culoare.
 
-## Formulare
+Pe desktop, filtrele principale sunt compacte, filtrele avansate stau într-un control secundar, iar rezultatele sunt vizibile imediat. Pe mobil, filtrele apar într-un drawer sau sheet controlat: fără zid de chips, fără câmpuri dispersate și cu un buton clar care arată numărul filtrelor active.
 
-- Label-ul este deasupra controlului și asociat semantic cu acesta.
-- Required, helper și error au loc rezervat sau curgere normală; nu folosi margini negative.
-- Erorile sunt complete, lizibile și anunțate tehnologiilor asistive.
-- Controalele din același formular folosesc înălțimi și spacing comune.
-- Focus, disabled și read-only sunt vizual distincte.
-- Submit-ul este protejat împotriva trimiterii duble și afișează loading.
-- Grupurile radio/select au rol și stare corecte, nu doar culoare.
-- Datele se validează client-side și server-side fără schimbarea contractului serviciilor.
+## Shell și navigație
 
-### Autocomplete
+- desktop: shell charcoal, sidebar compact și canvas ivory;
+- mobil: sidebar-ul devine drawer; nu rămâne permanent;
+- topbar-ul este simplu și nu dublează navigația;
+- nu afișa permanent emailul complet;
+- nu pune funcții inactive sau „în curând” în navigația principală;
+- nu monta un shell experimental în shell-ul real;
+- nu încadra întreaga aplicație într-un outer card.
 
-- Sugestiile trebuie să poată fi parcurse cu tastatura pe web.
-- Lista expune stări loading, empty și error.
-- Dropdown-ul nu acoperă necontrolat câmpurile următoare și nu taie mesaje sau opțiuni.
-- În formularele înguste, preferă spațiu rezervat/in-flow; overlay-ul este permis doar cu layering, scroll și focus controlate.
-- Selecția păstrează atât label-ul, cât și identificatorul cerut de serviciul existent.
-- Scroll container-ul părinte păstrează tap-urile pe sugestii când tastatura este deschisă.
+Toate paginile folosesc `PageContainer` și își compun conținutul cu `PageHeader` și `Section`, cu excepția wrapperelor de rută care deleagă explicit către o pagină componentă. Păstrează contextul de navigație și nu crea rute sau shell-uri paralele fără autorizare.
 
-## Layout și responsive
+## Formulare și autocomplete
 
-Toate paginile folosesc `PageContainer` și compun conținutul prin `PageHeader` și `Section`.
+- folosește maximum două suprafețe mari într-un formular;
+- nu crea un card pentru fiecare grup mic de câmpuri;
+- label-ul este deasupra controlului și asociat semantic;
+- required, helper și error rămân în flux normal, fără margini negative;
+- Save/Cancel stau într-o zonă coerentă; există maximum un primary CTA;
+- focusul gold este discret și oferă contrast suficient;
+- autocomplete-ul este inline sau overlay complet controlat, navigabil din tastatură și cu layering, focus și scroll corecte;
+- submit-ul este protejat împotriva trimiterii duble și păstrează loading/disabled real;
+- datele se validează client-side și server-side, fără a schimba contractul serviciilor.
 
-Verifică minimum:
+## Companion și asseturi
 
-- 320px: o singură coloană, fără overflow orizontal;
-- 768px: tabletă, grupuri și acțiuni care se pot rearanja;
-- 1024px și 1366px: shell și conținut desktop echilibrat;
-- 1920px: conținut limitat prin page width, fără întindere excesivă.
+RabAI Companion este un produs separat. Site-ul nu afișează o bulă draggable permanentă și mascota nu acoperă conținutul. În web poate apărea discret în branding sau notificări, cu un rol funcțional clar; nu este doar decor.
 
-Folosește breakpoints și page widths din temă. Nu introduce praguri locale pentru același comportament deja modelat de tokeni sau hook-ul responsive.
+Nu folosi robotul albastru ca identitate RabAI. Verifică asseturile reale înainte de a inventa un placeholder, ilustrație sau mascotă.
 
-## Stări obligatorii
+## Design Lab
 
-Orice conținut async trebuie să aibă stări mutual exclusive:
+`/design-lab` este o excepție controlată pentru explorare, nu o extensie a produsului real:
 
-1. loading;
-2. error, cu retry real când operația poate fi repetată;
-3. empty, cu explicație și CTA real când există o acțiune utilă;
-4. normal;
-5. disabled/loading pentru acțiunile care modifică date.
+- poate folosi tokeni experimentali locali, ținuți în folderul lab;
+- tokenii lab nu sunt importați în produsul real;
+- rutele lab sunt excluse din shell-ul real;
+- datele lab sunt marcate explicit „Preview local” și nu pretind statistici sau date RabAI;
+- un concept aprobat migrează întâi în tokenii globali și primitivele UI înainte de producție;
+- lab-ul nu schimbă rute reale, autentificare, servicii sau logică business.
 
-Nu afișa simultan date stale și un empty state. Nu expune direct mesaje tehnice sensibile din backend.
+## Tipuri de pagină
 
-## Accesibilitate
+Fiecare tip păstrează `PageContainer`, un header clar, maximum un primary CTA per grup și stări loading/error/empty/normal mutual exclusive.
 
-- Furnizează `accessibilityRole`, `accessibilityLabel` și `accessibilityState` potrivite.
-- Focusul din tastatură este vizibil pe toate controalele web.
-- Dialogurile mută focusul în interior, răspund la Escape, îl capturează cât sunt deschise și îl restaurează la trigger.
-- Informația de status nu depinde numai de culoare.
-- Loading/error sunt anunțate prin semantică live adecvată.
-- Respectă reduced motion și nu elimina accesibilitatea pentru efecte vizuale.
+| Tip | Shell și header | Conținut și acțiune | Responsive și stări |
+| --- | --- | --- | --- |
+| Dashboard | shell standard, header cu rezumat scurt | priorități, activitate și rânduri de lucru; CTA pentru următorul pas | coloană unică la mobil; skeleton/error/empty pentru fiecare zonă async |
+| Explorer/List | shell standard, header cu căutare și filtre | rânduri scanabile, rezultate imediat vizibile; CTA contextual | filtre în drawer pe mobil; loading, error cu retry și empty explicativ |
+| Detail/Quick View | shell standard, header cu context/back | informație principală, metadata și acțiune relevantă | secțiuni stivuite la mobil; loading/error/empty pentru resursa cerută |
+| Profile | shell standard, header identitar concis | sumar, date editabile și progres real | acțiunile se rearanjează; loading/error/empty pentru date lipsă |
+| Form | shell standard, header cu scop | maximum două suprafețe mari și zonă unică Save/Cancel | o coloană la mobil; helper/error/loading în flux normal |
+| Settings | shell standard, header simplu | grupări funcționale, nu carduri individuale; CTA contextual | drawer mobil pentru secțiuni lungi; loading/error/empty unde datele sunt async |
+| Empty state | shell standard, header păstrat | explicație utilă și CTA numai dacă este real | mesajul rămâne lizibil și acționabil la 320 px |
+| Admin/Owner dashboard | shell charcoal cu navigație compactă | statusuri, cozi și listări dense în rânduri; CTA operațional | sidebar devine drawer; loading/error/empty fără a bloca contextul |
 
-## Compatibilitate platforme și warning-uri web
+## Layout, responsive și accesibilitate
 
-- `pointerEvents` se configurează în `style`, nu ca prop deprecated pe web.
-- Umbrele folosesc tokeni platform-specific: `boxShadow` pe web și implementarea nativă compatibilă pe iOS/Android.
-- `textShadow` shorthand se folosește pe web, iar proprietățile native se păstrează pe platformele native.
-- Nu face înlocuiri globale oarbe și nu elimina suportul native pentru a ascunde un warning web.
+Verifică minimum 320, 768, 1024, 1366 și 1920 px. La 320 px există o singură coloană, fără overflow orizontal sau controale inaccesibile; la desktop conținutul respectă page widths și nu se întinde excesiv. Folosește breakpoints și hook-ul responsive din temă, nu praguri locale duplicate.
+
+Toate controalele au `accessibilityRole`, `accessibilityLabel` și `accessibilityState` potrivite, focus vizibil și target de minimum 44 × 44 px. Statusurile nu depind exclusiv de culoare; loading/error sunt anunțate semantic; dialogurile gestionează focusul și Escape; motion respectă `prefers-reduced-motion`.
 
 ## Interdicții
 
-În pagini noi sau modificate nu sunt permise:
-
-- culori hex/rgba locale pentru UI;
-- radius sau shadows locale;
-- butoane, carduri și inputuri one-off;
-- acțiuni fără handler;
-- nested `Pressable`;
-- date inventate pentru a umple stări;
-- scroll orizontal accidental;
-- duplicarea navigării, a rutelor sau a logicii business.
+În pagini noi sau modificate nu sunt permise culori locale hex/rgba, radius sau shadows locale, componente UI one-off, nested `Pressable`, date inventate, navigație duplicată, controale inactive, scroll orizontal accidental sau modificarea neautorizată a logicii business.
 
 ## Validare
 
-Din `apps/mobile`:
-
-```powershell
-npm.cmd run lint
-npm.cmd run typecheck
-npx.cmd --no-install expo install --check
-```
-
-Din root:
+Din root rulează:
 
 ```powershell
 npm.cmd run ui:audit
@@ -203,4 +174,12 @@ git status --short
 git diff --stat
 ```
 
-`ui:audit` este advisory implicit și verifică numai pagini noi/untracked. Folosește `npm.cmd run ui:audit -- --strict` când avertismentele trebuie să producă exit code nenul sau pasează explicit căi pentru o verificare țintită.
+Din `apps/mobile` rulează:
+
+```powershell
+npm.cmd run lint
+npm.cmd run typecheck
+npx.cmd --no-install expo install --check
+```
+
+`ui:audit` este advisory implicit. Folosește `--strict` pentru pagini țintite atunci când avertismentele trebuie să oprească validarea. Excepția pentru text mic trebuie documentată pe aceeași linie sau linia precedentă cu `rabai-ui-audit: allow-small-text — motiv`.

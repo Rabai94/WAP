@@ -63,6 +63,8 @@ Before writing any Expo or React Native code:
 - Reuse existing UI components whenever possible.
 - Keep the design system consistent.
 - Use accessible colors and spacing.
+- Before page work, read `../../docs/rabai-design-system.md` and use `../../docs/rabai-new-page-checklist.md` for implementation and review.
+- The design-system document is the single source of truth for visual direction, tokens, shell, component composition and responsive UI patterns. Do not duplicate or override those visual rules here.
 
 ---
 
@@ -193,27 +195,6 @@ When introducing significant functionality:
 
 ---
 
-## RABAI UI CONTRACT — OBLIGATORIU
+## RabAI UI contract
 
-Înainte de a crea sau modifica o pagină, citește și `../../docs/rabai-design-system.md`, apoi folosește `../../docs/rabai-new-page-checklist.md` pentru implementare și verificare.
-
-Orice Codex care creează sau modifică o pagină trebuie:
-
-1. să citească `AGENTS.md`;
-2. să citească `docs/rabai-design-system.md`;
-3. să reutilizeze componentele din `components/ui`;
-4. să folosească design tokens;
-5. să nu creeze butoane one-off;
-6. să nu hardcodeze culori, border radius sau shadows;
-7. să nu folosească magic spacing fără justificare;
-8. să ofere loading, empty și error state;
-9. să suporte 320px, tabletă, desktop și 1920px;
-10. să ofere `accessibilityLabel` și `accessibilityRole`;
-11. să ofere focus vizibil;
-12. să folosească touch targets minimum 44px;
-13. să evite nested `Pressable`;
-14. să evite overflow orizontal;
-15. să nu inventeze date;
-16. să nu afișeze butoane fără handler;
-17. să ruleze lint și typecheck;
-18. să raporteze orice abatere de la design system.
+Pentru orice pagină creată sau modificată, citește `../../docs/rabai-design-system.md` înainte de implementare și folosește `../../docs/rabai-new-page-checklist.md` la review. Documentația UI definește regulile vizuale; acest fișier păstrează numai regulile generale, de siguranță și de calitate.
