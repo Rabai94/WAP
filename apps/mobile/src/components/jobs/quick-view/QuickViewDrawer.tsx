@@ -15,10 +15,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type QuickViewDrawerProps = {
   accessibilityLabel: string;
+  backdropAccessibilityLabel?: string;
   children: ReactNode;
   footer: ReactNode;
   header: ReactNode;
   onRequestClose: () => void;
+  testID?: string;
   visible: boolean;
 };
 
@@ -40,10 +42,12 @@ const pointerWebStyle =
 
 export default function QuickViewDrawer({
   accessibilityLabel,
+  backdropAccessibilityLabel = "Închide vizualizarea rapidă",
   children,
   footer,
   header,
   onRequestClose,
+  testID = "job-quick-view-drawer",
   visible,
 }: QuickViewDrawerProps) {
   const { width } = useWindowDimensions();
@@ -84,7 +88,7 @@ export default function QuickViewDrawer({
     >
       <View style={styles.modalRoot}>
         <Pressable
-          accessibilityLabel="Închide vizualizarea rapidă"
+          accessibilityLabel={backdropAccessibilityLabel}
           accessibilityRole="button"
           onPress={onRequestClose}
           style={[styles.backdrop, pointerWebStyle]}
@@ -98,7 +102,7 @@ export default function QuickViewDrawer({
             { width: drawerWidth },
             isPhone ? styles.drawerPhone : styles.drawerRaised,
           ]}
-          testID="job-quick-view-drawer"
+          testID={testID}
         >
           <View style={[styles.header, { paddingTop: insets.top }]}>
             {header}

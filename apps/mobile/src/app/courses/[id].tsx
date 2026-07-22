@@ -1,3 +1,21 @@
+import CourseEnrollmentConfirmDialog from "@/components/courses/quick-view/CourseEnrollmentConfirmDialog";
+import CourseEnrollmentStatusDialog from "@/components/courses/quick-view/CourseEnrollmentStatusDialog";
+import CourseEnrollmentWithdrawalConfirmDialog from "@/components/courses/quick-view/CourseEnrollmentWithdrawalConfirmDialog";
+import {
+  canWithdrawCourseEnrollment,
+  formatCourseEnrollmentStatus,
+} from "@/components/courses/quick-view/courseEnrollmentStatus";
+import {
+  fetchCachedCourseDetails,
+  fetchCachedCourseEnrollments,
+  findExistingCourseEnrollment,
+  invalidateCachedCourseEnrollments,
+  markCourseEnrollmentLocally,
+  markCourseEnrollmentStatusLocally,
+  readCachedCourseEnrollments,
+  type CourseEnrollmentSnapshot,
+} from "@/components/courses/quick-view/courseQuickViewData";
+import { useCourseEnrollmentMap } from "@/components/courses/quick-view/useCourseEnrollmentMap";
 import { Button, Card, Header, Screen } from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
@@ -7,13 +25,14 @@ import {
 } from "@/services/courses/courseNavigation";
 import {
   enrollInCourse,
-  fetchCourseDetails,
+  withdrawCourseEnrollment,
   type CourseDetails,
+  type UserCourseEnrollment,
 } from "@/services/courses/courseService";
 import { buildLoginPath } from "@/services/auth/authNavigation";
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 export default function CourseDetailsScreen() {
@@ -23,8 +42,10 @@ export default function CourseDetailsScreen() {
     id?: string | string[];
   }>();
   const { language } = useLanguage();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const courseId = Array.isArray(id) ? id[0] : id;
+  const userId = user?.id ?? null;
+  const enrollmentMap = useCourseEnrollmentMap(userId);
   const fallbackReturnPath = session ? "/engine" : "/";
   const returnPath = useMemo(
     () => sanitizeCourseReturnPath(from) ?? fallbackReturnPath,
@@ -37,15 +58,65 @@ export default function CourseDetailsScreen() {
   const [course, setCourse] = useState<CourseDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [enrolling, setEnrolling] = useState(false);
-  const [enrollmentId, setEnrollmentId] = useState("");
-  const [enrollError, setEnrollError] = useState("");
+  const [enrollments, setEnrollments] = useState<UserCourseEnrollment[]>([]);
+  const [loadingEnrollmentContext, setLoadingEnrollmentContext] =
+    useState(false);
+  const [enrollmentContextError, setEnrollmentContextError] = useState<
+    string | null
+  >(null);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [enrollmentNotice, setEnrollmentNotice] = useState<string | null>(null);
+  const [statusDialogVisible, setStatusDialogVisible] = useState(false);
+  const [statusDialogNotice, setStatusDialogNotice] = useState<string | null>(
+    null
+  );
+  const [withdrawalConfirmVisible, setWithdrawalConfirmVisible] =
+    useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const courseLoadRequestIdRef = useRef(0);
+  const enrollmentLoadRequestIdRef = useRef(0);
+  const confirmOpenLockRef = useRef(false);
+  const submitLockRef = useRef(false);
+  const withdrawalOpenLockRef = useRef(false);
+  const withdrawalLockRef = useRef(false);
+  const withdrawalReturnsToStatusRef = useRef(false);
+  const existingEnrollment = useMemo<CourseEnrollmentSnapshot | null>(() => {
+    if (!courseId || !userId) {
+      return null;
+    }
+
+    return (
+      enrollmentMap.get(courseId) ??
+      findExistingCourseEnrollment(userId, courseId, enrollments)
+    );
+  }, [courseId, enrollmentMap, enrollments, userId]);
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
 
-    async function loadCourse() {
+    return () => {
+      mountedRef.current = false;
+      courseLoadRequestIdRef.current += 1;
+      enrollmentLoadRequestIdRef.current += 1;
+      confirmOpenLockRef.current = false;
+      submitLockRef.current = false;
+      withdrawalOpenLockRef.current = false;
+      withdrawalLockRef.current = false;
+      withdrawalReturnsToStatusRef.current = false;
+    };
+  }, []);
+
+  const loadCourse = useCallback(
+    async (force = false) => {
+      const requestId = courseLoadRequestIdRef.current + 1;
+      courseLoadRequestIdRef.current = requestId;
+
       if (!courseId || !isUuid(courseId)) {
+        setCourse(null);
         setError("Cursul nu mai este disponibil.");
         setLoading(false);
         return;
@@ -55,9 +126,12 @@ export default function CourseDetailsScreen() {
       setError("");
 
       try {
-        const nextCourse = await fetchCourseDetails(courseId);
+        const nextCourse = await fetchCachedCourseDetails(courseId, force);
 
-        if (!mounted) {
+        if (
+          !mountedRef.current ||
+          courseLoadRequestIdRef.current !== requestId
+        ) {
           return;
         }
 
@@ -67,45 +141,327 @@ export default function CourseDetailsScreen() {
           setError("Cursul nu mai este disponibil.");
         }
       } catch {
-        if (mounted) {
+        if (
+          mountedRef.current &&
+          courseLoadRequestIdRef.current === requestId
+        ) {
+          setCourse(null);
           setError("Cursul nu mai este disponibil.");
         }
       } finally {
-        if (mounted) {
+        if (
+          mountedRef.current &&
+          courseLoadRequestIdRef.current === requestId
+        ) {
           setLoading(false);
         }
       }
-    }
+    },
+    [courseId]
+  );
 
-    void loadCourse();
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void loadCourse();
+    }, 0);
 
     return () => {
-      mounted = false;
+      clearTimeout(timeoutId);
+      courseLoadRequestIdRef.current += 1;
     };
-  }, [courseId]);
+  }, [loadCourse]);
 
-  async function handleEnroll() {
-    if (!courseId) {
+  const loadEnrollmentContext = useCallback(
+    async (nextUserId: string, force = false) => {
+      const requestId = enrollmentLoadRequestIdRef.current + 1;
+      enrollmentLoadRequestIdRef.current = requestId;
+      setLoadingEnrollmentContext(true);
+      setEnrollmentContextError(null);
+
+      try {
+        const nextEnrollments = await fetchCachedCourseEnrollments(
+          nextUserId,
+          force
+        );
+
+        if (
+          !mountedRef.current ||
+          enrollmentLoadRequestIdRef.current !== requestId
+        ) {
+          return null;
+        }
+
+        const nextExistingEnrollment = courseId
+          ? findExistingCourseEnrollment(
+              nextUserId,
+              courseId,
+              nextEnrollments
+            )
+          : null;
+
+        setEnrollments(nextEnrollments);
+        return nextExistingEnrollment;
+      } catch (nextError) {
+        if (
+          mountedRef.current &&
+          enrollmentLoadRequestIdRef.current === requestId
+        ) {
+          setEnrollmentContextError(
+            readError(
+              nextError,
+              "Nu am putut verifica înscrierile existente."
+            )
+          );
+        }
+
+        return null;
+      } finally {
+        if (
+          mountedRef.current &&
+          enrollmentLoadRequestIdRef.current === requestId
+        ) {
+          setLoadingEnrollmentContext(false);
+        }
+      }
+    },
+    [courseId]
+  );
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      enrollmentLoadRequestIdRef.current += 1;
+      setEnrollments([]);
+      setEnrollmentContextError(null);
+      setEnrollmentNotice(null);
+
+      if (!userId || !courseId || !isUuid(courseId)) {
+        setLoadingEnrollmentContext(false);
+        return;
+      }
+
+      const cachedEnrollments = readCachedCourseEnrollments(userId);
+
+      if (cachedEnrollments) {
+        setEnrollments(cachedEnrollments);
+      }
+
+      void loadEnrollmentContext(userId);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      enrollmentLoadRequestIdRef.current += 1;
+    };
+  }, [courseId, loadEnrollmentContext, userId]);
+
+  function requestEnrollment() {
+    if (
+      !courseId ||
+      !course ||
+      confirmOpenLockRef.current ||
+      submitLockRef.current
+    ) {
       return;
     }
 
-    if (!session) {
-      router.push(buildLoginPath(`/courses/${courseId}`) as any);
+    if (!session || !userId) {
+      router.push(
+        buildLoginPath(`/courses/${encodeURIComponent(courseId)}`) as any
+      );
       return;
     }
 
-    setEnrolling(true);
-    setEnrollError("");
+    if (existingEnrollment || !getEnrollmentAvailability(course).available) {
+      return;
+    }
+
+    confirmOpenLockRef.current = true;
+    setSubmissionError(null);
+    setConfirmVisible(true);
+    void loadEnrollmentContext(userId, true);
+  }
+
+  async function submitEnrollment(message: string | null) {
+    if (!courseId || !userId || submitLockRef.current) {
+      return;
+    }
+
+    const currentEnrollment =
+      existingEnrollment ??
+      findExistingCourseEnrollment(userId, courseId, enrollments);
+
+    if (
+      currentEnrollment ||
+      enrollmentContextError ||
+      loadingEnrollmentContext ||
+      !course ||
+      !getEnrollmentAvailability(course).available
+    ) {
+      return;
+    }
+
+    submitLockRef.current = true;
+    setSubmitting(true);
+    setSubmissionError(null);
 
     try {
-      const nextEnrollmentId = await enrollInCourse(courseId);
-      setEnrollmentId(nextEnrollmentId);
+      const enrollmentId = await enrollInCourse(courseId, message);
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+      markCourseEnrollmentLocally(
+        userId,
+        courseId,
+        enrollmentId,
+        {
+          courseTitle: course.title,
+          locationLabel: course.location_label,
+          message,
+          providerName: course.provider_name,
+        }
+      );
+      setEnrollmentNotice("Înscrierea a fost trimisă cu succes.");
+      confirmOpenLockRef.current = false;
+      setConfirmVisible(false);
+
+      invalidateCachedCourseEnrollments(userId);
+      void loadEnrollmentContext(userId, true);
     } catch (nextError) {
-      setEnrollError(readError(nextError));
+      if (!mountedRef.current) {
+        return;
+      }
+
+      const enrollmentError = readEnrollmentError(nextError);
+
+      invalidateCachedCourseEnrollments(userId);
+      const refreshedEnrollment = await loadEnrollmentContext(userId, true);
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+      if (refreshedEnrollment) {
+        setEnrollmentNotice(
+          `Pentru acest curs există deja o înscriere: ${formatCourseEnrollmentStatus(
+            refreshedEnrollment.status
+          )}.`
+        );
+        confirmOpenLockRef.current = false;
+        setConfirmVisible(false);
+        return;
+      }
+
+      setSubmissionError(enrollmentError);
     } finally {
-      setEnrolling(false);
+      submitLockRef.current = false;
+
+      if (mountedRef.current) {
+        setSubmitting(false);
+      }
     }
   }
+
+  function requestStatusDialog() {
+    if (!existingEnrollment || withdrawalLockRef.current || withdrawing) {
+      return;
+    }
+
+    setWithdrawalError(null);
+    setStatusDialogNotice(null);
+    setStatusDialogVisible(true);
+  }
+
+  function requestWithdrawal(returnToStatus: boolean) {
+    if (
+      !existingEnrollment ||
+      !canWithdrawCourseEnrollment(existingEnrollment.status) ||
+      withdrawalOpenLockRef.current ||
+      withdrawalLockRef.current ||
+      withdrawing
+    ) {
+      return;
+    }
+
+    withdrawalOpenLockRef.current = true;
+    withdrawalReturnsToStatusRef.current = returnToStatus;
+    setStatusDialogVisible(false);
+    setWithdrawalError(null);
+    setWithdrawalConfirmVisible(true);
+  }
+
+  async function submitWithdrawal() {
+    if (
+      !courseId ||
+      !userId ||
+      !existingEnrollment ||
+      !canWithdrawCourseEnrollment(existingEnrollment.status) ||
+      withdrawalLockRef.current ||
+      withdrawing
+    ) {
+      return;
+    }
+
+    const enrollmentId = existingEnrollment.enrollment_id;
+    withdrawalLockRef.current = true;
+    setWithdrawing(true);
+    setWithdrawalError(null);
+
+    try {
+      await withdrawCourseEnrollment(enrollmentId);
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+      markCourseEnrollmentStatusLocally(
+        userId,
+        courseId,
+        enrollmentId,
+        "withdrawn",
+        existingEnrollment
+      );
+
+      setEnrollmentNotice("Înscrierea a fost retrasă cu succes.");
+      setStatusDialogNotice("Cererea a fost retrasă și păstrată în istoric.");
+      setWithdrawalConfirmVisible(false);
+      setStatusDialogVisible(true);
+      withdrawalOpenLockRef.current = false;
+      withdrawalReturnsToStatusRef.current = false;
+
+      invalidateCachedCourseEnrollments(userId);
+      void loadEnrollmentContext(userId, true);
+      void loadCourse(true);
+    } catch (nextError) {
+      if (!mountedRef.current) {
+        return;
+      }
+
+      setWithdrawalError(readWithdrawalError(nextError));
+      invalidateCachedCourseEnrollments(userId);
+      void loadEnrollmentContext(userId, true);
+    } finally {
+      withdrawalLockRef.current = false;
+
+      if (mountedRef.current) {
+        setWithdrawing(false);
+      }
+    }
+  }
+
+  const enrollmentAvailability = getEnrollmentAvailability(course);
+  const enrollmentStatusLabel = existingEnrollment
+    ? formatCourseEnrollmentStatus(existingEnrollment.status)
+    : null;
+  const enrollmentButtonLabel =
+    !enrollmentAvailability.available && enrollmentAvailability.label
+      ? enrollmentAvailability.label
+      : submitting
+        ? "Se trimite…"
+        : loadingEnrollmentContext
+          ? "Se verifică…"
+          : "Înscrie-te";
 
   return (
     <Screen centered={false}>
@@ -138,47 +494,49 @@ export default function CourseDetailsScreen() {
           <>
             <Header
               title={course.title}
-              subtitle={`${course.provider_name} - ${formatLocation(course)}`}
+              subtitle={formatCourseSubtitle(course)}
             />
 
             <Card title="Detalii curs">
               <View style={styles.infoGrid}>
                 <InfoLine label="Provider" value={course.provider_name} />
                 <InfoLine label="Categorie" value={localizedCategory(course, language)} />
-                <InfoLine label="Locatie" value={formatLocation(course)} />
+                <InfoLine label="Locație" value={formatLocation(course)} />
                 <InfoLine label="Mod" value={formatDeliveryMode(course.delivery_mode)} />
-                <InfoLine label="Limba" value={formatLanguage(course.language_code)} />
-                <InfoLine label="Pret" value={formatPrice(course)} />
-                <InfoLine label="Durata" value={formatDuration(course)} />
+                <InfoLine label="Limbă" value={formatLanguage(course.language_code)} />
+                <InfoLine label="Preț" value={formatPrice(course)} />
+                <InfoLine label="Durată" value={formatDuration(course)} />
                 <InfoLine label="Nivel" value={formatLevel(course.level)} />
-                <InfoLine label="Start" value={formatDate(course.start_date)} />
-                <InfoLine label="Final" value={formatDate(course.end_date)} />
+                <InfoLine label="Start" value={formatDate(course.start_date, language)} />
+                <InfoLine label="Final" value={formatDate(course.end_date, language)} />
                 <InfoLine
-                  label="Deadline inscriere"
-                  value={formatDate(course.enrollment_deadline)}
+                  label="Deadline înscriere"
+                  value={formatDate(course.enrollment_deadline, language)}
                 />
+                <InfoLine label="Capacitate" value={formatCapacity(course)} />
                 <InfoLine
                   label="Locuri disponibile"
                   value={formatAvailableSpots(course)}
                 />
                 <InfoLine
                   label="Certificat"
-                  value={course.certificate_available ? "Disponibil" : "Nu este specificat"}
+                  value={formatCertificate(course.certificate_available)}
                 />
               </View>
             </Card>
 
-            <Card title="Descriere">
-              <Text style={styles.description}>{course.description}</Text>
-            </Card>
+            {hasText(course.description) ? (
+              <Card title="Descriere">
+                <Text style={styles.description}>{course.description.trim()}</Text>
+              </Card>
+            ) : null}
 
-            {course.provider_description ||
-            course.provider_website ||
-            course.provider_email ||
-            course.provider_phone ? (
+            {hasProviderDetails(course) ? (
               <Card title="Provider">
-                {course.provider_description ? (
-                  <Text style={styles.description}>{course.provider_description}</Text>
+                {hasText(course.provider_description) ? (
+                  <Text style={styles.description}>
+                    {course.provider_description.trim()}
+                  </Text>
                 ) : null}
                 <View style={styles.providerContactGrid}>
                   <InfoLine label="Website" value={course.provider_website} />
@@ -188,36 +546,152 @@ export default function CourseDetailsScreen() {
               </Card>
             ) : null}
 
-            {enrollmentId ? (
-              <Text style={styles.successText}>
-                Inscriere trimisa. ID inscriere: {enrollmentId}
+            {enrollmentNotice ? (
+              <Text accessibilityRole="alert" style={styles.successText}>
+                {enrollmentNotice}
               </Text>
             ) : null}
-            {enrollError ? <Text style={styles.errorText}>{enrollError}</Text> : null}
+            {existingEnrollment && enrollmentStatusLabel ? (
+              <View
+                accessibilityLiveRegion="polite"
+                style={styles.enrollmentStatusRow}
+              >
+                <Text style={styles.statusText}>Înscriere existentă</Text>
+                <View style={styles.enrollmentStatusBadge}>
+                  <Text style={styles.enrollmentStatusBadgeText}>
+                    {enrollmentStatusLabel}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
 
-            <Button
-              disabled={enrolling || Boolean(enrollmentId)}
-              title={
-                enrollmentId
-                  ? "Inscriere trimisa"
-                  : enrolling
-                    ? "Se trimite..."
-                    : "Înscrie-te"
-              }
-              onPress={handleEnroll}
-            />
+            {existingEnrollment ? (
+              <View style={styles.enrollmentActions}>
+                <View style={styles.enrollmentActionItem}>
+                  <Button title="Vezi starea" onPress={requestStatusDialog} />
+                </View>
+                {canWithdrawCourseEnrollment(existingEnrollment.status) ? (
+                  <Pressable
+                    accessibilityHint="Deschide confirmarea; înscrierea nu este retrasă la primul click."
+                    accessibilityLabel={`Retrage înscrierea la cursul ${course.title}`}
+                    accessibilityRole="button"
+                    onPress={() => requestWithdrawal(false)}
+                    style={({ pressed }) => [
+                      styles.withdrawButton,
+                      pressed && styles.withdrawButtonPressed,
+                    ]}
+                    testID="course-details-request-withdrawal"
+                  >
+                    <Text style={styles.withdrawButtonText}>
+                      Retrage înscrierea
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : (
+              <Button
+                disabled={
+                  submitting ||
+                  loadingEnrollmentContext ||
+                  !enrollmentAvailability.available
+                }
+                title={enrollmentButtonLabel}
+                onPress={requestEnrollment}
+              />
+            )}
           </>
         ) : null}
       </ScrollView>
+
+      {course && confirmVisible ? (
+        <CourseEnrollmentConfirmDialog
+          alreadyEnrolled={Boolean(existingEnrollment)}
+          courseDetailsError={error || null}
+          courseDetailsLoading={loading}
+          courseTitle={course.title}
+          courseUnavailable={!enrollmentAvailability.available}
+          enrollmentContextError={enrollmentContextError}
+          existingEnrollmentStatusLabel={enrollmentStatusLabel}
+          loadingEnrollmentContext={loadingEnrollmentContext}
+          onCancel={() => {
+            if (!submitLockRef.current && !submitting) {
+              confirmOpenLockRef.current = false;
+              setConfirmVisible(false);
+              setSubmissionError(null);
+            }
+          }}
+          onConfirm={(message) => void submitEnrollment(message)}
+          onRetryCourseDetails={() => void loadCourse(true)}
+          onRetryEnrollmentContext={() => {
+            if (userId) {
+              void loadEnrollmentContext(userId, true);
+            }
+          }}
+          providerName={course.provider_name}
+          submissionError={submissionError}
+          submitting={submitting}
+          visible
+        />
+      ) : null}
+
+      {course && existingEnrollment && statusDialogVisible ? (
+        <CourseEnrollmentStatusDialog
+          courseTitle={course.title}
+          enrollment={existingEnrollment}
+          notice={statusDialogNotice}
+          onClose={() => {
+            if (!withdrawalLockRef.current && !withdrawing) {
+              setStatusDialogVisible(false);
+              setStatusDialogNotice(null);
+            }
+          }}
+          onRequestWithdrawal={() => requestWithdrawal(true)}
+          providerName={course.provider_name}
+          visible
+        />
+      ) : null}
+
+      {course &&
+      existingEnrollment &&
+      withdrawalConfirmVisible &&
+      canWithdrawCourseEnrollment(existingEnrollment.status) ? (
+        <CourseEnrollmentWithdrawalConfirmDialog
+          courseTitle={course.title}
+          error={withdrawalError}
+          onCancel={() => {
+            if (!withdrawalLockRef.current && !withdrawing) {
+              withdrawalOpenLockRef.current = false;
+              setWithdrawalConfirmVisible(false);
+              setWithdrawalError(null);
+
+              if (withdrawalReturnsToStatusRef.current) {
+                setStatusDialogVisible(true);
+              }
+
+              withdrawalReturnsToStatusRef.current = false;
+            }
+          }}
+          onConfirm={() => void submitWithdrawal()}
+          providerName={course.provider_name}
+          submitting={withdrawing}
+          visible
+        />
+      ) : null}
     </Screen>
   );
 }
 
 function InfoLine({ label, value }: { label: string; value?: string | null }) {
+  const visibleValue = value?.trim();
+
+  if (!visibleValue) {
+    return null;
+  }
+
   return (
     <View style={styles.infoItem}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value || "Nespecificat"}</Text>
+      <Text style={styles.infoValue}>{visibleValue}</Text>
     </View>
   );
 }
@@ -230,14 +704,14 @@ function isUuid(value: string) {
 
 function localizedCategory(course: CourseDetails, language: string) {
   if (language === "de") {
-    return course.category_name_de ?? course.category_name_ro ?? "Nespecificat";
+    return course.category_name_de?.trim() ?? course.category_name_ro?.trim() ?? "";
   }
 
   if (language === "en") {
-    return course.category_name_en ?? course.category_name_ro ?? "Nespecificat";
+    return course.category_name_en?.trim() ?? course.category_name_ro?.trim() ?? "";
   }
 
-  return course.category_name_ro ?? "Nespecificat";
+  return course.category_name_ro?.trim() ?? "";
 }
 
 function formatLocation(course: CourseDetails) {
@@ -245,7 +719,17 @@ function formatLocation(course: CourseDetails) {
     return "Online";
   }
 
-  return course.location_label || "Online";
+  if (!course.location_id) {
+    return "";
+  }
+
+  return (
+    course.location_label?.trim() ||
+    [course.postal_code, course.city, course.state]
+      .filter(hasText)
+      .map((value) => value.trim())
+      .join(" ")
+  );
 }
 
 function formatDeliveryMode(value: string | null) {
@@ -254,63 +738,61 @@ function formatDeliveryMode(value: string | null) {
   }
 
   if (value === "onsite") {
-    return "La locatie";
+    return "La locație";
   }
 
   if (value === "hybrid") {
     return "Hibrid";
   }
 
-  return "Nespecificat";
+  return "";
 }
 
 function formatLanguage(value: string | null) {
   if (value === "ro") {
-    return "Romana";
+    return "Română";
   }
 
   if (value === "en") {
-    return "Engleza";
+    return "Engleză";
   }
 
   if (value === "de") {
-    return "Germana";
+    return "Germană";
   }
 
-  return "Nespecificat";
+  return value?.trim().toLocaleUpperCase() ?? "";
 }
 
 function formatPrice(course: CourseDetails) {
-  if (course.price_amount === null) {
-    return "Gratuit / nespecificat";
+  const currency = course.currency_code?.trim();
+
+  if (course.price_amount === null || !currency) {
+    return "";
   }
 
-  return `${formatNumber(course.price_amount)} ${course.currency_code ?? "EUR"}`;
+  return `${formatNumber(course.price_amount, 2)} ${currency}`;
 }
 
 function formatDuration(course: CourseDetails) {
   if (!course.duration_value || !course.duration_unit) {
-    return "Nespecificat";
+    return "";
   }
 
-  if (course.duration_unit === "hours") {
-    return `${course.duration_value} ore`;
-  }
+  const unitByValue: Record<string, string> = {
+    days: "zile",
+    hours: "ore",
+    months: "luni",
+    weeks: "săptămâni",
+  };
+  const unit = unitByValue[course.duration_unit];
 
-  if (course.duration_unit === "days") {
-    return `${course.duration_value} zile`;
-  }
-
-  if (course.duration_unit === "weeks") {
-    return `${course.duration_value} saptamani`;
-  }
-
-  return `${course.duration_value} luni`;
+  return unit ? `${course.duration_value} ${unit}` : "";
 }
 
 function formatLevel(value: string | null) {
   if (value === "beginner") {
-    return "Incepator";
+    return "Începător";
   }
 
   if (value === "intermediate") {
@@ -325,21 +807,24 @@ function formatLevel(value: string | null) {
     return "Toate nivelurile";
   }
 
-  return "Nespecificat";
+  return "";
 }
 
-function formatDate(value: string | null) {
+function formatDate(value: string | null, language: string) {
   if (!value) {
-    return "Nespecificat";
+    return "";
   }
 
-  const date = new Date(value);
+  const date = parseDate(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return "Nespecificat";
+  if (!date) {
+    return "";
   }
 
-  return new Intl.DateTimeFormat("ro-RO", {
+  const locale =
+    language === "de" ? "de-DE" : language === "en" ? "en-US" : "ro-RO";
+
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -348,22 +833,152 @@ function formatDate(value: string | null) {
 
 function formatAvailableSpots(course: CourseDetails) {
   if (course.available_spots === null) {
-    return "Fara limita specificata";
+    return "";
   }
 
-  return `${course.available_spots} din ${course.capacity}`;
+  return course.capacity === null
+    ? formatNumber(course.available_spots)
+    : `${formatNumber(course.available_spots)} din ${formatNumber(
+        course.capacity
+      )}`;
 }
 
-function formatNumber(value: number) {
+function formatCapacity(course: CourseDetails) {
+  return course.capacity === null ? "" : formatNumber(course.capacity);
+}
+
+function formatCertificate(value: boolean | null) {
+  return value === null ? "" : value ? "Da" : "Nu";
+}
+
+function formatCourseSubtitle(course: CourseDetails) {
+  return [course.provider_name.trim(), formatLocation(course)]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function hasProviderDetails(course: CourseDetails) {
+  return [
+    course.provider_description,
+    course.provider_website,
+    course.provider_email,
+    course.provider_phone,
+  ].some(hasText);
+}
+
+function hasText(value: string | null | undefined): value is string {
+  return Boolean(value?.trim());
+}
+
+function parseDate(value: string) {
+  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = dateOnlyMatch
+    ? new Date(
+        Number(dateOnlyMatch[1]),
+        Number(dateOnlyMatch[2]) - 1,
+        Number(dateOnlyMatch[3])
+      )
+    : new Date(value);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatNumber(value: number, maximumFractionDigits = 0) {
   return new Intl.NumberFormat("ro-RO", {
-    maximumFractionDigits: 0,
+    maximumFractionDigits,
   }).format(value);
 }
 
-function readError(error: unknown) {
-  return error instanceof Error
+function getEnrollmentAvailability(course: CourseDetails | null) {
+  if (!course) {
+    return { available: false, label: null };
+  }
+
+  if (course.available_spots !== null && course.available_spots <= 0) {
+    return { available: false, label: "Curs ocupat" };
+  }
+
+  const deadline = readIsoDate(course.enrollment_deadline);
+
+  if (deadline && deadline < readTodayIsoDate()) {
+    return { available: false, label: "Înscrieri închise" };
+  }
+
+  return { available: true, label: null };
+}
+
+function readIsoDate(value: string | null) {
+  const match = value ? /^(\d{4})-(\d{2})-(\d{2})/.exec(value) : null;
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
+}
+
+function readTodayIsoDate() {
+  const today = new Date();
+  const year = String(today.getFullYear()).padStart(4, "0");
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function readEnrollmentError(error: unknown) {
+  const message = readError(
+    error,
+    "Nu am putut trimite înscrierea. Încearcă din nou."
+  );
+  const normalizedMessage = message.toLocaleLowerCase();
+
+  if (normalizedMessage.includes("already enrolled")) {
+    return "Pentru acest curs există deja o înscriere.";
+  }
+
+  if (normalizedMessage.includes("not available")) {
+    return "Cursul nu mai este disponibil pentru înscriere.";
+  }
+
+  if (normalizedMessage.includes("course is full")) {
+    return "Nu mai sunt locuri disponibile la acest curs.";
+  }
+
+  if (normalizedMessage.includes("authentication is required")) {
+    return "Autentificarea este necesară pentru înscriere.";
+  }
+
+  return message;
+}
+
+function readWithdrawalError(error: unknown) {
+  const message = readError(
+    error,
+    "Nu am putut retrage înscrierea. Încearcă din nou."
+  );
+  const normalizedMessage = message.toLocaleLowerCase();
+
+  if (
+    normalizedMessage.includes("only submitted or viewed") ||
+    normalizedMessage.includes("no longer eligible")
+  ) {
+    return "Statusul s-a schimbat, iar înscrierea nu mai poate fi retrasă.";
+  }
+
+  if (normalizedMessage.includes("not found for the current user")) {
+    return "Înscrierea nu a fost găsită în contul curent.";
+  }
+
+  if (normalizedMessage.includes("authentication is required")) {
+    return "Autentificarea este necesară pentru retragerea înscrierii.";
+  }
+
+  if (normalizedMessage.includes("was not confirmed")) {
+    return "Serverul nu a confirmat retragerea. Starea va fi reverificată.";
+  }
+
+  return message;
+}
+
+function readError(error: unknown, fallback: string) {
+  return error instanceof Error && error.message.trim()
     ? error.message
-    : "Nu am putut procesa inscrierea.";
+    : fallback;
 }
 
 const styles = StyleSheet.create({
@@ -433,6 +1048,61 @@ const styles = StyleSheet.create({
     color: Colors.success,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
+  },
+  statusText: {
+    color: Colors.textBody,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  enrollmentStatusRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+  },
+  enrollmentStatusBadge: {
+    backgroundColor: Colors.brandSoft,
+    borderColor: "#C9D9FF",
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+  },
+  enrollmentStatusBadgeText: {
+    color: Colors.brandDeep,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.extraBold,
+  },
+  enrollmentActions: {
+    alignItems: "stretch",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+  },
+  enrollmentActionItem: {
+    flexGrow: 1,
+    minWidth: 180,
+  },
+  withdrawButton: {
+    alignItems: "center",
+    backgroundColor: Colors.danger,
+    borderColor: Colors.danger,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: "center",
+    minHeight: 48,
+    minWidth: 180,
+    paddingHorizontal: Spacing.three,
+  },
+  withdrawButtonPressed: {
+    opacity: 0.84,
+  },
+  withdrawButtonText: {
+    color: Colors.white,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.extraBold,
+    textAlign: "center",
   },
   mutedText: {
     color: Colors.textSecondary,
