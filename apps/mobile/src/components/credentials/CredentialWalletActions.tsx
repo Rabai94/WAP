@@ -59,7 +59,9 @@ export default function CredentialWalletActions({
     }
   }
 
-  const linkActionsDisabled = !isPublic || Boolean(busyAction);
+  const documentReady = documentStatus === "ready";
+  const linkActionsDisabled = !documentReady || !isPublic || Boolean(busyAction);
+  const visibilityDisabled = !documentReady || Boolean(busyAction);
 
   return (
     <View>
@@ -72,7 +74,7 @@ export default function CredentialWalletActions({
           variant="secondary"
         />
         <Button
-          disabled={documentStatus !== "ready" || Boolean(busyAction)}
+          disabled={!documentReady || Boolean(busyAction)}
           onPress={() => void runAction("download", async () => {
             const result = await getCredentialDownloadUrl(credentialId);
             const supported = await Linking.canOpenURL(result.signedUrl);
@@ -113,7 +115,7 @@ export default function CredentialWalletActions({
           variant="secondary"
         />
         <Button
-          disabled={Boolean(busyAction)}
+          disabled={visibilityDisabled}
           onPress={() => void runAction("visibility", async () => {
             await setCredentialVisibility(credentialId, !isPublic);
             await onChanged();
@@ -131,7 +133,18 @@ export default function CredentialWalletActions({
         />
       </View>
 
-      {!isPublic ? (
+      {documentStatus === "pending" ? (
+        <Text style={styles.hint}>{t("credentials.wallet.documentPending")}</Text>
+      ) : null}
+      {documentStatus === "failed" ? (
+        <Text accessibilityRole="alert" style={styles.errorHint}>
+          {t("credentials.wallet.documentFailed")}
+        </Text>
+      ) : null}
+      {!documentReady ? (
+        <Text style={styles.hint}>{t("credentials.wallet.publishBlocked")}</Text>
+      ) : null}
+      {documentReady && !isPublic ? (
         <Text style={styles.hint}>{t("credentials.wallet.privateLinkHint")}</Text>
       ) : null}
       {message ? <Text accessibilityRole="alert" style={styles.success}>{message}</Text> : null}
@@ -154,6 +167,12 @@ const styles = StyleSheet.create({
   hint: {
     color: Colors.textMuted,
     fontSize: Typography.small,
+    marginTop: Spacing.md,
+  },
+  errorHint: {
+    color: Colors.danger,
+    fontSize: Typography.small,
+    fontWeight: Typography.fontWeight.bold,
     marginTop: Spacing.md,
   },
   success: {

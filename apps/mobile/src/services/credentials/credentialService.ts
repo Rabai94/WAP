@@ -5,6 +5,19 @@ export type CredentialStatus = "expired" | "revoked" | "valid";
 export type CredentialDocumentStatus = "failed" | "pending" | "ready";
 export type CompletionOutcome = "abandoned" | "failed" | "passed";
 
+export type CredentialAuditEventType =
+  | "course_completed"
+  | "credential_created"
+  | "credential_downloaded"
+  | "credential_issued"
+  | "credential_reissued"
+  | "credential_revoked"
+  | "document_generation_failed"
+  | "document_generation_retried"
+  | "document_generation_started"
+  | "document_ready"
+  | "visibility_changed";
+
 export type CredentialSkill = {
   slug: string;
   name_ro: string;
@@ -117,16 +130,38 @@ export type UserSkill = {
 
 export type CredentialAuditEvent = {
   event_id: number;
-  event_type: string;
+  event_type: CredentialAuditEventType;
   actor_role: "issuer" | "participant" | "system";
   metadata: Record<string, unknown>;
   created_at: string;
 };
 
-type GenerateCredentialResponse = {
+export type GenerateCredentialInput =
+  | {
+    completionId: string;
+    credentialId?: never;
+    replacesCredentialId?: never;
+  }
+  | {
+    completionId?: never;
+    credentialId: string;
+    replacesCredentialId?: never;
+  }
+  | {
+    completionId?: never;
+    credentialId?: never;
+    replacesCredentialId: string;
+  };
+
+export type GenerateCredentialResponse = {
   credentialId: string;
   credentialNumber: string;
   documentStatus: "ready";
+};
+
+export type RetryCredentialDocumentResponse = {
+  completionId: string;
+  credentialId: string;
 };
 
 type DownloadUrlResponse = {
@@ -189,10 +224,28 @@ export async function finalizeCourseEnrollment(input: {
   return data as string;
 }
 
-export async function generateCourseCredential(input: {
-  completionId?: string;
-  replacesCredentialId?: string;
-}) {
+export async function retryCredentialDocumentGeneration(credentialId: string) {
+  const { data, error } = await supabase
+    .rpc("retry_credential_document_generation", {
+      p_credential_id: credentialId,
+    })
+    .single();
+
+  if (error) {
+    throw new Error(error.message || "Credential document retry was rejected.");
+  }
+
+  if (!isRetryCredentialDocumentRow(data)) {
+    throw new Error("Credential document retry returned an invalid response.");
+  }
+
+  return {
+    completionId: data.completion_id,
+    credentialId: data.credential_id,
+  } satisfies RetryCredentialDocumentResponse;
+}
+
+export async function generateCourseCredential(input: GenerateCredentialInput) {
   const { data, error } = await supabase.functions.invoke(
     "generate-course-credential",
     { body: input },
@@ -201,17 +254,11 @@ export async function generateCourseCredential(input: {
     throw new Error(error.message || "Credential PDF could not be generated.");
   }
 
-  const result = data as Partial<GenerateCredentialResponse> | null;
-  if (
-    !result
-    || typeof result.credentialId !== "string"
-    || typeof result.credentialNumber !== "string"
-    || result.documentStatus !== "ready"
-  ) {
+  if (!isGenerateCredentialResponse(data)) {
     throw new Error("Credential generation returned an invalid response.");
   }
 
-  return result as GenerateCredentialResponse;
+  return data;
 }
 
 export async function revokeCredential(credentialId: string, reason: string) {
@@ -287,16 +334,11 @@ export async function getCredentialDownloadUrl(credentialId: string) {
     throw new Error(error.message || "Credential download could not be prepared.");
   }
 
-  const result = data as Partial<DownloadUrlResponse> | null;
-  if (
-    !result
-    || typeof result.signedUrl !== "string"
-    || typeof result.expiresIn !== "number"
-  ) {
+  if (!isDownloadUrlResponse(data)) {
     throw new Error("Credential download returned an invalid response.");
   }
 
-  return result as DownloadUrlResponse;
+  return data;
 }
 
 export async function listCredentialAudit(credentialId: string) {
@@ -325,4 +367,38 @@ export function buildCredentialVerificationUrl(token: string) {
   throw new Error(
     "EXPO_PUBLIC_CREDENTIAL_VERIFICATION_BASE_URL is required on native platforms.",
   );
+}
+
+function isGenerateCredentialResponse(value: unknown): value is GenerateCredentialResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const response = value as Record<string, unknown>;
+  return typeof response.credentialId === "string"
+    && typeof response.credentialNumber === "string"
+    && response.documentStatus === "ready";
+}
+
+function isRetryCredentialDocumentRow(value: unknown): value is {
+  completion_id: string;
+  credential_id: string;
+} {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const response = value as Record<string, unknown>;
+  return typeof response.completion_id === "string"
+    && typeof response.credential_id === "string";
+}
+
+function isDownloadUrlResponse(value: unknown): value is DownloadUrlResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const response = value as Record<string, unknown>;
+  return typeof response.signedUrl === "string"
+    && typeof response.expiresIn === "number";
 }

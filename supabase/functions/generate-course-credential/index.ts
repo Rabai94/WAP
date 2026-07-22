@@ -1,10 +1,11 @@
 import { createClient } from "npm:@supabase/supabase-js@2.110.1";
 
-import { errorMessage, isUuid, jsonResponse, corsHeaders } from "../_shared/http.ts";
+import { corsHeaders, isUuid, jsonResponse } from "../_shared/http.ts";
 import { createCredentialPdf } from "../_shared/pdf.ts";
 
 type GenerateCredentialBody = {
   completionId?: string;
+  credentialId?: string;
   replacesCredentialId?: string;
 };
 
@@ -23,9 +24,41 @@ type CredentialRow = {
   participant_display_name: string;
   pdf_sha256: string | null;
   pdf_storage_path: string | null;
+  status: "revoked" | "valid";
   user_id: string;
   verification_token: string;
 };
+
+type RetryCredentialResponse = {
+  completion_id: string;
+  credential_id: string;
+};
+
+type ClaimCredentialResponse = RetryCredentialResponse & {
+  attempt_id: string | null;
+  document_status: "pending" | "ready";
+};
+
+type DocumentGenerationErrorCode =
+  | "authorization_failed"
+  | "claim_failed"
+  | "document_finalize_failed"
+  | "generation_failed"
+  | "snapshot_load_failed"
+  | "storage_hash_mismatch"
+  | "storage_upload_failed";
+
+type SupabaseClient = ReturnType<typeof createClient>;
+
+class DocumentGenerationError extends Error {
+  constructor(
+    readonly code: DocumentGenerationErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "DocumentGenerationError";
+  }
+}
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
@@ -38,7 +71,7 @@ Deno.serve(async (request) => {
 
   const environment = readEnvironment();
   if (environment.error) {
-    return jsonResponse({ error: environment.error }, 500);
+    return jsonResponse({ error: "Credential document generation is unavailable." }, 500);
   }
 
   const authorization = request.headers.get("Authorization");
@@ -55,10 +88,11 @@ Deno.serve(async (request) => {
   }
 
   const hasCompletion = isUuid(body.completionId);
+  const hasCredential = isUuid(body.credentialId);
   const hasReplacement = isUuid(body.replacesCredentialId);
-  if (hasCompletion === hasReplacement) {
+  if (Number(hasCompletion) + Number(hasCredential) + Number(hasReplacement) !== 1) {
     return jsonResponse(
-      { error: "Provide either completionId or replacesCredentialId." },
+      { error: "Provide exactly one credential generation target." },
       400,
     );
   }
@@ -77,49 +111,93 @@ Deno.serve(async (request) => {
   }
 
   let credentialId: string | null = null;
+  let attemptId: string | null = null;
 
   try {
-    const issueResult = hasCompletion
-      ? await callerClient.rpc("issue_course_credential", {
-        p_completion_id: body.completionId,
-      })
-      : await callerClient.rpc("reissue_course_credential", {
-        p_credential_id: body.replacesCredentialId,
-      });
+    let expectedCompletionId: string | null = null;
 
-    if (issueResult.error || typeof issueResult.data !== "string") {
-      throw new Error(issueResult.error?.message || "Credential issuance was rejected.");
+    if (hasCredential) {
+      const { data: retryData, error: retryError } = await callerClient
+        .rpc("retry_credential_document_generation", {
+          p_credential_id: body.credentialId,
+        })
+        .single();
+
+      if (retryError || !isRetryCredentialResponse(retryData)) {
+        throw new DocumentGenerationError(
+          "authorization_failed",
+          retryError?.message || "Credential document retry was rejected.",
+        );
+      }
+
+      credentialId = retryData.credential_id;
+      expectedCompletionId = retryData.completion_id;
+    } else {
+      const issueResult = hasCompletion
+        ? await callerClient.rpc("issue_course_credential", {
+          p_completion_id: body.completionId,
+        })
+        : await callerClient.rpc("reissue_course_credential", {
+          p_credential_id: body.replacesCredentialId,
+        });
+
+      if (issueResult.error || typeof issueResult.data !== "string") {
+        throw new DocumentGenerationError(
+          "authorization_failed",
+          issueResult.error?.message || "Credential issuance was rejected.",
+        );
+      }
+
+      credentialId = issueResult.data;
+      expectedCompletionId = hasCompletion ? body.completionId : null;
     }
 
-    credentialId = issueResult.data;
-
-    const { data: credentialData, error: credentialError } = await adminClient
-      .from("issued_credentials")
-      .select(
-        "id, credential_number, course_end_date, course_start_date, course_title, "
-          + "document_status, duration_unit, duration_value, expires_at, issued_at, "
-          + "issuer_name, participant_display_name, pdf_sha256, pdf_storage_path, "
-          + "user_id, verification_token",
-      )
-      .eq("id", credentialId)
+    const { data: claimData, error: claimError } = await callerClient
+      .rpc("claim_credential_document_generation", {
+        p_credential_id: credentialId,
+      })
       .single();
 
-    if (credentialError || !credentialData) {
-      throw new Error(credentialError?.message || "Credential snapshot could not be loaded.");
+    if (claimError || !isClaimCredentialResponse(claimData)) {
+      throw new DocumentGenerationError(
+        "claim_failed",
+        claimError?.message || "Credential document generation could not be claimed.",
+      );
     }
 
-    const credential = credentialData as CredentialRow;
-
     if (
-      credential.document_status === "ready"
-      && credential.pdf_storage_path
-      && credential.pdf_sha256
+      claimData.credential_id !== credentialId
+      || (expectedCompletionId && claimData.completion_id !== expectedCompletionId)
     ) {
-      return jsonResponse({
-        credentialId: credential.id,
-        credentialNumber: credential.credential_number,
-        documentStatus: "ready",
-      });
+      throw new DocumentGenerationError(
+        "claim_failed",
+        "Credential document claim did not match the authorized target.",
+      );
+    }
+
+    attemptId = claimData.attempt_id;
+    const credential = await loadCredential(adminClient, credentialId);
+
+    if (claimData.document_status === "ready") {
+      if (
+        credential.document_status !== "ready"
+        || !credential.pdf_storage_path
+        || !credential.pdf_sha256
+      ) {
+        throw new DocumentGenerationError(
+          "snapshot_load_failed",
+          "Ready credential document metadata is incomplete.",
+        );
+      }
+
+      return readyResponse(credential);
+    }
+
+    if (!attemptId || credential.document_status !== "pending") {
+      throw new DocumentGenerationError(
+        "claim_failed",
+        "Credential document generation attempt is invalid.",
+      );
     }
 
     const { data: skillData, error: skillError } = await adminClient
@@ -129,7 +207,7 @@ Deno.serve(async (request) => {
       .order("skill_name_en", { ascending: true });
 
     if (skillError) {
-      throw new Error(skillError.message);
+      throw new DocumentGenerationError("snapshot_load_failed", skillError.message);
     }
 
     const verificationUrl = buildVerificationUrl(
@@ -153,21 +231,12 @@ Deno.serve(async (request) => {
     const sha256 = await sha256Hex(pdfBytes);
     const storagePath = `${credential.user_id}/${credential.id}.pdf`;
 
-    const { error: uploadError } = await adminClient.storage
-      .from("credential-pdfs")
-      .upload(storagePath, pdfBytes, {
-        cacheControl: "3600",
-        contentType: "application/pdf",
-        upsert: true,
-      });
-
-    if (uploadError) {
-      throw new Error(uploadError.message);
-    }
+    await ensureStoredDocument(adminClient, storagePath, pdfBytes, sha256);
 
     const { error: completeError } = await adminClient.rpc(
       "complete_credential_document",
       {
+        p_attempt_id: attemptId,
         p_credential_id: credential.id,
         p_sha256: sha256,
         p_storage_path: storagePath,
@@ -175,24 +244,220 @@ Deno.serve(async (request) => {
     );
 
     if (completeError) {
-      throw new Error(completeError.message);
+      throw new DocumentGenerationError(
+        "document_finalize_failed",
+        completeError.message,
+      );
     }
 
-    return jsonResponse({
-      credentialId: credential.id,
-      credentialNumber: credential.credential_number,
-      documentStatus: "ready",
+    return readyResponse({
+      ...credential,
+      document_status: "ready",
+      pdf_sha256: sha256,
+      pdf_storage_path: storagePath,
     });
   } catch (error) {
-    if (credentialId) {
-      await adminClient.rpc("mark_credential_document_failed", {
-        p_credential_id: credentialId,
-      });
+    const errorCode = documentErrorCode(error);
+    console.error("Credential document generation failed.", {
+      attemptId,
+      credentialId,
+      errorCode,
+      message: technicalErrorMessage(error),
+    });
+
+    if (credentialId && attemptId) {
+      const { error: failureError } = await adminClient.rpc(
+        "mark_credential_document_failed",
+        {
+          p_attempt_id: attemptId,
+          p_credential_id: credentialId,
+          p_error_code: errorCode,
+        },
+      );
+
+      if (failureError) {
+        console.error("Credential document failure state could not be saved.", {
+          attemptId,
+          credentialId,
+          message: failureError.message,
+        });
+      }
     }
 
-    return jsonResponse({ error: errorMessage(error) }, 400);
+    if (credentialId) {
+      const reconciledCredential = await loadReadyCredential(adminClient, credentialId);
+      if (reconciledCredential) {
+        return readyResponse(reconciledCredential);
+      }
+    }
+
+    return jsonResponse(
+      { error: "Credential document generation could not be completed." },
+      errorCode === "claim_failed" || errorCode === "storage_hash_mismatch" ? 409 : 400,
+    );
   }
 });
+
+async function loadCredential(
+  adminClient: SupabaseClient,
+  credentialId: string,
+): Promise<CredentialRow> {
+  const { data, error } = await adminClient
+    .from("issued_credentials")
+    .select(
+      "id, credential_number, course_end_date, course_start_date, course_title, "
+        + "document_status, duration_unit, duration_value, expires_at, issued_at, "
+        + "issuer_name, participant_display_name, pdf_sha256, pdf_storage_path, "
+        + "status, user_id, verification_token",
+    )
+    .eq("id", credentialId)
+    .single();
+
+  if (error || !isCredentialRow(data)) {
+    throw new DocumentGenerationError(
+      "snapshot_load_failed",
+      error?.message || "Credential snapshot could not be loaded.",
+    );
+  }
+
+  return data;
+}
+
+async function loadReadyCredential(
+  adminClient: SupabaseClient,
+  credentialId: string,
+): Promise<CredentialRow | null> {
+  try {
+    const credential = await loadCredential(adminClient, credentialId);
+    return credential.document_status === "ready"
+      && Boolean(credential.pdf_storage_path)
+      && Boolean(credential.pdf_sha256)
+      ? credential
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function ensureStoredDocument(
+  adminClient: SupabaseClient,
+  storagePath: string,
+  pdfBytes: Uint8Array,
+  expectedSha256: string,
+) {
+  const existingSha256 = await storedDocumentSha256(adminClient, storagePath);
+  if (existingSha256) {
+    if (existingSha256 !== expectedSha256) {
+      throw new DocumentGenerationError(
+        "storage_hash_mismatch",
+        "Stored credential document hash does not match the immutable snapshot.",
+      );
+    }
+    return;
+  }
+
+  const { error: uploadError } = await adminClient.storage
+    .from("credential-pdfs")
+    .upload(storagePath, pdfBytes, {
+      cacheControl: "3600",
+      contentType: "application/pdf",
+      upsert: false,
+    });
+
+  if (!uploadError) {
+    return;
+  }
+
+  // A concurrent or partially completed request may have created the object
+  // after the first read. Re-read and accept it only when the bytes match.
+  const racedSha256 = await storedDocumentSha256(adminClient, storagePath);
+  if (racedSha256 === expectedSha256) {
+    return;
+  }
+
+  if (racedSha256) {
+    throw new DocumentGenerationError(
+      "storage_hash_mismatch",
+      "Stored credential document hash does not match the immutable snapshot.",
+    );
+  }
+
+  throw new DocumentGenerationError("storage_upload_failed", uploadError.message);
+}
+
+async function storedDocumentSha256(
+  adminClient: SupabaseClient,
+  storagePath: string,
+) {
+  const { data, error } = await adminClient.storage
+    .from("credential-pdfs")
+    .download(storagePath);
+
+  if (error || !data) {
+    return null;
+  }
+
+  return sha256Hex(new Uint8Array(await data.arrayBuffer()));
+}
+
+function readyResponse(credential: CredentialRow) {
+  return jsonResponse({
+    credentialId: credential.id,
+    credentialNumber: credential.credential_number,
+    documentStatus: "ready",
+  });
+}
+
+function isCredentialRow(value: unknown): value is CredentialRow {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const row = value as Record<string, unknown>;
+  return isUuid(row.id)
+    && typeof row.credential_number === "string"
+    && typeof row.course_title === "string"
+    && isDocumentStatus(row.document_status)
+    && typeof row.issued_at === "string"
+    && typeof row.issuer_name === "string"
+    && typeof row.participant_display_name === "string"
+    && (row.pdf_sha256 === null || typeof row.pdf_sha256 === "string")
+    && (row.pdf_storage_path === null || typeof row.pdf_storage_path === "string")
+    && (row.status === "revoked" || row.status === "valid")
+    && isUuid(row.user_id)
+    && typeof row.verification_token === "string";
+}
+
+function isRetryCredentialResponse(value: unknown): value is RetryCredentialResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const row = value as Record<string, unknown>;
+  return isUuid(row.credential_id) && isUuid(row.completion_id);
+}
+
+function isClaimCredentialResponse(value: unknown): value is ClaimCredentialResponse {
+  if (!isRetryCredentialResponse(value)) {
+    return false;
+  }
+
+  const row = value as unknown as Record<string, unknown>;
+  return (row.attempt_id === null || isUuid(row.attempt_id))
+    && (row.document_status === "pending" || row.document_status === "ready");
+}
+
+function isDocumentStatus(value: unknown): value is CredentialRow["document_status"] {
+  return value === "failed" || value === "pending" || value === "ready";
+}
+
+function documentErrorCode(error: unknown): DocumentGenerationErrorCode {
+  return error instanceof DocumentGenerationError ? error.code : "generation_failed";
+}
+
+function technicalErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unexpected server error.";
+}
 
 function readEnvironment() {
   const url = Deno.env.get("SUPABASE_URL") ?? "";

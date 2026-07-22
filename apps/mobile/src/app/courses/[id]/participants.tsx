@@ -7,8 +7,10 @@ import { useLanguage } from "@/i18n/LanguageProvider";
 import {
   finalizeCourseEnrollment,
   generateCourseCredential,
+  getCredentialDownloadUrl,
   listCourseParticipantsForIssuer,
   listCredentialAudit,
+  retryCredentialDocumentGeneration,
   revokeCredential,
   updateEnrollmentStatusForIssuer,
   type CompletionOutcome,
@@ -19,6 +21,7 @@ import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -34,6 +37,7 @@ type ActionKind =
   | "passed"
   | "reissue"
   | "reject"
+  | "retry"
   | "revoke";
 
 type PendingAction = {
@@ -131,14 +135,46 @@ function CourseParticipantsContent() {
     }
   }
 
+  async function downloadCredential(credentialId: string) {
+    if (submittingRef.current) {
+      return;
+    }
+
+    submittingRef.current = true;
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const result = await getCredentialDownloadUrl(credentialId);
+      const supported = await Linking.canOpenURL(result.signedUrl);
+      if (!supported) {
+        throw new Error(t("credentials.wallet.downloadUnsupported"));
+      }
+
+      await Linking.openURL(result.signedUrl);
+      setSuccess(t("credentials.wallet.downloadReady"));
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : t("credentials.wallet.actionError"),
+      );
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
+  }
+
   async function confirmAction() {
     if (!pendingAction || submittingRef.current) {
       return;
     }
 
+    const actionKind = pendingAction.kind;
     const parsedScore = score.trim() ? Number(score) : null;
     if (
-      isCompletionAction(pendingAction.kind)
+      isCompletionAction(actionKind)
       && parsedScore !== null
       && (!Number.isFinite(parsedScore) || parsedScore < 0 || parsedScore > 100)
     ) {
@@ -146,7 +182,7 @@ function CourseParticipantsContent() {
       return;
     }
 
-    if (pendingAction.kind === "revoke" && reason.trim().length < 5) {
+    if (actionKind === "revoke" && reason.trim().length < 5) {
       setError(t("credentials.participants.reasonError"));
       return;
     }
@@ -157,7 +193,7 @@ function CourseParticipantsContent() {
 
     try {
       const participant = pendingAction.participant;
-      switch (pendingAction.kind) {
+      switch (actionKind) {
         case "accept":
           await updateEnrollmentStatusForIssuer(participant.enrollment_id, "accepted");
           break;
@@ -170,7 +206,7 @@ function CourseParticipantsContent() {
           await finalizeCourseEnrollment({
             enrollmentId: participant.enrollment_id,
             notes: notes.trim() || null,
-            outcome: pendingAction.kind as CompletionOutcome,
+            outcome: actionKind as CompletionOutcome,
             score: parsedScore,
           });
           break;
@@ -180,6 +216,25 @@ function CourseParticipantsContent() {
           }
           await generateCourseCredential({ completionId: participant.completion_id });
           break;
+        case "retry": {
+          if (!participant.credential_id) {
+            throw new Error(t("credentials.participants.missingCredential"));
+          }
+          const retryTarget = await retryCredentialDocumentGeneration(
+            participant.credential_id,
+          );
+          if (
+            retryTarget.credentialId !== participant.credential_id
+            || (
+              participant.completion_id
+              && retryTarget.completionId !== participant.completion_id
+            )
+          ) {
+            throw new Error(t("credentials.participants.retryTargetError"));
+          }
+          await generateCourseCredential({ credentialId: retryTarget.credentialId });
+          break;
+        }
         case "revoke":
           if (!participant.credential_id) {
             throw new Error(t("credentials.participants.missingCredential"));
@@ -197,14 +252,22 @@ function CourseParticipantsContent() {
       }
 
       setPendingAction(null);
-      setSuccess(t("credentials.participants.actionSuccess"));
+      setSuccess(t(actionKind === "retry"
+        ? "credentials.participants.documentGenerated"
+        : "credentials.participants.actionSuccess"));
       await loadParticipants();
     } catch (nextError) {
-      setError(
-        nextError instanceof Error
-          ? nextError.message
-          : t("credentials.participants.actionError"),
-      );
+      const friendlyError = nextError instanceof Error
+        ? nextError.message
+        : t(actionKind === "retry"
+          ? "credentials.participants.retryError"
+          : "credentials.participants.actionError");
+
+      if (actionKind === "retry") {
+        setPendingAction(null);
+        await loadParticipants();
+      }
+      setError(friendlyError);
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
@@ -268,7 +331,9 @@ function CourseParticipantsContent() {
           <Button
             disabled={loading}
             onPress={() => void loadParticipants()}
-            title={t("common.refresh")}
+            title={loading
+              ? t("credentials.participants.checkingDocument")
+              : t("common.refresh")}
             variant="ghost"
           />
         </View>
@@ -347,6 +412,16 @@ function CourseParticipantsContent() {
                     ) : null}
                   </View>
                 </View>
+                {participant.credential_document_status === "pending" ? (
+                  <Text style={styles.documentMessage}>
+                    {t("credentials.participants.documentPending")}
+                  </Text>
+                ) : null}
+                {participant.credential_document_status === "failed" ? (
+                  <Text accessibilityRole="alert" style={styles.documentError}>
+                    {t("credentials.participants.documentFailed")}
+                  </Text>
+                ) : null}
               </View>
             ) : null}
 
@@ -400,7 +475,45 @@ function CourseParticipantsContent() {
                 />
               ) : null}
 
-              {participant.credential_id && participant.credential_status === "valid" ? (
+              {participant.credential_id
+                && participant.credential_status === "valid"
+                && participant.credential_document_status === "pending" ? (
+                  <Button
+                    disabled
+                    style={styles.actionButton}
+                    title={t("credentials.participants.retryPdf")}
+                    variant="secondary"
+                  />
+                ) : null}
+
+              {participant.credential_id
+                && participant.credential_status === "valid"
+                && participant.credential_document_status === "failed" ? (
+                  <Button
+                    disabled={submitting}
+                    onPress={() => openAction("retry", participant)}
+                    style={styles.actionButton}
+                    title={submitting
+                      ? t("credentials.participants.retryInProgress")
+                      : t("credentials.participants.retryPdf")}
+                  />
+                ) : null}
+
+              {participant.credential_id
+                && participant.credential_status === "valid"
+                && participant.credential_document_status === "ready" ? (
+                <Button
+                  disabled={submitting}
+                  onPress={() => void downloadCredential(participant.credential_id!)}
+                  style={styles.actionButton}
+                  title={t("credentials.wallet.download")}
+                  variant="secondary"
+                />
+              ) : null}
+
+              {participant.credential_id
+                && participant.credential_status === "valid"
+                && participant.credential_document_status === "ready" ? (
                 <Button
                   onPress={() => openAction("revoke", participant)}
                   style={styles.actionButton}
@@ -597,6 +710,18 @@ const styles = StyleSheet.create({
   badges: {
     alignItems: "flex-end",
     gap: Spacing.sm,
+  },
+  documentMessage: {
+    color: Colors.textBody,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.bold,
+    marginTop: Spacing.md,
+  },
+  documentError: {
+    color: Colors.danger,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.bold,
+    marginTop: Spacing.md,
   },
   sectionTitle: {
     color: Colors.text,

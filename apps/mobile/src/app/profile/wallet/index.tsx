@@ -134,6 +134,10 @@ function CredentialWalletContent() {
                   status={credential.status}
                 />
                 <CredentialStatusBadge
+                  label={t(`credentials.document.${credential.document_status}`)}
+                  status={credential.document_status}
+                />
+                <CredentialStatusBadge
                   label={t(credential.is_public
                     ? "credentials.visibility.public"
                     : "credentials.visibility.private")}

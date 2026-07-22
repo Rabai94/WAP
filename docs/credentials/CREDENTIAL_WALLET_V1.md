@@ -34,12 +34,26 @@ Do not put `SUPABASE_SERVICE_ROLE_KEY` in Expo environment files or mobile code.
 
 ## PDF lifecycle
 
-`generate-course-credential` first invokes the issuer-scoped issuance RPC with
-the caller's JWT. It then generates a deterministic PDF, uploads it to the
-private `credential-pdfs` bucket, calculates SHA-256, and marks the document
-ready through a service-only RPC. Retries use the same object path and the same
-credential snapshot. The PDF contains a configured verification link rather
-than a hard-coded RabAI domain.
+Credential status and document status are independent. A credential row starts
+with a `pending` document, then becomes `ready` or `failed`. An authorized issuer
+can move only `failed -> pending` through the retry RPC. Retry reuses the same
+credential number, verification token, immutable snapshot, skills and Storage
+path; revoke plus reissue remains a separate correction flow.
+
+`generate-course-credential` authorizes issuance/reissue/retry with the caller's
+JWT, then atomically claims one generation attempt. Completion and failure are
+service-only and must present that attempt ID, preventing stale or concurrent
+requests from changing a newer attempt. `ready` is terminal.
+
+The function generates deterministic bytes and checks the private
+`credential-pdfs` object at `user_id/credential_id.pdf`. An existing object is
+accepted only when its SHA-256 matches the deterministic output. This recovers
+the normal partial case where upload succeeded but the database completion did
+not. A mismatched object is never overwritten automatically.
+
+Audit distinguishes credential creation, generation start, failure, retry and
+document readiness. The compatibility event `credential_issued` still means the
+document reached `ready`.
 
 The V1 generator uses an embedded PDF base font and transliterates unsupported
 Latin-ext glyphs for portability. Replacing it later with an embedded Unicode
@@ -59,7 +73,10 @@ path.
 - Snapshot identity fields cannot be updated; correction is revoke plus reissue.
 - Audit rows, completion history, credential rows, and credential skill
   snapshots cannot be deleted by normal clients.
+- A failed document retry never creates credential or skill duplicates.
 - Revocation marks credential-backed user skills revoked without deleting them.
+- Public visibility, verification links, sharing and downloads require
+  `document_status = 'ready'`.
 - Public verification requires an unguessable token and `is_public = true`.
 - Public verification returns no email, phone, address, user ID, owner ID,
   internal notes, hash, token, or Storage path.
