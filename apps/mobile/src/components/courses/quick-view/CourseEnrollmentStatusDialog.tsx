@@ -23,9 +23,13 @@ type CourseEnrollmentStatusDialogProps = {
   enrollment: CourseEnrollmentSnapshot;
   notice?: string | null;
   onClose: () => void;
+  onRetryWithdrawalVerification: () => void;
   onRequestWithdrawal: () => void;
   providerName: string;
   visible: boolean;
+  withdrawalDisabled: boolean;
+  withdrawalVerificationError: string | null;
+  withdrawalVerificationLoading: boolean;
 };
 
 type WebPressableState = {
@@ -58,9 +62,13 @@ function CourseEnrollmentStatusDialogPanel({
   enrollment,
   notice,
   onClose,
+  onRetryWithdrawalVerification,
   onRequestWithdrawal,
   providerName,
   visible,
+  withdrawalDisabled,
+  withdrawalVerificationError,
+  withdrawalVerificationLoading,
 }: CourseEnrollmentStatusDialogProps) {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -173,6 +181,48 @@ function CourseEnrollmentStatusDialogPanel({
                 </Text>
               </View>
             ) : null}
+
+            {canWithdraw && withdrawalVerificationLoading ? (
+              <View style={styles.infoNotice}>
+                <Text style={styles.infoNoticeText}>
+                  Se verifică statusul actual înainte ca retragerea să fie
+                  disponibilă.
+                </Text>
+              </View>
+            ) : null}
+
+            {canWithdraw &&
+            withdrawalVerificationError &&
+              !withdrawalVerificationLoading ? (
+              <View style={styles.verificationErrorNotice}>
+                <Text
+                  accessibilityRole="alert"
+                  style={styles.verificationErrorText}
+                >
+                  {withdrawalVerificationError}
+                </Text>
+                <Pressable
+                  accessibilityLabel="Reverifică starea înscrierii"
+                  accessibilityRole="button"
+                  onPress={onRetryWithdrawalVerification}
+                  style={(state) => {
+                    const webState = state as WebPressableState;
+
+                    return [
+                      styles.verificationRetryButton,
+                      pointerWebStyle,
+                      webState.hovered && styles.verificationRetryButtonHover,
+                      webState.focused && styles.verificationRetryButtonFocus,
+                      webState.pressed && styles.buttonPressed,
+                    ];
+                  }}
+                >
+                  <Text style={styles.verificationRetryButtonText}>
+                    Reverifică starea
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
           </ScrollView>
 
           <View style={styles.actions}>
@@ -201,16 +251,23 @@ function CourseEnrollmentStatusDialogPanel({
                 accessibilityHint="Deschide confirmarea retragerii; cererea nu este retrasă încă."
                 accessibilityLabel={`Retrage înscrierea la cursul ${courseTitle}`}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: withdrawalDisabled }}
+                disabled={withdrawalDisabled}
                 onPress={onRequestWithdrawal}
                 style={(state) => {
                   const webState = state as WebPressableState;
 
                   return [
                     styles.dangerButton,
-                    pointerWebStyle,
-                    webState.hovered && styles.dangerButtonHover,
+                    !withdrawalDisabled && pointerWebStyle,
+                    withdrawalDisabled && styles.dangerButtonDisabled,
+                    !withdrawalDisabled &&
+                      webState.hovered &&
+                      styles.dangerButtonHover,
                     webState.focused && styles.dangerButtonFocus,
-                    webState.pressed && styles.buttonPressed,
+                    !withdrawalDisabled &&
+                      webState.pressed &&
+                      styles.buttonPressed,
                   ];
                 }}
                 testID="request-course-enrollment-withdrawal-from-status"
@@ -395,6 +452,41 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySmall,
     lineHeight: 20,
   },
+  verificationErrorNotice: {
+    alignItems: "flex-start",
+    backgroundColor: Colors.warningSurface,
+    borderColor: Colors.warningBorder,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    gap: Spacing.md,
+    padding: Spacing.three,
+  },
+  verificationErrorText: {
+    color: Colors.danger,
+    fontSize: Typography.bodySmall,
+    lineHeight: 20,
+  },
+  verificationRetryButton: {
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: Spacing.three,
+  },
+  verificationRetryButtonFocus: {
+    borderColor: Colors.brand,
+  },
+  verificationRetryButtonHover: {
+    backgroundColor: Colors.surfaceMuted,
+  },
+  verificationRetryButtonText: {
+    color: Colors.brandDeep,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.extraBold,
+  },
   actions: {
     borderColor: Colors.border,
     borderTopWidth: 1,
@@ -441,6 +533,9 @@ const styles = StyleSheet.create({
   dangerButtonHover: {
     backgroundColor: "#BE123C",
     borderColor: "#BE123C",
+  },
+  dangerButtonDisabled: {
+    opacity: 0.55,
   },
   dangerButtonFocus: {
     borderColor: Colors.text,

@@ -61,6 +61,8 @@ export default function CourseDetailsScreen() {
   const [enrollments, setEnrollments] = useState<UserCourseEnrollment[]>([]);
   const [loadingEnrollmentContext, setLoadingEnrollmentContext] =
     useState(false);
+  const [enrollmentContextVerified, setEnrollmentContextVerified] =
+    useState(false);
   const [enrollmentContextError, setEnrollmentContextError] = useState<
     string | null
   >(null);
@@ -177,6 +179,7 @@ export default function CourseDetailsScreen() {
       enrollmentLoadRequestIdRef.current = requestId;
       setLoadingEnrollmentContext(true);
       setEnrollmentContextError(null);
+      setEnrollmentContextVerified(false);
 
       try {
         const nextEnrollments = await fetchCachedCourseEnrollments(
@@ -200,6 +203,7 @@ export default function CourseDetailsScreen() {
           : null;
 
         setEnrollments(nextEnrollments);
+        setEnrollmentContextVerified(true);
         return nextExistingEnrollment;
       } catch (nextError) {
         if (
@@ -232,6 +236,7 @@ export default function CourseDetailsScreen() {
       enrollmentLoadRequestIdRef.current += 1;
       setEnrollments([]);
       setEnrollmentContextError(null);
+      setEnrollmentContextVerified(false);
       setEnrollmentNotice(null);
 
       if (!userId || !courseId || !isUuid(courseId)) {
@@ -245,7 +250,7 @@ export default function CourseDetailsScreen() {
         setEnrollments(cachedEnrollments);
       }
 
-      void loadEnrollmentContext(userId);
+      void loadEnrollmentContext(userId, true);
     }, 0);
 
     return () => {
@@ -377,6 +382,7 @@ export default function CourseDetailsScreen() {
     if (
       !existingEnrollment ||
       !canWithdrawCourseEnrollment(existingEnrollment.status) ||
+      !enrollmentStatusReady ||
       withdrawalOpenLockRef.current ||
       withdrawalLockRef.current ||
       withdrawing
@@ -438,9 +444,43 @@ export default function CourseDetailsScreen() {
         return;
       }
 
-      setWithdrawalError(readWithdrawalError(nextError));
+      const withdrawalFailure = readWithdrawalError(nextError);
+
       invalidateCachedCourseEnrollments(userId);
-      void loadEnrollmentContext(userId, true);
+      const refreshedEnrollment = await loadEnrollmentContext(userId, true);
+
+      if (!mountedRef.current) {
+        return;
+      }
+
+      if (refreshedEnrollment?.status === "withdrawn") {
+        setEnrollmentNotice("Înscrierea a fost retrasă cu succes.");
+        setStatusDialogNotice(
+          "Cererea a fost retrasă și păstrată în istoric."
+        );
+        setWithdrawalError(null);
+        setWithdrawalConfirmVisible(false);
+        setStatusDialogVisible(true);
+        withdrawalOpenLockRef.current = false;
+        withdrawalReturnsToStatusRef.current = false;
+        void loadCourse(true);
+        return;
+      }
+
+      if (
+        refreshedEnrollment?.status === "accepted" ||
+        refreshedEnrollment?.status === "rejected"
+      ) {
+        setWithdrawalError(null);
+        setStatusDialogNotice(null);
+        setWithdrawalConfirmVisible(false);
+        setStatusDialogVisible(true);
+        withdrawalOpenLockRef.current = false;
+        withdrawalReturnsToStatusRef.current = false;
+        return;
+      }
+
+      setWithdrawalError(withdrawalFailure);
     } finally {
       withdrawalLockRef.current = false;
 
@@ -454,6 +494,13 @@ export default function CourseDetailsScreen() {
   const enrollmentStatusLabel = existingEnrollment
     ? formatCourseEnrollmentStatus(existingEnrollment.status)
     : null;
+  const enrollmentStatusReady =
+    enrollmentContextVerified &&
+    !loadingEnrollmentContext &&
+    !enrollmentContextError;
+  const withdrawalEligible = existingEnrollment
+    ? canWithdrawCourseEnrollment(existingEnrollment.status)
+    : false;
   const enrollmentButtonLabel =
     !enrollmentAvailability.available && enrollmentAvailability.label
       ? enrollmentAvailability.label
@@ -570,15 +617,23 @@ export default function CourseDetailsScreen() {
                 <View style={styles.enrollmentActionItem}>
                   <Button title="Vezi starea" onPress={requestStatusDialog} />
                 </View>
-                {canWithdrawCourseEnrollment(existingEnrollment.status) ? (
+                {withdrawalEligible ? (
                   <Pressable
                     accessibilityHint="Deschide confirmarea; înscrierea nu este retrasă la primul click."
                     accessibilityLabel={`Retrage înscrierea la cursul ${course.title}`}
                     accessibilityRole="button"
+                    accessibilityState={{
+                      busy: loadingEnrollmentContext,
+                      disabled: !enrollmentStatusReady,
+                    }}
+                    disabled={!enrollmentStatusReady}
                     onPress={() => requestWithdrawal(false)}
                     style={({ pressed }) => [
                       styles.withdrawButton,
-                      pressed && styles.withdrawButtonPressed,
+                      !enrollmentStatusReady && styles.withdrawButtonDisabled,
+                      enrollmentStatusReady &&
+                        pressed &&
+                        styles.withdrawButtonPressed,
                     ]}
                     testID="course-details-request-withdrawal"
                   >
@@ -645,16 +700,24 @@ export default function CourseDetailsScreen() {
               setStatusDialogNotice(null);
             }
           }}
+          onRetryWithdrawalVerification={() => {
+            if (userId) {
+              void loadEnrollmentContext(userId, true);
+            }
+          }}
           onRequestWithdrawal={() => requestWithdrawal(true)}
           providerName={course.provider_name}
           visible
+          withdrawalDisabled={!enrollmentStatusReady}
+          withdrawalVerificationError={enrollmentContextError}
+          withdrawalVerificationLoading={loadingEnrollmentContext}
         />
       ) : null}
 
       {course &&
       existingEnrollment &&
       withdrawalConfirmVisible &&
-      canWithdrawCourseEnrollment(existingEnrollment.status) ? (
+      withdrawalEligible ? (
         <CourseEnrollmentWithdrawalConfirmDialog
           courseTitle={course.title}
           error={withdrawalError}
@@ -1097,6 +1160,9 @@ const styles = StyleSheet.create({
   },
   withdrawButtonPressed: {
     opacity: 0.84,
+  },
+  withdrawButtonDisabled: {
+    opacity: 0.55,
   },
   withdrawButtonText: {
     color: Colors.white,
