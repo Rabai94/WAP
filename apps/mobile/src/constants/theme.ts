@@ -6,14 +6,19 @@
 import '@/global.css';
 
 import { Platform } from 'react-native';
+import {
+  Colors as RabAIColors,
+  PageWidths,
+  Spacing as RabAISpacing,
+} from '@/theme';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    text: RabAIColors.textPrimary,
+    background: RabAIColors.background,
+    backgroundElement: RabAIColors.surfaceMuted,
+    backgroundSelected: RabAIColors.selection,
+    textSecondary: RabAIColors.textSecondary,
   },
   dark: {
     text: '#ffffff',
@@ -52,14 +57,14 @@ export const Fonts = Platform.select({
 });
 
 export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
+  half: RabAISpacing.micro,
+  one: RabAISpacing.compact,
+  two: RabAISpacing.control,
+  three: RabAISpacing.component,
+  four: RabAISpacing.section,
+  five: RabAISpacing.page,
+  six: RabAISpacing.display,
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const MaxContentWidth = PageWidths.form;

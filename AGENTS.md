@@ -1,5 +1,7 @@
 # RabAI Development Rules
 
+These rules apply to the entire repository. Work under `apps/mobile` must also follow `apps/mobile/AGENTS.md`. The more specific rule applies when guidance differs, but no existing safety, validation, or quality rule may be discarded.
+
 ## General
 
 - Always inspect the existing project before writing code.
@@ -15,7 +17,7 @@
 
 Before writing any Expo or React Native code:
 
-1. Inspect apps/mobile/package.json.
+1. Inspect `apps/mobile/package.json`.
 2. Detect the installed Expo SDK version.
 3. Read the official Expo documentation matching that exact SDK version.
 4. Never assume the latest Expo SDK.
@@ -63,8 +65,8 @@ Before writing any Expo or React Native code:
 - Reuse existing UI components whenever possible.
 - Keep the design system consistent.
 - Use accessible colors and spacing.
-- Before page work, read `../../docs/rabai-design-system.md` and use `../../docs/rabai-new-page-checklist.md` for implementation and review.
-- The design-system document is the single source of truth for visual direction, tokens, shell, component composition and responsive UI patterns. Do not duplicate or override those visual rules here.
+- For any page work, read `docs/rabai-design-system.md` and complete `docs/rabai-new-page-checklist.md`.
+- `docs/rabai-design-system.md` is the single source of truth for visual direction, tokens, shell, component composition and responsive UI patterns. Do not duplicate or override those visual rules here.
 
 ---
 
@@ -73,7 +75,7 @@ Before writing any Expo or React Native code:
 - Keyboard navigation.
 - Visible focus states.
 - Proper ARIA attributes where applicable.
-- Respect prefers-reduced-motion.
+- Respect `prefers-reduced-motion`.
 - Never reduce accessibility for visual effects.
 
 ---
@@ -197,4 +199,4 @@ When introducing significant functionality:
 
 ## RabAI UI contract
 
-Pentru orice pagină creată sau modificată, citește `../../docs/rabai-design-system.md` înainte de implementare și folosește `../../docs/rabai-new-page-checklist.md` la review. Documentația UI definește regulile vizuale; acest fișier păstrează numai regulile generale, de siguranță și de calitate.
+Pentru orice pagină creată sau modificată, citește `docs/rabai-design-system.md` înainte de implementare și folosește `docs/rabai-new-page-checklist.md` la review. Documentația UI definește regulile vizuale; acest fișier păstrează numai regulile generale, de siguranță și de calitate.

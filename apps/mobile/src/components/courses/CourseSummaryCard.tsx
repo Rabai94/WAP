@@ -2,15 +2,14 @@ import type { LanguageCode } from "@/i18n/translations";
 import type { CourseEnrollmentSnapshot } from "@/components/courses/quick-view/courseQuickViewData";
 import { formatCourseEnrollmentStatus } from "@/components/courses/quick-view/courseEnrollmentStatus";
 import type { SearchCourseResult } from "@/services/courses/courseService";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
 import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from "react-native";
+  RabAIBadge,
+  RabAIButton,
+  RabAICard,
+  type RabAIBadgeTone,
+} from "@/components/ui";
+import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { StyleSheet, Text, View } from "react-native";
 
 type CourseSummaryCardVariant = "list" | "compact";
 
@@ -27,27 +26,6 @@ type CourseSummaryCardProps = {
   returnLabel?: string;
   variant?: CourseSummaryCardVariant;
 };
-
-type WebPressableState = {
-  focused?: boolean;
-  hovered?: boolean;
-  pressed?: boolean;
-};
-
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
-
-const focusRingWebStyle =
-  Platform.OS === "web"
-    ? ({
-        outlineColor: "rgba(20, 92, 255, 0.72)",
-        outlineOffset: 3,
-        outlineStyle: "solid",
-        outlineWidth: 2,
-      } as unknown as ViewStyle)
-    : null;
 
 export default function CourseSummaryCard({
   course,
@@ -69,7 +47,11 @@ export default function CourseSummaryCard({
     : null;
 
   return (
-    <View style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}>
+    <RabAICard
+      padding="md"
+      style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}
+      variant={isCompact ? "filled" : "outlined"}
+    >
       <View style={styles.body}>
         <View style={styles.header}>
           <View style={styles.titleWrap}>
@@ -84,12 +66,12 @@ export default function CourseSummaryCard({
                 {location}
               </Text>
             ) : null}
-            {enrollmentStatusLabel ? (
-              <View style={styles.enrollmentBadge}>
-                <Text numberOfLines={1} style={styles.enrollmentBadgeText}>
-                  {enrollmentStatusLabel}
-                </Text>
-              </View>
+            {enrollment && enrollmentStatusLabel ? (
+              <RabAIBadge
+                label={enrollmentStatusLabel}
+                style={styles.enrollmentBadge}
+                tone={courseEnrollmentTone(enrollment.status)}
+              />
             ) : null}
           </View>
           {!isCompact && startDate ? (
@@ -165,7 +147,7 @@ export default function CourseSummaryCard({
           />
         </View>
       </View>
-    </View>
+    </RabAICard>
   );
 }
 
@@ -185,41 +167,35 @@ function CourseAction({
   tone: "primary" | "secondary";
 }) {
   return (
-    <Pressable
+    <RabAIButton
       accessibilityHint={accessibilityHint}
       accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
       onPress={onPress}
-      style={(state) => {
-        const webState = state as WebPressableState;
-        const primary = tone === "primary";
-
-        return [
-          styles.actionButton,
-          primary ? styles.primaryButton : styles.secondaryButton,
-          pointerWebStyle,
-          webState.hovered &&
-            (primary ? styles.primaryButtonHover : styles.secondaryButtonHover),
-          webState.pressed && styles.actionButtonPressed,
-          webState.focused && focusRingWebStyle,
-        ];
-      }}
+      size="sm"
+      style={styles.actionButton}
       testID={testID}
-    >
-      <Text
-        numberOfLines={1}
-        style={primaryTextStyle(tone)}
-      >
-        {label}
-      </Text>
-    </Pressable>
+      title={label}
+      variant={tone === "primary" ? "primary" : "secondary"}
+    />
   );
 }
 
-function primaryTextStyle(tone: "primary" | "secondary") {
-  return tone === "primary"
-    ? styles.primaryButtonText
-    : styles.secondaryButtonText;
+function courseEnrollmentTone(
+  status: CourseEnrollmentSnapshot["status"]
+): RabAIBadgeTone {
+  if (status === "accepted") {
+    return "success";
+  }
+
+  if (status === "rejected") {
+    return "danger";
+  }
+
+  if (status === "submitted" || status === "viewed") {
+    return "information";
+  }
+
+  return "neutral";
 }
 
 function InfoPill({
@@ -347,25 +323,13 @@ function formatDate(value: string | null, language: LanguageCode) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xl,
-    borderWidth: 1,
     justifyContent: "space-between",
-    padding: Spacing.lg,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 18,
-    elevation: 1,
   },
   cardList: {
     marginBottom: Spacing.md,
     minHeight: 220,
   },
   cardCompact: {
-    backgroundColor: "rgba(243, 247, 255, 0.78)",
-    borderColor: "rgba(218, 227, 245, 0.70)",
     flexBasis: 220,
     flexGrow: 1,
     minHeight: 218,
@@ -386,41 +350,29 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   title: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: 22,
+    lineHeight: Typography.lineHeight.body,
   },
   provider: {
-    color: "#17213F",
+    color: Colors.textBody,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
     marginTop: Spacing.xs,
   },
   meta: {
     color: Colors.textMuted,
-    fontSize: Typography.small,
-    marginTop: 3,
+    fontSize: Typography.bodySmall,
+    marginTop: Spacing.compact,
   },
   enrollmentBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: Colors.brandSoft,
-    borderColor: "#C9D9FF",
-    borderRadius: Radius.round,
-    borderWidth: 1,
     marginTop: Spacing.sm,
     maxWidth: "100%",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  enrollmentBadgeText: {
-    color: Colors.brandDeep,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
   },
   startDate: {
     color: Colors.textMuted,
-    fontSize: Typography.small,
+    fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
   },
   description: {
@@ -435,27 +387,28 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   infoPill: {
-    backgroundColor: "#F7FAFF",
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.borderMuted,
+    borderRadius: Radius.control,
     borderWidth: 1,
     minWidth: 0,
     padding: Spacing.md,
   },
   infoPillCompact: {
-    backgroundColor: Colors.white,
-    borderColor: "#EEF2FB",
-    borderRadius: Radius.round,
+    backgroundColor: Colors.surface,
+    borderColor: Colors.borderMuted,
+    borderRadius: Radius.pill,
+    minWidth: 0,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
   },
   infoLabel: {
     color: Colors.textMuted,
-    fontSize: Typography.small,
-    marginBottom: 3,
+    fontSize: Typography.bodySmall,
+    marginBottom: Spacing.compact,
   },
   infoValue: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
   },
@@ -473,10 +426,10 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   date: {
-    color: "#8B96B3",
+    color: Colors.textMuted,
     flexGrow: 1,
     flexShrink: 1,
-    fontSize: Typography.small,
+    fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
     minWidth: 0,
   },
@@ -489,39 +442,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   actionButton: {
-    alignItems: "center",
-    borderRadius: Radius.lg,
     flexGrow: 1,
-    justifyContent: "center",
-    minHeight: 44,
     minWidth: 96,
-    paddingHorizontal: Spacing.md,
-  },
-  secondaryButton: {
-    backgroundColor: "#F1E9FF",
-    borderColor: "rgba(93, 55, 234, 0.18)",
-    borderWidth: 1,
-  },
-  secondaryButtonHover: {
-    backgroundColor: "#E9DCFF",
-  },
-  secondaryButtonText: {
-    color: "#5D37EA",
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  primaryButton: {
-    backgroundColor: "#6E1DFF",
-  },
-  primaryButtonHover: {
-    backgroundColor: "#5711D8",
-  },
-  primaryButtonText: {
-    color: Colors.white,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  actionButtonPressed: {
-    opacity: 0.84,
   },
 });

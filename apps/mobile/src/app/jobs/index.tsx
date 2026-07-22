@@ -5,6 +5,16 @@ import JobSummaryCard from "@/components/jobs/JobSummaryCard";
 import JobQuickView from "@/components/jobs/quick-view/JobQuickView";
 import { useJobQuickView } from "@/components/jobs/quick-view/useJobQuickView";
 import PublicHeader from "@/components/navigation/PublicHeader";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  RabAICard,
+  RabAIInput,
+} from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
@@ -19,17 +29,10 @@ import {
   type LocationSuggestion,
   type OccupationSuggestion,
 } from "@/services/search/heroAutocomplete";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Layers, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 const employmentTypeOptions = [
   { label: "Toate", value: "" },
@@ -418,7 +421,7 @@ export default function JobsScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <PageContainer maxWidth="none" padded={false} safeArea={false}>
       <ScrollView
         contentContainerStyle={[
           styles.content,
@@ -427,19 +430,21 @@ export default function JobsScreen() {
             paddingHorizontal: responsive.horizontalPadding,
           },
         ]}
+        keyboardShouldPersistTaps="handled"
         scrollEnabled={!selection}
         showsVerticalScrollIndicator={false}
       >
         {!authLoading && !isAuthenticated ? <PublicHeader active="jobs" /> : null}
 
-        <View style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>{t("jobs.eyebrow")}</Text>
-          <Text style={styles.heroTitle}>{t("jobs.title")}</Text>
-          <Text style={styles.heroSubtitle}>{t("jobs.subtitle")}</Text>
-        </View>
+        <PageHeader
+          description={t("jobs.subtitle")}
+          eyebrow={t("jobs.eyebrow")}
+          style={styles.pageHeader}
+          title={t("jobs.title")}
+          titleSize="hero"
+        />
 
-        <View style={styles.filterCard}>
-          <Text style={styles.filterTitle}>{t("jobs.filterTitle")}</Text>
+        <RabAICard padding="lg" title={t("jobs.filterTitle")} variant="outlined">
           <View
             style={[
               styles.filterGrid,
@@ -516,81 +521,64 @@ export default function JobsScreen() {
                 { flexBasis: responsive.isMobile ? "100%" : 220 },
               ]}
             >
-              <Text style={styles.inputLabel}>Salariu minim</Text>
-              <TextInput
+              <RabAIInput
                 keyboardType="numeric"
+                label="Salariu minim"
                 onChangeText={setSalaryMin}
                 placeholder="ex: 2000"
-                placeholderTextColor={Colors.textMuted}
-                style={styles.input}
                 value={salaryMin}
               />
             </View>
           </View>
 
-          <View style={styles.chipRow}>
+          <View
+            accessibilityLabel="Tipul angajării"
+            accessibilityRole="radiogroup"
+            style={styles.chipRow}
+          >
             {employmentTypeOptions.map((option) => {
               const active = employmentType === option.value;
 
               return (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
+                <RabAIButton
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
                   key={option.value || "all"}
                   onPress={() => {
                     setEmploymentType(option.value);
                   }}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      active && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
+                  size="sm"
+                  title={option.label}
+                  variant={active ? "secondary" : "outline"}
+                />
               );
             })}
           </View>
 
-          <Pressable
-            accessibilityRole="button"
+          <RabAIButton
+            fullWidth={responsive.isMobile}
             onPress={() => submitFilters(1)}
-            style={[
-              styles.searchButton,
-              responsive.isMobile && styles.searchButtonMobile,
-            ]}
-          >
-            <Text style={styles.searchButtonText}>{t("jobs.search.button")}</Text>
-          </Pressable>
-        </View>
+            style={styles.searchButton}
+            title={t("jobs.search.button")}
+          />
+        </RabAICard>
 
         {loading ? (
-          <View style={styles.resultsCard}>
-            <LoadingSkeleton />
-          </View>
+          <LoadingState title="Se încarcă joburile..." />
         ) : error ? (
-          <View style={styles.resultsCard}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
+          <ErrorState
+            description={error}
+            title="Joburile nu au putut fi încărcate"
+          />
         ) : jobs.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>
-              Momentan nu exista joburi care corespund cautarii.
-            </Text>
-            <Text style={styles.emptyText}>
-              Poti modifica filtrele sau reveni mai tarziu.
-            </Text>
-            <View style={styles.actionsRow}>
-              <Pressable accessibilityRole="button" onPress={() => router.replace(homeRoute as any)} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>{t("jobs.backToRabai")}</Text>
-              </Pressable>
-            </View>
-          </View>
+          <EmptyState
+            actionLabel={t("jobs.backToRabai")}
+            description="Poti modifica filtrele sau reveni mai tarziu."
+            onAction={() => router.replace(homeRoute as any)}
+            title="Momentan nu exista joburi care corespund cautarii."
+          />
         ) : (
-          <View style={styles.resultsCard}>
+          <RabAICard padding="lg" variant="outlined">
             <View
               style={[
                 styles.resultsHeader,
@@ -614,51 +602,27 @@ export default function JobsScreen() {
             ))}
 
             <View style={styles.paginationRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !hasPreviousPage }}
+              <RabAIButton
                 disabled={!hasPreviousPage}
                 onPress={() => submitFilters(page - 1)}
-                style={[
-                  styles.pageButton,
-                  !hasPreviousPage && styles.pageButtonDisabled,
-                ]}
-              >
-                <Text style={styles.pageButtonText}>Inapoi</Text>
-              </Pressable>
+                size="sm"
+                title="Inapoi"
+                variant="outline"
+              />
               <Text style={styles.pageText}>Pagina {page}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !hasNextPage }}
+              <RabAIButton
                 disabled={!hasNextPage}
                 onPress={() => submitFilters(page + 1)}
-                style={[
-                  styles.pageButton,
-                  !hasNextPage && styles.pageButtonDisabled,
-                ]}
-              >
-                <Text style={styles.pageButtonText}>Urmatoarea</Text>
-              </Pressable>
+                size="sm"
+                title="Urmatoarea"
+                variant="outline"
+              />
             </View>
-          </View>
+          </RabAICard>
         )}
       </ScrollView>
       <JobQuickView onClose={closeJobQuickView} selection={selection} />
-    </View>
-  );
-}
-
-function LoadingSkeleton() {
-  return (
-    <>
-      {[0, 1, 2].map((item) => (
-        <View key={item} style={styles.skeletonCard}>
-          <View style={styles.skeletonLineLarge} />
-          <View style={styles.skeletonLine} />
-          <View style={styles.skeletonLineShort} />
-        </View>
-      ))}
-    </>
+    </PageContainer>
   );
 }
 
@@ -702,116 +666,20 @@ function readError(error: unknown) {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F5F8FF",
-  },
   content: {
     alignSelf: "center",
-    gap: Spacing.lg,
-    padding: Spacing.four,
-    paddingBottom: Spacing.five,
+    gap: Spacing.component,
+    paddingBottom: Spacing.section,
+    paddingTop: Spacing.section,
     width: "100%",
   },
-  publicHeader: {
-    alignItems: "center",
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
-  },
-  publicLink: {
-    paddingVertical: Spacing.sm,
-  },
-  publicLinkText: {
-    color: "#145CFF",
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  publicPrimaryButton: {
-    backgroundColor: "#145CFF",
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  publicPrimaryButtonText: {
-    color: Colors.white,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  publicSecondaryButton: {
-    backgroundColor: "#F3F7FF",
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  publicSecondaryButtonText: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  heroCard: {
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
-    elevation: 2,
-  },
-  heroEyebrow: {
-    color: "#145CFF",
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: 6,
-    textTransform: "uppercase",
-  },
-  heroTitle: {
-    color: Colors.text,
-    fontSize: Typography.headline,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  heroSubtitle: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    marginTop: Spacing.sm,
-  },
-  filterCard: {
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
-  },
-  filterTitle: {
-    color: Colors.text,
-    fontSize: Typography.cardTitleLarge,
-    fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.md,
+  pageHeader: {
+    marginBottom: 0,
   },
   filterGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.component,
   },
   filterGridMobile: {
     flexDirection: "column",
@@ -819,193 +687,54 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexBasis: 240,
     flexGrow: 1,
+    minWidth: 0,
   },
   occupationAutocompleteWrap: {
-    zIndex: 30,
+    zIndex: Layers.dropdown + 1,
   },
   locationAutocompleteWrap: {
-    zIndex: 20,
-  },
-  inputLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: "#F7FAFF",
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    color: Colors.text,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    zIndex: Layers.dropdown,
   },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  filterChip: {
-    backgroundColor: "#F7FAFF",
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  filterChipActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
-  },
-  filterChipText: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  filterChipTextActive: {
-    color: "#145CFF",
+    gap: Spacing.control,
+    marginTop: Spacing.component,
   },
   searchButton: {
     alignSelf: "flex-start",
-    backgroundColor: "#6F5BFF",
-    borderRadius: Radius.lg,
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  searchButtonMobile: {
-    alignSelf: "stretch",
-  },
-  searchButtonText: {
-    color: Colors.white,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  resultsCard: {
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.lg,
+    marginTop: Spacing.component,
   },
   resultsHeader: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.component,
   },
   resultsHeaderMobile: {
     alignItems: "flex-start",
     flexDirection: "column",
-    gap: Spacing.xs,
+    gap: Spacing.compact,
   },
   resultsTitle: {
-    color: Colors.text,
-    fontSize: Typography.cardTitleLarge,
-    fontWeight: Typography.fontWeight.extraBold,
+    color: Colors.textPrimary,
+    fontSize: Typography.h4,
+    fontWeight: Typography.fontWeight.bold,
   },
   resultsCount: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: Typography.body,
   },
   paginationRow: {
     alignItems: "center",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.control,
     justifyContent: "center",
-    marginTop: Spacing.md,
-  },
-  pageButton: {
-    backgroundColor: "#145CFF",
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  pageButtonDisabled: {
-    opacity: 0.45,
-  },
-  pageButtonText: {
-    color: Colors.white,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
+    marginTop: Spacing.component,
   },
   pageText: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  skeletonCard: {
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-    padding: Spacing.lg,
-  },
-  skeletonLineLarge: {
-    backgroundColor: "#E6ECF7",
-    borderRadius: Radius.round,
-    height: 18,
-    marginBottom: Spacing.md,
-    width: "60%",
-  },
-  skeletonLine: {
-    backgroundColor: "#EEF3FA",
-    borderRadius: Radius.round,
-    height: 14,
-    marginBottom: Spacing.sm,
-    width: "82%",
-  },
-  skeletonLineShort: {
-    backgroundColor: "#EEF3FA",
-    borderRadius: Radius.round,
-    height: 14,
-    width: "42%",
-  },
-  emptyCard: {
-    alignItems: "flex-start",
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
-  },
-  emptyTitle: {
-    color: Colors.text,
-    fontSize: Typography.cardTitleLarge,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  emptyText: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    marginTop: Spacing.sm,
-    lineHeight: 22,
-  },
-  errorText: {
-    color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
-  },
-  primaryButton: {
-    backgroundColor: "#145CFF",
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  primaryButtonText: {
-    color: Colors.white,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.bold,
   },

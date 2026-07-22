@@ -2,17 +2,27 @@ import AppIcon from "@/components/navigation/AppIcon";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import type { LanguageCode } from "@/i18n/translations";
 import { useAuth } from "@/providers/AuthProvider";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import {
+  Colors,
+  ControlHeight,
+  InteractionStyles,
+  Layers,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/theme";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
   View,
+  type PressableProps,
+  type StyleProp,
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -125,11 +135,6 @@ const copyByLanguage = {
   },
 } satisfies Record<LanguageCode, AppTopBarCopy>;
 
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
-
 export default function AppTopBar({
   availableWidth,
   onMenuPress,
@@ -144,6 +149,7 @@ export default function AppTopBar({
   const { width } = useWindowDimensions();
   const [searchText, setSearchText] = useState("");
   const [searchMode, setSearchMode] = useState<SearchMode>("jobs");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const effectiveWidth = availableWidth ?? width;
   const isCompact = effectiveWidth < 720;
@@ -175,9 +181,15 @@ export default function AppTopBar({
   }
 
   const search = (
-    <View style={[styles.searchField, isCompact && styles.searchFieldCompact]}>
+    <View
+      style={[
+        styles.searchField,
+        isCompact && styles.searchFieldCompact,
+        searchFocused && InteractionStyles.focusRing,
+      ]}
+    >
       <AppIcon color={Colors.textMuted} name="search" size={19} />
-      <Pressable
+      <InteractivePressable
         accessibilityLabel={
           searchMode === "jobs"
             ? copy.searchJobsSwitchToCourses
@@ -187,13 +199,15 @@ export default function AppTopBar({
         onPress={() =>
           setSearchMode((current) => (current === "jobs" ? "courses" : "jobs"))
         }
-        style={[styles.searchModeButton, pointerWebStyle]}
+        hoverStyle={styles.controlHover}
+        pressedStyle={styles.controlPressed}
+        style={styles.searchModeButton}
       >
         <Text style={styles.searchModeText}>
           {searchMode === "courses" ? copy.courses : copy.jobs}
         </Text>
         <AppIcon color={Colors.brandDeep} name="chevron-right" size={12} />
-      </Pressable>
+      </InteractivePressable>
       <TextInput
         accessibilityLabel={
           searchMode === "courses"
@@ -201,6 +215,8 @@ export default function AppTopBar({
             : copy.globalJobsSearch
         }
         onChangeText={setSearchText}
+        onBlur={() => setSearchFocused(false)}
+        onFocus={() => setSearchFocused(true)}
         onSubmitEditing={submitSearch}
         placeholder={
           searchMode === "courses"
@@ -213,14 +229,16 @@ export default function AppTopBar({
         value={searchText}
       />
       {searchText.trim() ? (
-        <Pressable
+        <InteractivePressable
           accessibilityLabel={copy.search}
           accessibilityRole="button"
+          hoverStyle={styles.primaryControlHover}
           onPress={submitSearch}
-          style={[styles.searchSubmit, pointerWebStyle]}
+          pressedStyle={styles.primaryControlPressed}
+          style={styles.searchSubmit}
         >
           <Text style={styles.searchSubmitText}>{copy.search}</Text>
-        </Pressable>
+        </InteractivePressable>
       ) : null}
     </View>
   );
@@ -228,21 +246,23 @@ export default function AppTopBar({
   return (
     <View style={[styles.topBar, { paddingTop: Math.max(insets.top, Spacing.md) }]}>
       <View style={styles.primaryRow}>
-        {showMenuButton ? (
-          <Pressable
+        {showMenuButton && onMenuPress ? (
+          <InteractivePressable
             accessibilityLabel={copy.openMenu}
             accessibilityRole="button"
+            hoverStyle={styles.controlHover}
             onPress={onMenuPress}
-            style={[styles.iconButton, pointerWebStyle]}
+            pressedStyle={styles.controlPressed}
+            style={styles.iconButton}
           >
             <AppIcon color={Colors.text} name="menu" size={22} />
-          </Pressable>
+          </InteractivePressable>
         ) : null}
 
         {showSearch && !isCompact ? search : null}
 
         <View style={styles.actions}>
-          <Pressable
+          <InteractivePressable
             accessibilityLabel={copy.notificationsSoon}
             accessibilityRole="button"
             accessibilityState={{ disabled: true }}
@@ -250,17 +270,19 @@ export default function AppTopBar({
             style={[styles.iconButton, styles.iconButtonDisabled]}
           >
             <AppIcon color={Colors.textSubtle} name="bell" size={21} />
-          </Pressable>
+          </InteractivePressable>
 
-          <Pressable
+          <InteractivePressable
             accessibilityLabel={
               hasRealUnreadCount
                 ? copy.unreadMessages(unreadMessageCount)
                 : copy.messages
             }
             accessibilityRole="button"
+            hoverStyle={styles.controlHover}
             onPress={() => router.push("/messages" as never)}
-            style={[styles.iconButton, pointerWebStyle]}
+            pressedStyle={styles.controlPressed}
+            style={styles.iconButton}
           >
             <AppIcon color={Colors.textSubtle} name="message" size={20} />
             {hasRealUnreadCount ? (
@@ -270,15 +292,17 @@ export default function AppTopBar({
                 </Text>
               </View>
             ) : null}
-          </Pressable>
+          </InteractivePressable>
 
           <View style={styles.accountMenuWrap}>
-            <Pressable
+            <InteractivePressable
               accessibilityLabel={copy.openAccount(displayName)}
               accessibilityRole="button"
               accessibilityState={{ expanded: accountMenuOpen }}
+              hoverStyle={styles.controlHover}
               onPress={() => setAccountMenuOpen((current) => !current)}
-              style={[styles.userButton, pointerWebStyle]}
+              pressedStyle={styles.controlPressed}
+              style={styles.userButton}
             >
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{getInitials(displayName)}</Text>
@@ -302,40 +326,43 @@ export default function AppTopBar({
                   </Text>
                 </View>
               ) : null}
-            </Pressable>
+            </InteractivePressable>
 
             {accountMenuOpen ? (
               <View accessibilityLabel={copy.accountMenu} style={styles.accountMenu}>
-                <Pressable
+                <InteractivePressable
                   accessibilityRole="button"
+                  hoverStyle={styles.accountMenuItemHover}
                   onPress={() => {
                     setAccountMenuOpen(false);
                     router.push("/profile" as never);
                   }}
-                  style={[styles.accountMenuItem, pointerWebStyle]}
+                  pressedStyle={styles.accountMenuItemPressed}
+                  style={styles.accountMenuItem}
                 >
                   <AppIcon color={Colors.textSubtle} name="profile" size={18} />
                   <Text style={styles.accountMenuItemText}>{copy.profile}</Text>
-                </Pressable>
+                </InteractivePressable>
                 <View style={styles.accountMenuDivider} />
-                <Pressable
+                <InteractivePressable
                   accessibilityRole="button"
                   accessibilityState={{ disabled: isSigningOut }}
                   disabled={isSigningOut}
+                  hoverStyle={styles.accountMenuItemHover}
                   onPress={() => {
                     void handleLogout();
                   }}
+                  pressedStyle={styles.accountMenuItemPressed}
                   style={[
                     styles.accountMenuItem,
                     isSigningOut && styles.accountMenuItemDisabled,
-                    pointerWebStyle,
                   ]}
                 >
                   <AppIcon color={Colors.danger} name="logout" size={18} />
                   <Text style={styles.accountMenuLogoutText}>
                     {isSigningOut ? copy.loggingOut : copy.logout}
                   </Text>
-                </Pressable>
+                </InteractivePressable>
               </View>
             ) : null}
           </View>
@@ -367,15 +394,66 @@ function getInitials(value: string) {
   return parts.map((part) => part[0]?.toUpperCase()).join("");
 }
 
+type InteractivePressableProps = Omit<PressableProps, "style"> & {
+  hoverStyle?: StyleProp<ViewStyle>;
+  pressedStyle?: StyleProp<ViewStyle>;
+  style?: StyleProp<ViewStyle>;
+};
+
+function InteractivePressable({
+  disabled,
+  hoverStyle,
+  onBlur,
+  onFocus,
+  onHoverIn,
+  onHoverOut,
+  pressedStyle,
+  style,
+  ...props
+}: InteractivePressableProps) {
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Pressable
+      {...props}
+      disabled={disabled}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onHoverIn={(event) => {
+        setHovered(true);
+        onHoverIn?.(event);
+      }}
+      onHoverOut={(event) => {
+        setHovered(false);
+        onHoverOut?.(event);
+      }}
+      style={({ pressed }) => [
+        style,
+        !disabled && InteractionStyles.pointer,
+        !disabled && hovered && hoverStyle,
+        !disabled && pressed && pressedStyle,
+        !disabled && focused && InteractionStyles.focusRing,
+      ]}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   topBar: {
-    backgroundColor: "rgba(255, 255, 255, 0.98)",
+    backgroundColor: Colors.surfaceElevated,
     borderBottomColor: Colors.borderNeutral,
     borderBottomWidth: 1,
     flexShrink: 0,
     paddingBottom: Spacing.md,
     paddingHorizontal: Spacing.screen,
-    zIndex: 100,
+    zIndex: Layers.sticky,
     ...Shadows.card,
   },
   primaryRow: {
@@ -398,7 +476,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: Spacing.md,
     maxWidth: 580,
-    minHeight: 42,
+    minHeight: ControlHeight.medium,
     paddingHorizontal: Spacing.xl,
   },
   searchFieldCompact: {
@@ -418,7 +496,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     flexDirection: "row",
     gap: Spacing.xs,
-    minHeight: 28,
+    minHeight: ControlHeight.minimumTouch,
     paddingHorizontal: Spacing.md,
   },
   searchModeText: {
@@ -431,7 +509,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand,
     borderRadius: Radius.md,
     justifyContent: "center",
-    minHeight: 30,
+    minHeight: ControlHeight.minimumTouch,
     paddingHorizontal: Spacing.xl,
   },
   searchSubmitText: {
@@ -452,10 +530,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderNeutral,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    height: 40,
+    height: ControlHeight.minimumTouch,
     justifyContent: "center",
     position: "relative",
-    width: 40,
+    width: ControlHeight.minimumTouch,
   },
   iconButtonDisabled: {
     opacity: 0.72,
@@ -485,12 +563,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: Spacing.md,
     maxWidth: 340,
-    minHeight: 42,
+    minHeight: ControlHeight.minimumTouch,
     paddingHorizontal: Spacing.xs,
   },
   accountMenuWrap: {
     position: "relative",
-    zIndex: 220,
+    zIndex: Layers.dropdown,
   },
   accountMenu: {
     backgroundColor: Colors.surface,
@@ -509,7 +587,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     flexDirection: "row",
     gap: Spacing.xl,
-    minHeight: 42,
+    minHeight: ControlHeight.minimumTouch,
     paddingHorizontal: Spacing.xl,
   },
   accountMenuItemDisabled: {
@@ -536,7 +614,7 @@ const styles = StyleSheet.create({
   avatar: {
     alignItems: "center",
     backgroundColor: Colors.brandSoft,
-    borderColor: "rgba(20, 92, 255, 0.18)",
+    borderColor: Colors.informationBorder,
     borderRadius: Radius.round,
     borderWidth: 1,
     height: 36,
@@ -564,7 +642,7 @@ const styles = StyleSheet.create({
   },
   adminBadge: {
     backgroundColor: Colors.brandSoft,
-    borderColor: "rgba(20, 92, 255, 0.18)",
+    borderColor: Colors.informationBorder,
     borderRadius: Radius.round,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
@@ -576,5 +654,24 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.black,
     letterSpacing: 0.2,
     textTransform: "uppercase",
+  },
+  controlHover: {
+    backgroundColor: Colors.surfaceInteractive,
+    borderColor: Colors.borderStrong,
+  },
+  controlPressed: {
+    backgroundColor: Colors.selection,
+  },
+  primaryControlHover: {
+    backgroundColor: Colors.primaryHover,
+  },
+  primaryControlPressed: {
+    backgroundColor: Colors.primaryPressed,
+  },
+  accountMenuItemHover: {
+    backgroundColor: Colors.surfaceMuted,
+  },
+  accountMenuItemPressed: {
+    backgroundColor: Colors.selection,
   },
 });

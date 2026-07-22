@@ -2,6 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "ui:audit": "node scripts/audit-rabai-ui.mjs",
     "locations:import:de:dry": "node --experimental-strip-types scripts/import-germany-locations.ts --dry-run",
     "locations:import:de": "node --experimental-strip-types scripts/import-germany-locations.ts"
   }

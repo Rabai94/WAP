@@ -1,11 +1,19 @@
 import RequireAuth from "@/components/RequireAuth";
-import OrganizationActionButton from "@/components/organizations/OrganizationActionButton";
 import { getOrganizationCopy } from "@/components/organizations/organizationCopy";
 import {
   getCompanyStatusLabel,
   getCompanyVerificationLabel,
 } from "@/components/organizations/organizationProfile";
-import { Card, Header, Input, Screen } from "@/components/ui";
+import {
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  RabAIBadge as Badge,
+  RabAIButton as Button,
+  RabAICard as Card,
+  RabAIInput as Input,
+} from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
@@ -14,7 +22,7 @@ import {
   saveOwnCompany,
   type CompanyProfile,
 } from "@/services/company/companyService";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Spacing, Typography } from "@/theme";
 import { type Href, useRouter } from "expo-router";
 import {
   type Dispatch,
@@ -24,12 +32,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-
-type WebPressableState = {
-  focused?: boolean;
-  pressed?: boolean;
-};
+import { StyleSheet, Text, View } from "react-native";
 
 type FormErrors = Partial<
   Record<"city" | "country" | "industry" | "name" | "website", string>
@@ -57,7 +60,6 @@ function OrganizationCreateContent() {
   const translationRef = useRef(t);
   const loadAttemptRef = useRef(0);
   const submissionRef = useRef(false);
-
   const [company, setCompany] = useState<CompanyProfile | null>(null);
   const [name, setName] = useState("");
   const [legalName, setLegalName] = useState("");
@@ -120,10 +122,7 @@ function OrganizationCreateContent() {
 
       setCompany(null);
       setLoadError(
-        readError(
-          error,
-          translationRef.current("organizations.loadError")
-        )
+        readError(error, translationRef.current("organizations.loadError"))
       );
       setHydrationState("error");
     }
@@ -239,427 +238,285 @@ function OrganizationCreateContent() {
       : copy.createOrganization;
 
   return (
-    <Screen
-      centered={false}
-      style={{
-        paddingHorizontal: responsive.horizontalPadding,
-        paddingVertical: responsive.isMobile ? Spacing.three : Spacing.screen,
-      }}
+    <PageContainer
+      contentStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      maxWidth="form"
+      scroll
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            gap: responsive.isMobile ? Spacing.sm : Spacing.md,
-            maxWidth: Math.min(responsive.contentMaxWidth, 1040),
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Header title={headerTitle} subtitle={copy.formSubtitle} />
+      <PageHeader description={copy.formSubtitle} title={headerTitle} />
 
-        {hydrationState === "loading" ? (
-          <Card>
-            <Text
-              accessibilityLiveRegion="polite"
-              accessibilityRole="text"
-              style={styles.mutedText}
-            >
-              {copy.formLoading}
-            </Text>
-            <View style={styles.loadingAction}>
-              <OrganizationActionButton
-                accessibilityHint={copy.back}
-                fullWidth={responsive.isMobile}
-                label={copy.cancel}
-                onPress={handleCancel}
-                variant="secondary"
+      {hydrationState === "loading" ? (
+        <>
+          <LoadingState title={copy.formLoading} />
+          <Button
+            accessibilityHint={copy.back}
+            fullWidth={responsive.isMobile}
+            onPress={handleCancel}
+            title={copy.cancel}
+            variant="secondary"
+          />
+        </>
+      ) : null}
+
+      {hydrationState === "error" ? (
+        <>
+          <ErrorState
+            description={`${loadError} ${copy.loadFailedSaveDisabled}`}
+            onRetry={() => void loadCompany()}
+            retryLabel={copy.retry}
+            title={t("organizations.loadError")}
+          />
+          <Button
+            accessibilityHint={copy.back}
+            fullWidth={responsive.isMobile}
+            onPress={handleCancel}
+            title={copy.cancel}
+            variant="secondary"
+          />
+        </>
+      ) : null}
+
+      {hydrationState === "ready" ? (
+        <>
+          <Card title={t("organizations.type")}>
+            <View style={styles.typeBadgeRow}>
+              <Badge
+                label={`${t("organizations.type.company")} · ${copy.safeSavedFields}`}
+                tone="primary"
+              />
+              <Badge
+                label={`${t("organizations.type.academy")} · ${copy.comingSoon}`}
+              />
+              <Badge
+                label={`${t("organizations.type.institution")} · ${copy.comingSoon}`}
               />
             </View>
+            <Text style={styles.hintText}>{copy.organizationTypeUnavailable}</Text>
           </Card>
-        ) : null}
 
-        {hydrationState === "error" ? (
-          <Card title={t("organizations.loadError")} variant="warning">
-            <Text accessibilityRole="alert" style={styles.errorText}>
-              {loadError}
-            </Text>
-            <Text style={styles.bodyText}>{copy.loadFailedSaveDisabled}</Text>
-            <View
-              style={[
-                styles.actions,
-                responsive.isMobile && styles.actionsMobile,
-              ]}
-            >
-              <OrganizationActionButton
-                accessibilityHint={copy.loadFailedSaveDisabled}
-                fullWidth={responsive.isMobile}
-                label={copy.retry}
-                onPress={() => void loadCompany()}
-                variant="primary"
-              />
-              <OrganizationActionButton
-                accessibilityHint={copy.back}
-                fullWidth={responsive.isMobile}
-                label={copy.cancel}
-                onPress={handleCancel}
-                variant="secondary"
-              />
-            </View>
-          </Card>
-        ) : null}
-
-        {hydrationState === "ready" ? (
-          <>
-            <Card title={t("organizations.type")}>
-              <View style={styles.typeGrid}>
-                <OrganizationTypeCard
-                  label={t("organizations.type.company")}
-                  selected
-                  subtitle={copy.safeSavedFields}
-                />
-                <OrganizationTypeCard
-                  disabled
-                  label={t("organizations.type.academy")}
-                  subtitle={copy.comingSoon}
-                />
-                <OrganizationTypeCard
-                  disabled
-                  label={t("organizations.type.institution")}
-                  subtitle={copy.comingSoon}
-                />
-              </View>
-              <Text style={styles.hintText}>
-                {copy.organizationTypeUnavailable}
-              </Text>
-            </Card>
-
-            {company ? (
-              <Card title={t("organizations.currentStatus")}>
-                <Text style={styles.bodyText}>
-                  {t("organizations.currentStatusText")
-                    .replace(
-                      "{status}",
-                      getCompanyStatusLabel(company.status, language)
+          {company ? (
+            <Card title={t("organizations.currentStatus")}>
+              <Text style={styles.bodyText}>
+                {t("organizations.currentStatusText")
+                  .replace(
+                    "{status}",
+                    getCompanyStatusLabel(company.status, language)
+                  )
+                  .replace(
+                    "{verification}",
+                    getCompanyVerificationLabel(
+                      company.verification_status,
+                      language
                     )
-                    .replace(
-                      "{verification}",
-                      getCompanyVerificationLabel(
-                        company.verification_status,
-                        language
-                      )
-                    )}
-                </Text>
-              </Card>
-            ) : null}
-
-            <Card title={copy.safeSavedFields} variant="muted">
-              <Text style={styles.bodyText}>{copy.safeSavedFieldsText}</Text>
-            </Card>
-
-            <Card title={t("organizations.organizationData")}>
-              <Input
-                accessibilityLabel={t("organizations.displayName")}
-                accessibilityHint={errors.name}
-                accessibilityState={{ disabled: submitting }}
-                aria-describedby={errors.name ? "organization-name-error" : undefined}
-                aria-invalid={Boolean(errors.name)}
-                editable={!submitting}
-                label={`${t("organizations.displayName")} *`}
-                onChangeText={(value) => updateValue(setName, value, "name")}
-                placeholder={t("organizations.displayNamePlaceholder")}
-                value={name}
-              />
-              <FieldError id="organization-name-error" message={errors.name} />
-
-              <Input
-                accessibilityLabel={t("organizations.legalName")}
-                accessibilityState={{ disabled: submitting }}
-                editable={!submitting}
-                label={`${t("organizations.legalName")} - ${t("organizations.optionalPlaceholder")}`}
-                onChangeText={(value) => updateValue(setLegalName, value)}
-                placeholder={t("organizations.legalNamePlaceholder")}
-                value={legalName}
-              />
-
-              <View
-                style={[
-                  styles.twoColumn,
-                  responsive.isMobile && styles.twoColumnMobile,
-                ]}
-              >
-                <View style={styles.column}>
-                  <Input
-                    accessibilityLabel={t("organizations.country")}
-                    accessibilityHint={errors.country}
-                    accessibilityState={{ disabled: submitting }}
-                    aria-describedby={
-                      errors.country ? "organization-country-error" : undefined
-                    }
-                    aria-invalid={Boolean(errors.country)}
-                    autoCapitalize="characters"
-                    editable={!submitting}
-                    label={`${t("organizations.country")} *`}
-                    maxLength={2}
-                    onChangeText={(value) =>
-                      updateValue(setCountry, value, "country")
-                    }
-                    placeholder={t("organizations.countryPlaceholder")}
-                    value={country}
-                  />
-                  <FieldError
-                    id="organization-country-error"
-                    message={errors.country}
-                  />
-                </View>
-                <View style={styles.column}>
-                  <Input
-                    accessibilityLabel={t("common.city")}
-                    accessibilityHint={errors.city}
-                    accessibilityState={{ disabled: submitting }}
-                    aria-describedby={errors.city ? "organization-city-error" : undefined}
-                    aria-invalid={Boolean(errors.city)}
-                    editable={!submitting}
-                    label={`${t("common.city")} *`}
-                    onChangeText={(value) =>
-                      updateValue(setCity, value, "city")
-                    }
-                    placeholder={t("organizations.cityPlaceholder")}
-                    value={city}
-                  />
-                  <FieldError id="organization-city-error" message={errors.city} />
-                </View>
-              </View>
-
-              <View
-                style={[
-                  styles.twoColumn,
-                  responsive.isMobile && styles.twoColumnMobile,
-                ]}
-              >
-                <View style={styles.column}>
-                  <Input
-                    accessibilityLabel={t("organizations.postalCode")}
-                    accessibilityState={{ disabled: submitting }}
-                    editable={!submitting}
-                    label={`${t("organizations.postalCode")} - ${t("organizations.optionalPlaceholder")}`}
-                    onChangeText={(value) => updateValue(setPostalCode, value)}
-                    placeholder={t("organizations.optionalPlaceholder")}
-                    value={postalCode}
-                  />
-                </View>
-                <View style={styles.column}>
-                  <Input
-                    accessibilityLabel={t("organizations.address")}
-                    accessibilityState={{ disabled: submitting }}
-                    editable={!submitting}
-                    label={t("organizations.address")}
-                    onChangeText={(value) => updateValue(setAddress, value)}
-                    placeholder={t("organizations.addressPlaceholder")}
-                    value={address}
-                  />
-                </View>
-              </View>
-
-              <Input
-                accessibilityLabel={t("organizations.website")}
-                accessibilityHint={errors.website}
-                accessibilityState={{ disabled: submitting }}
-                aria-describedby={
-                  errors.website ? "organization-website-error" : undefined
-                }
-                aria-invalid={Boolean(errors.website)}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!submitting}
-                keyboardType="url"
-                label={t("organizations.website")}
-                onChangeText={(value) =>
-                  updateValue(setWebsite, value, "website")
-                }
-                placeholder="https://example.com"
-                value={website}
-              />
-              <FieldError
-                id="organization-website-error"
-                message={errors.website}
-              />
-
-              <Input
-                accessibilityLabel={t("organizations.activityArea")}
-                accessibilityHint={errors.industry}
-                accessibilityState={{ disabled: submitting }}
-                aria-describedby={
-                  errors.industry ? "organization-industry-error" : undefined
-                }
-                aria-invalid={Boolean(errors.industry)}
-                editable={!submitting}
-                label={`${t("organizations.activityArea")} *`}
-                onChangeText={(value) =>
-                  updateValue(setIndustry, value, "industry")
-                }
-                placeholder={t("organizations.industryPlaceholder")}
-                value={industry}
-              />
-              <FieldError
-                id="organization-industry-error"
-                message={errors.industry}
-              />
-
-              <Text style={styles.optionLabel}>
-                {t("organizations.employeeCount")}
+                  )}
               </Text>
-              <View style={styles.optionGrid}>
-                {employeeCountOptions.map((option) => {
-                  const selected = employeeCountRange === option;
-
-                  return (
-                    <Pressable
-                      accessibilityHint={t("organizations.employeeCount")}
-                      accessibilityLabel={option}
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: submitting, selected }}
-                      disabled={submitting}
-                      key={option}
-                      onPress={() => {
-                        setEmployeeCountRange(selected ? "" : option);
-                        setSubmitError("");
-                      }}
-                      style={(state) => {
-                        const webState = state as WebPressableState;
-
-                        return [
-                          styles.optionButton,
-                          selected && styles.optionButtonSelected,
-                          webState.focused && styles.optionButtonFocused,
-                          webState.pressed &&
-                            !submitting &&
-                            styles.optionButtonPressed,
-                          submitting && styles.disabled,
-                        ];
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.optionButtonText,
-                          selected && styles.optionButtonTextSelected,
-                        ]}
-                      >
-                        {option}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <Input
-                accessibilityLabel={t("organizations.description")}
-                accessibilityState={{ disabled: submitting }}
-                editable={!submitting}
-                label={t("organizations.description")}
-                multiline
-                onChangeText={(value) => updateValue(setDescription, value)}
-                placeholder={t("organizations.descriptionPlaceholder")}
-                style={styles.largeInput}
-                value={description}
-              />
             </Card>
+          ) : null}
 
-            <Card title={copy.comingSoonTitle} variant="muted">
-              <Text style={styles.bodyText}>{copy.comingSoonFields}</Text>
-              <View style={styles.plannedList}>
-                {[
-                  t("organizations.contactEmail"),
-                  t("organizations.contactPhone"),
-                  t("organizations.registrationNumber"),
-                  t("organizations.vatId"),
-                  t("organizations.companyCapabilities"),
-                ].map((label) => (
-                  <View key={label} style={styles.plannedRow}>
-                    <Text style={styles.plannedLabel}>{label}</Text>
-                    <View style={styles.comingSoonBadge}>
-                      <Text style={styles.comingSoonBadgeText}>
-                        {copy.comingSoon} · {copy.notSaved}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
+          <Card title={copy.safeSavedFields} variant="filled">
+            <Text style={styles.bodyText}>{copy.safeSavedFieldsText}</Text>
+          </Card>
+
+          <Card title={t("organizations.organizationData")}>
+            <Input
+              accessibilityLabel={t("organizations.displayName")}
+              editable={!submitting}
+              errorText={errors.name}
+              label={t("organizations.displayName")}
+              onChangeText={(value) => updateValue(setName, value, "name")}
+              placeholder={t("organizations.displayNamePlaceholder")}
+              required
+              value={name}
+            />
+
+            <Input
+              accessibilityLabel={t("organizations.legalName")}
+              editable={!submitting}
+              label={t("organizations.legalName")}
+              onChangeText={(value) => updateValue(setLegalName, value)}
+              placeholder={t("organizations.legalNamePlaceholder")}
+              value={legalName}
+            />
+
+            <View style={styles.twoColumn}>
+              <View style={styles.column}>
+                <Input
+                  autoCapitalize="characters"
+                  editable={!submitting}
+                  errorText={errors.country}
+                  label={t("organizations.country")}
+                  maxLength={2}
+                  onChangeText={(value) =>
+                    updateValue(setCountry, value, "country")
+                  }
+                  placeholder={t("organizations.countryPlaceholder")}
+                  required
+                  value={country}
+                />
               </View>
-            </Card>
-
-            {submitError ? (
-              <Text accessibilityRole="alert" style={styles.errorText}>
-                {submitError}
-              </Text>
-            ) : null}
-
-            <View
-              style={[
-                styles.actions,
-                responsive.isMobile && styles.actionsMobile,
-              ]}
-            >
-              <OrganizationActionButton
-                accessibilityHint={copy.back}
-                disabled={submitting}
-                fullWidth={responsive.isMobile}
-                label={copy.cancel}
-                onPress={handleCancel}
-                variant="secondary"
-              />
-              <OrganizationActionButton
-                accessibilityHint={copy.safeSavedFieldsText}
-                disabled={submitting}
-                fullWidth={responsive.isMobile}
-                label={saveLabel}
-                onPress={() => void handleSubmit()}
-                variant="primary"
-              />
+              <View style={styles.column}>
+                <Input
+                  editable={!submitting}
+                  errorText={errors.city}
+                  label={t("common.city")}
+                  onChangeText={(value) => updateValue(setCity, value, "city")}
+                  placeholder={t("organizations.cityPlaceholder")}
+                  required
+                  value={city}
+                />
+              </View>
             </View>
-          </>
-        ) : null}
-      </ScrollView>
-    </Screen>
-  );
-}
 
-function OrganizationTypeCard({
-  disabled = false,
-  label,
-  selected = false,
-  subtitle,
-}: {
-  disabled?: boolean;
-  label: string;
-  selected?: boolean;
-  subtitle: string;
-}) {
-  return (
-    <View
-      accessible
-      accessibilityLabel={`${label}. ${subtitle}`}
-      accessibilityRole="text"
-      style={[
-        styles.typeCard,
-        selected && styles.typeCardSelected,
-        disabled && styles.disabled,
-      ]}
-    >
-      <Text style={[styles.typeTitle, selected && styles.typeTitleSelected]}>
-        {label}
-      </Text>
-      <Text style={styles.typeSubtitle}>{subtitle}</Text>
-    </View>
-  );
-}
+            <Input
+              editable={!submitting}
+              errorText={errors.industry}
+              label={t("organizations.industry")}
+              onChangeText={(value) =>
+                updateValue(setIndustry, value, "industry")
+              }
+              placeholder={t("organizations.industryPlaceholder")}
+              required
+              value={industry}
+            />
 
-function FieldError({ id, message }: { id: string; message?: string }) {
-  return message ? (
-    <Text accessibilityRole="alert" nativeID={id} style={styles.fieldError}>
-      {message}
-    </Text>
-  ) : null;
+            <View style={styles.twoColumn}>
+              <View style={styles.column}>
+                <Input
+                  editable={!submitting}
+                  label={t("organizations.postalCode")}
+                  onChangeText={(value) => updateValue(setPostalCode, value)}
+                  placeholder={t("organizations.postalCodePlaceholder")}
+                  value={postalCode}
+                />
+              </View>
+              <View style={styles.column}>
+                <Input
+                  editable={!submitting}
+                  label={t("organizations.address")}
+                  onChangeText={(value) => updateValue(setAddress, value)}
+                  placeholder={t("organizations.addressPlaceholder")}
+                  value={address}
+                />
+              </View>
+            </View>
+
+            <Input
+              autoCapitalize="none"
+              editable={!submitting}
+              errorText={errors.website}
+              keyboardType="url"
+              label={t("organizations.website")}
+              onChangeText={(value) =>
+                updateValue(setWebsite, value, "website")
+              }
+              placeholder={t("organizations.websitePlaceholder")}
+              value={website}
+            />
+
+            <Text style={styles.optionLabel}>
+              {t("organizations.employeeCount")}
+            </Text>
+            <View
+              accessibilityLabel={t("organizations.employeeCount")}
+              accessibilityRole="radiogroup"
+              style={styles.optionGrid}
+            >
+              {employeeCountOptions.map((option) => {
+                const selected = employeeCountRange === option;
+
+                return (
+                  <Button
+                    accessibilityHint={t("organizations.employeeCount")}
+                    accessibilityLabel={option}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    disabled={submitting}
+                    key={option}
+                    onPress={() =>
+                      updateValue(
+                        setEmployeeCountRange,
+                        selected ? "" : option
+                      )
+                    }
+                    size="sm"
+                    style={styles.optionButton}
+                    title={option}
+                    variant={selected ? "secondary" : "outline"}
+                  />
+                );
+              })}
+            </View>
+
+            <Input
+              accessibilityLabel={t("organizations.description")}
+              editable={!submitting}
+              label={t("organizations.description")}
+              multiline
+              onChangeText={(value) => updateValue(setDescription, value)}
+              placeholder={t("organizations.descriptionPlaceholder")}
+              style={styles.largeInput}
+              value={description}
+            />
+          </Card>
+
+          <Card title={copy.comingSoonTitle} variant="filled">
+            <Text style={styles.bodyText}>{copy.comingSoonFields}</Text>
+            <View style={styles.plannedList}>
+              {[
+                t("organizations.contactEmail"),
+                t("organizations.contactPhone"),
+                t("organizations.registrationNumber"),
+                t("organizations.vatId"),
+                t("organizations.companyCapabilities"),
+              ].map((label) => (
+                <View key={label} style={styles.plannedRow}>
+                  <Text style={styles.plannedLabel}>{label}</Text>
+                  <Badge
+                    label={`${copy.comingSoon} · ${copy.notSaved}`}
+                    tone="warning"
+                  />
+                </View>
+              ))}
+            </View>
+          </Card>
+
+          {submitError ? (
+            <ErrorState
+              compact
+              description={submitError}
+              title={t("organizations.saveError")}
+            />
+          ) : null}
+
+          <View
+            style={[
+              styles.actions,
+              responsive.isMobile && styles.actionsMobile,
+            ]}
+          >
+            <Button
+              accessibilityHint={copy.back}
+              disabled={submitting}
+              fullWidth={responsive.isMobile}
+              onPress={handleCancel}
+              title={copy.cancel}
+              variant="secondary"
+            />
+            <Button
+              accessibilityHint={copy.safeSavedFieldsText}
+              disabled={submitting}
+              fullWidth={responsive.isMobile}
+              loading={submitting}
+              loadingLabel={copy.saving}
+              onPress={() => void handleSubmit()}
+              title={saveLabel}
+            />
+          </View>
+        </>
+      ) : null}
+    </PageContainer>
+  );
 }
 
 function validateForm({
@@ -739,135 +596,58 @@ function readError(error: unknown, fallback: string) {
 
 const styles = StyleSheet.create({
   content: {
-    alignSelf: "center",
-    gap: Spacing.md,
-    paddingBottom: Spacing.five,
-    width: "100%",
+    gap: Spacing.section,
   },
   bodyText: {
     color: Colors.textBody,
     fontSize: Typography.body,
     lineHeight: Typography.lineHeight.body,
   },
-  mutedText: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.body,
-  },
-  errorText: {
-    color: "#BE123C",
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-    lineHeight: Typography.lineHeight.body,
-    marginBottom: Spacing.md,
-  },
   hintText: {
     color: Colors.textMuted,
     fontSize: Typography.bodySmall,
     lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.three,
+    marginTop: Spacing.component,
   },
-  fieldError: {
-    color: "#BE123C",
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.md,
-    marginTop: -Spacing.md,
-  },
-  typeGrid: {
+  typeBadgeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
-  },
-  typeCard: {
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexBasis: 210,
-    flexGrow: 1,
-    minHeight: 76,
-    padding: Spacing.three,
-  },
-  typeCardSelected: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: Colors.brand,
-  },
-  typeTitle: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  typeTitleSelected: {
-    color: Colors.brandDeep,
-  },
-  typeSubtitle: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.compact,
-    marginTop: Spacing.sm,
+    gap: Spacing.control,
   },
   twoColumn: {
     flexDirection: "row",
-    gap: Spacing.md,
-  },
-  twoColumnMobile: {
-    flexDirection: "column",
-    gap: Spacing.none,
+    flexWrap: "wrap",
+    gap: Spacing.component,
   },
   column: {
-    flex: 1,
+    flexBasis: 240,
+    flexGrow: 1,
     minWidth: 0,
   },
   optionLabel: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.label,
     fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.control,
+    marginTop: Spacing.component,
   },
   optionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
-    marginBottom: Spacing.xxl,
+    gap: Spacing.control,
   },
   optionButton: {
-    alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.md,
-  },
-  optionButtonSelected: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: Colors.brand,
-  },
-  optionButtonFocused: {
-    borderColor: Colors.text,
-    borderWidth: 2,
-  },
-  optionButtonPressed: {
-    opacity: 0.78,
-  },
-  optionButtonText: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  optionButtonTextSelected: {
-    color: Colors.brandDeep,
+    flexBasis: 120,
+    flexGrow: 1,
+    minWidth: 0,
   },
   largeInput: {
-    height: 120,
+    minHeight: 120,
     textAlignVertical: "top",
   },
   plannedList: {
-    gap: Spacing.md,
-    marginTop: Spacing.three,
+    gap: Spacing.control,
+    marginTop: Spacing.component,
   },
   plannedRow: {
     alignItems: "center",
@@ -875,10 +655,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.control,
     justifyContent: "space-between",
     minHeight: 48,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.control,
   },
   plannedLabel: {
     color: Colors.textBody,
@@ -886,35 +666,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,
   },
-  comingSoonBadge: {
-    backgroundColor: Colors.warningSurface,
-    borderColor: Colors.warningBorder,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  comingSoonBadgeText: {
-    color: Colors.textBody,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-  },
   actions: {
     alignItems: "center",
     flexDirection: "row",
-    gap: Spacing.md,
+    gap: Spacing.control,
     justifyContent: "flex-end",
-    marginTop: Spacing.md,
   },
   actionsMobile: {
     alignItems: "stretch",
     flexDirection: "column",
-  },
-  loadingAction: {
-    alignItems: "flex-start",
-    marginTop: Spacing.three,
-  },
-  disabled: {
-    opacity: 0.56,
   },
 });

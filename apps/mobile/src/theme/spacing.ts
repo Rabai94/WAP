@@ -1,4 +1,18 @@
 export const Spacing = {
+  // Semantic spacing scale for new UI.
+  micro: 2,
+  compact: 4,
+  control: 8,
+  inline: 12,
+  component: 16,
+  content: 20,
+  section: 24,
+  page: 32,
+  pageWide: 40,
+  layout: 48,
+  display: 64,
+
+  // Compatibility aliases used by existing screens.
   none: 0,
   xxs: 2,
   xs: 4,

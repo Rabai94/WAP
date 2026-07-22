@@ -1,69 +1,261 @@
-import { ReactNode } from "react";
-import { StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import { useState, type ReactNode } from "react";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type AccessibilityRole,
+  type AccessibilityState,
+  type ViewStyle,
+} from "react-native";
+import {
+  Colors,
+  InteractionStyles,
+  Opacity,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/theme";
 
-type CardVariant = "default" | "muted" | "warning";
+export type RabAICardVariant =
+  | "outlined"
+  | "filled"
+  | "elevated"
+  | "default"
+  | "muted"
+  | "warning";
 
-type CardProps = {
+export type RabAICardPadding = "none" | "sm" | "md" | "lg";
+
+export type RabAICardProps = {
   title?: string;
+  description?: string;
   children: ReactNode;
-  variant?: CardVariant;
+  action?: ReactNode;
+  variant?: RabAICardVariant;
+  padding?: RabAICardPadding;
+  interactive?: boolean;
+  selected?: boolean;
+  disabled?: boolean;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+  accessibilityRole?: AccessibilityRole;
+  accessibilityState?: AccessibilityState;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 };
 
-export default function Card({
-  title,
+export function RabAICard({
+  accessibilityLabel,
+  accessibilityRole,
+  accessibilityState,
+  action,
   children,
-  variant = "default",
+  description,
+  disabled = false,
+  interactive = false,
+  onPress,
+  padding = "md",
+  selected = false,
   style,
-}: CardProps) {
-  return (
-    <View style={[styles.card, styles[variant], style]}>
-      {title ? <Text style={styles.title}>{title}</Text> : null}
+  testID,
+  title,
+  variant = "outlined",
+}: RabAICardProps) {
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const normalizedVariant = normalizeVariant(variant);
+  const isInteractive = interactive || Boolean(onPress);
+  const isDisabled = disabled || (isInteractive && !onPress);
+  const content = (
+    <>
+      {title || description || action ? (
+        <View style={styles.header}>
+          <View style={styles.headerCopy}>
+            {title ? <Text style={styles.title}>{title}</Text> : null}
+            {description ? (
+              <Text style={styles.description}>{description}</Text>
+            ) : null}
+          </View>
+          {action ? <View style={styles.action}>{action}</View> : null}
+        </View>
+      ) : null}
       {children}
-    </View>
+    </>
+  );
+  const cardStyles = [
+    styles.base,
+    paddingStyles[padding],
+    variantStyles[normalizedVariant],
+    selected && styles.selected,
+    isDisabled && styles.disabled,
+    style,
+  ];
+
+  if (!isInteractive) {
+    return (
+      <View style={cardStyles} testID={testID}>
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityRole={accessibilityRole ?? "button"}
+      accessibilityState={{
+        ...accessibilityState,
+        disabled: isDisabled,
+        selected: accessibilityState?.selected ?? selected,
+      }}
+      disabled={isDisabled}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onPress={onPress}
+      style={({ pressed }) => [
+        cardStyles,
+        hovered && styles.hovered,
+        pressed && styles.pressed,
+        focused && InteractionStyles.focusRing,
+        InteractionStyles.pointer,
+      ]}
+      testID={testID}
+    >
+      {content}
+    </Pressable>
   );
 }
 
-export function FeatureCard(props: CardProps) {
-  return <Card {...props} />;
+export default function Card(props: RabAICardProps) {
+  return (
+    <RabAICard
+      {...props}
+      style={[styles.legacySpacing, props.style]}
+      variant={props.variant ?? "outlined"}
+    />
+  );
 }
 
-export function SectionCard(props: CardProps) {
-  return <Card {...props} />;
+export function FeatureCard(props: RabAICardProps) {
+  return <RabAICard {...props} />;
+}
+
+export function SectionCard(props: RabAICardProps) {
+  return <RabAICard {...props} />;
+}
+
+type NormalizedCardVariant = "outlined" | "filled" | "elevated" | "warning";
+
+function normalizeVariant(variant: RabAICardVariant): NormalizedCardVariant {
+  if (variant === "default") {
+    return "outlined";
+  }
+
+  if (variant === "muted") {
+    return "filled";
+  }
+
+  return variant;
 }
 
 const styles = StyleSheet.create({
-  card: {
+  base: {
+    borderRadius: Radius.panel,
+    borderWidth: 1,
+    maxWidth: "100%",
+    minWidth: 0,
+  },
+  paddingNone: {
+    padding: 0,
+  },
+  paddingSm: {
+    padding: Spacing.inline,
+  },
+  paddingMd: {
+    padding: Spacing.component,
+  },
+  paddingLg: {
+    padding: Spacing.section,
+  },
+  outlined: {
     backgroundColor: Colors.surface,
     borderColor: Colors.border,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    marginBottom: Spacing.three,
-    padding: Spacing.four,
+  },
+  filled: {
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.borderMuted,
+  },
+  elevated: {
+    backgroundColor: Colors.surfaceElevated,
+    borderColor: Colors.borderMuted,
     ...Shadows.card,
   },
-
-  default: {},
-
-  muted: {
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.borderNeutral,
-    ...Shadows.none,
-  },
-
   warning: {
     backgroundColor: Colors.warningSurface,
     borderColor: Colors.warningBorder,
-    marginBottom: Spacing.five,
-    padding: Spacing.three,
-    ...Shadows.none,
   },
-
+  selected: {
+    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.primary,
+    borderWidth: 2,
+  },
+  disabled: {
+    opacity: Opacity.disabled,
+  },
+  hovered: {
+    borderColor: Colors.borderStrong,
+    ...Shadows.card,
+  },
+  pressed: {
+    opacity: Opacity.pressed,
+  },
+  header: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: Spacing.inline,
+    justifyContent: "space-between",
+    marginBottom: Spacing.inline,
+    minWidth: 0,
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
   title: {
-    fontSize: Typography.cardTitle,
-    fontWeight: Typography.fontWeight.extraBold,
-    color: Colors.text,
-    marginBottom: Spacing.xl,
+    color: Colors.textPrimary,
+    fontSize: Typography.h4,
+    fontWeight: Typography.fontWeight.bold,
+    lineHeight: Typography.lineHeight.default,
+  },
+  description: {
+    color: Colors.textSecondary,
+    fontSize: Typography.bodySmall,
+    lineHeight: Typography.lineHeight.body,
+    marginTop: Spacing.compact,
+  },
+  action: {
+    flexShrink: 0,
+  },
+  legacySpacing: {
+    marginBottom: Spacing.component,
   },
 });
+
+const paddingStyles: Record<RabAICardPadding, ViewStyle> = {
+  none: styles.paddingNone,
+  sm: styles.paddingSm,
+  md: styles.paddingMd,
+  lg: styles.paddingLg,
+};
+
+const variantStyles: Record<NormalizedCardVariant, ViewStyle> = {
+  outlined: styles.outlined,
+  filled: styles.filled,
+  elevated: styles.elevated,
+  warning: styles.warning,
+};

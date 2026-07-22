@@ -1,4 +1,4 @@
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -96,11 +96,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     padding: Spacing.four,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.06,
-    shadowRadius: 28,
-    elevation: 2,
+    ...Shadows.elevated,
   },
   eyebrow: {
     color: "#6E1DFF",

@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
 
 const buttonSize = 58;
 const compactButtonSize = 54;
@@ -341,9 +341,9 @@ export default function FloatingMessagesButton() {
 
   return (
     <View
-      pointerEvents="box-none"
       style={[
         styles.container,
+        styles.pointerBoxNone,
         fixedWebStyle,
         { height: size, width: size },
         Platform.OS === "web"
@@ -359,9 +359,9 @@ export default function FloatingMessagesButton() {
     >
       {showTooltip ? (
         <View
-          pointerEvents="none"
           style={[
             styles.tooltip,
+            styles.pointerNone,
             tooltipVerticalStyle,
             tooltipHorizontalStyle,
           ]}
@@ -594,6 +594,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     zIndex: 9000,
   },
+  pointerBoxNone: {
+    pointerEvents: "box-none",
+  },
+  pointerNone: {
+    pointerEvents: "none",
+  },
   tooltip: {
     backgroundColor: "rgba(10, 16, 40, 0.94)",
     borderColor: "rgba(255, 255, 255, 0.12)",
@@ -603,10 +609,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     position: "absolute",
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
+    ...Shadows.elevated,
   },
   tooltipText: {
     color: Colors.white,
@@ -620,13 +623,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.28)",
     borderRadius: Radius.round,
     borderWidth: 1,
-    elevation: 5,
     height: buttonSize,
     justifyContent: "center",
-    shadowColor: Colors.brandDeep,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
+    ...Shadows.button,
     width: buttonSize,
   },
   buttonHover: {

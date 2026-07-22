@@ -8,16 +8,23 @@ import {
   type JobDetails,
   type WorkerProfile,
 } from "@/services/worker/workerService";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import {
+  Colors,
+  InteractionStyles,
+  Radius,
+  Spacing,
+  Typography,
+} from "@/theme";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
+  type PressableProps,
+  type StyleProp,
   type ViewStyle,
 } from "react-native";
 import CompanyPublicSummary from "./CompanyPublicSummary";
@@ -58,11 +65,6 @@ type ProfileReadiness = {
   blockMessage: string | null;
   missingFields: string[];
 };
-
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
 
 export default function JobQuickView({
   companyCoverUrl,
@@ -567,36 +569,32 @@ function JobQuickViewPanel({
                 isPhone && styles.footerActionsPhone,
               ]}
             >
-              <Pressable
+              <InteractivePressable
                 accessibilityRole="button"
+                hoverStyle={styles.secondaryButtonHover}
                 onPress={openFullPage}
-                style={({ hovered, pressed }) => [
-                  styles.secondaryButton,
-                  pointerWebStyle,
-                  hovered && styles.secondaryButtonHover,
-                  pressed && styles.buttonPressed,
-                ]}
+                pressedStyle={styles.buttonPressed}
+                style={styles.secondaryButton}
               >
                 <Text style={styles.secondaryButtonText}>
                   Deschide pagina completă
                 </Text>
-              </Pressable>
-              <Pressable
+              </InteractivePressable>
+              <InteractivePressable
                 accessibilityRole="button"
                 accessibilityState={{ disabled: footerApplyDisabled }}
                 disabled={footerApplyDisabled}
+                hoverStyle={styles.primaryButtonHover}
                 onPress={requestApplication}
-                style={({ hovered, pressed }) => [
+                pressedStyle={styles.buttonPressed}
+                style={[
                   styles.primaryButton,
-                  pointerWebStyle,
                   footerApplyDisabled && styles.primaryButtonDisabled,
-                  !footerApplyDisabled && hovered && styles.primaryButtonHover,
-                  !footerApplyDisabled && pressed && styles.buttonPressed,
                 ]}
                 testID="job-quick-view-apply"
               >
                 <Text style={styles.primaryButtonText}>{footerApplyLabel}</Text>
-              </Pressable>
+              </InteractivePressable>
             </View>
           </View>
         }
@@ -620,13 +618,15 @@ function JobQuickViewPanel({
           <View style={styles.stateCard}>
             <Text style={styles.stateTitle}>Detaliile nu au putut fi încărcate</Text>
             <Text style={styles.stateText}>{detailsError}</Text>
-            <Pressable
+            <InteractivePressable
               accessibilityRole="button"
+              hoverStyle={styles.secondaryButtonHover}
               onPress={() => void loadDetails(job.job_id, true)}
-              style={[styles.retryButton, pointerWebStyle]}
+              pressedStyle={styles.buttonPressed}
+              style={styles.retryButton}
             >
               <Text style={styles.retryButtonText}>Reîncearcă</Text>
-            </Pressable>
+            </InteractivePressable>
           </View>
         ) : detailsState === "missing" || !details ? (
           <View style={styles.stateCard}>
@@ -988,6 +988,57 @@ function readError(error: unknown, fallback: string) {
     : fallback;
 }
 
+type InteractivePressableProps = Omit<PressableProps, "style"> & {
+  hoverStyle?: StyleProp<ViewStyle>;
+  pressedStyle?: StyleProp<ViewStyle>;
+  style?: StyleProp<ViewStyle>;
+};
+
+function InteractivePressable({
+  disabled,
+  hoverStyle,
+  onBlur,
+  onFocus,
+  onHoverIn,
+  onHoverOut,
+  pressedStyle,
+  style,
+  ...props
+}: InteractivePressableProps) {
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Pressable
+      {...props}
+      disabled={disabled}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onHoverIn={(event) => {
+        setHovered(true);
+        onHoverIn?.(event);
+      }}
+      onHoverOut={(event) => {
+        setHovered(false);
+        onHoverOut?.(event);
+      }}
+      style={({ pressed }) => [
+        style,
+        !disabled && InteractionStyles.pointer,
+        !disabled && hovered && hoverStyle,
+        !disabled && pressed && pressedStyle,
+        !disabled && focused && InteractionStyles.focusRing,
+      ]}
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   footerStack: {
     gap: Spacing.md,
@@ -1048,7 +1099,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brandDeep,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#AAB7D4",
+    backgroundColor: Colors.surfaceDisabled,
   },
   primaryButtonText: {
     color: Colors.white,

@@ -1,7 +1,14 @@
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Screen } from "@/components/ui";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  RabAICard,
+} from "@/components/ui";
 import type { PersonalInterest } from "@/domain/account";
-import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -11,7 +18,7 @@ import {
 import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function UnifiedProfileScreen() {
   return (
@@ -23,7 +30,6 @@ export default function UnifiedProfileScreen() {
 
 function UnifiedProfileContent() {
   const router = useRouter();
-  const responsive = useResponsiveLayout();
   const { language, t } = useLanguage();
   const { user } = useAuth();
   const [profile, setProfile] = useState<WorkerProfile | null>(null);
@@ -108,42 +114,29 @@ function UnifiedProfileContent() {
   }, [loadProfile]);
 
   return (
-    <Screen
-      centered={false}
-      style={{
-        paddingHorizontal: responsive.horizontalPadding,
-        paddingVertical: responsive.isMobile ? Spacing.three : Spacing.screen,
-      }}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            gap: responsive.isMobile ? Spacing.sm : Spacing.md,
-            maxWidth: responsive.contentMaxWidth,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Header
-          title={t("profileUnified.title")}
-          subtitle={t("profileUnified.subtitle")}
+    <PageContainer contentStyle={styles.content} maxWidth="content" scroll>
+      <PageHeader
+        description={t("profileUnified.subtitle")}
+        title={t("profileUnified.title")}
+      />
+
+      {loading ? (
+        <LoadingState title={t("profileUnified.loading")} />
+      ) : error ? (
+        <ErrorState
+          description={error}
+          onRetry={() => void loadProfile()}
+          retryLabel={getRetryLabel(language)}
+          title={t("profileUnified.loadError")}
         />
-
-        {loading ? (
-          <Card>
-            <Text style={styles.mutedText}>{t("profileUnified.loading")}</Text>
-          </Card>
-        ) : null}
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <Card title={t("profileUnified.summaryTitle")}>
+      ) : (
+        <>
+        <RabAICard title={t("profileUnified.summaryTitle")}>
           <View style={styles.summaryHeader}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{getInitials(profileName)}</Text>
             </View>
-            <View>
+            <View style={styles.summaryCopy}>
               <Text style={styles.profileName}>{profileName}</Text>
               <Text style={styles.profileMeta}>{user?.email ?? missingValue}</Text>
               <Text style={styles.profileMeta}>
@@ -187,35 +180,43 @@ function UnifiedProfileContent() {
               value={`${t("verification.level0.short")} - ${missingValue}`}
             />
           </View>
-        </Card>
+        </RabAICard>
 
-        <Card title={t("profileUnified.currentInterestsTitle")}>
+        <RabAICard title={t("profileUnified.currentInterestsTitle")}>
           {interests.length > 0 ? (
-            <View style={styles.chipRow}>
-              {interests.map((interest) => (
-                <Chip key={interest} label={interestLabel(interest, t)} />
-              ))}
-            </View>
+            <>
+              <View style={styles.chipRow}>
+                {interests.map((interest) => (
+                  <Chip key={interest} label={interestLabel(interest, t)} />
+                ))}
+              </View>
+              <RabAIButton
+                onPress={() => router.push("/onboarding/interests" as any)}
+                size="sm"
+                style={styles.cardButton}
+                title={t("profileUnified.chooseInterests")}
+                variant="secondary"
+              />
+            </>
           ) : (
-            <Text style={styles.mutedText}>{t("profileUnified.noInterests")}</Text>
+            <EmptyState
+              actionLabel={t("profileUnified.chooseInterests")}
+              compact
+              onAction={() => router.push("/onboarding/interests" as any)}
+              title={t("profileUnified.noInterests")}
+            />
           )}
-          <Button
-            title={t("profileUnified.chooseInterests")}
-            variant="secondary"
-            style={styles.cardButton}
-            onPress={() => router.push("/onboarding/interests" as any)}
-          />
-        </Card>
+        </RabAICard>
 
-        <Card title={t("profileUnified.aboutTitle")}>
+        <RabAICard title={t("profileUnified.aboutTitle")}>
           {profile?.professional_summary ? (
             <Text style={styles.summaryText}>{profile.professional_summary}</Text>
           ) : (
-            <Text style={styles.mutedText}>{t("profileUnified.summaryMissing")}</Text>
+            <EmptyState compact title={t("profileUnified.summaryMissing")} />
           )}
-        </Card>
+        </RabAICard>
 
-        <Card title={t("profileUnified.professionalTitle")}>
+        <RabAICard title={t("profileUnified.professionalTitle")}>
           <View style={styles.infoGrid}>
             <InfoItem
               label={t("profileUnified.occupation")}
@@ -270,9 +271,9 @@ function UnifiedProfileContent() {
               value={user?.servicePreferences ?? missingValue}
             />
           </View>
-        </Card>
+        </RabAICard>
 
-        <Card title={t("profileUnified.verificationTitle")}>
+        <RabAICard title={t("profileUnified.verificationTitle")}>
           <View style={styles.infoGrid}>
             <InfoItem label={t("verification.level0.short")} value={t("verification.status.notStarted")} />
             <InfoItem label={t("verification.level1.short")} value={t("verification.status.notStarted")} />
@@ -281,15 +282,16 @@ function UnifiedProfileContent() {
             <InfoItem label={t("verification.level4.title")} value={t("verification.status.notStarted")} />
           </View>
           <Text style={styles.mutedText}>{t("profileUnified.verificationNote")}</Text>
-          <Button
+          <RabAIButton
+            onPress={() => router.push("/profile/verification" as any)}
+            size="sm"
+            style={styles.cardButton}
             title={t("profileUnified.openVerification")}
             variant="secondary"
-            style={styles.cardButton}
-            onPress={() => router.push("/profile/verification" as any)}
           />
-        </Card>
+        </RabAICard>
 
-        <Card title={t("profileUnified.digitalVaultTitle")}>
+        <RabAICard title={t("profileUnified.digitalVaultTitle")}>
           <Text style={styles.mutedText}>{t("profileUnified.digitalVaultText")}</Text>
           <View style={styles.vaultGrid}>
             {vaultItems.map((item) => (
@@ -299,9 +301,9 @@ function UnifiedProfileContent() {
               </View>
             ))}
           </View>
-        </Card>
+        </RabAICard>
 
-        <Card title={t("profileUnified.quickActions")}>
+        <RabAICard title={t("profileUnified.quickActions")}>
           <View style={styles.actionGrid}>
             <ActionButton label={t("profileUnified.action.viewJobs")} onPress={() => router.push("/jobs" as any)} />
             <ActionButton label={t("profileUnified.action.viewTasks")} onPress={() => router.push("/tasks" as any)} />
@@ -309,9 +311,10 @@ function UnifiedProfileContent() {
             <ActionButton label={t("profileUnified.action.editProfile")} onPress={() => router.push("/profile/edit" as any)} />
             <ActionButton label={t("profileUnified.action.verification")} onPress={() => router.push("/profile/verification" as any)} />
           </View>
-        </Card>
-      </ScrollView>
-    </Screen>
+        </RabAICard>
+        </>
+      )}
+    </PageContainer>
   );
 }
 
@@ -342,15 +345,14 @@ function ActionButton({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
+    <RabAIButton
       disabled={disabled}
       onPress={onPress}
-      style={[styles.actionButton, disabled && styles.actionButtonDisabled]}
-    >
-      <Text style={styles.actionButtonText}>{label}</Text>
-    </Pressable>
+      size="sm"
+      style={styles.actionButton}
+      title={label}
+      variant="outline"
+    />
   );
 }
 
@@ -454,48 +456,62 @@ function formatLanguages(
     .join(", ");
 }
 
+function getRetryLabel(language: string) {
+  if (language === "de") {
+    return "Erneut versuchen";
+  }
+
+  if (language === "en") {
+    return "Try again";
+  }
+
+  return "Reîncearcă";
+}
+
 const styles = StyleSheet.create({
   content: {
-    alignSelf: "center",
-    gap: Spacing.md,
-    paddingBottom: Spacing.five,
-    width: "100%",
+    gap: Spacing.section,
   },
   summaryHeader: {
     alignItems: "flex-start",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    gap: Spacing.component,
+    marginBottom: Spacing.component,
   },
   avatar: {
     alignItems: "center",
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.round,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
     height: 64,
     justifyContent: "center",
     width: 64,
   },
   avatarText: {
-    color: Colors.brandOn,
+    color: Colors.onPrimary,
     fontSize: Typography.h3,
     fontWeight: Typography.fontWeight.black,
   },
+  summaryCopy: {
+    flex: 1,
+    flexBasis: 160,
+    minWidth: 0,
+  },
   profileName: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.h3,
     fontWeight: Typography.fontWeight.black,
   },
   profileMeta: {
     color: Colors.textSecondary,
     fontSize: Typography.body,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.compact,
   },
   statusPill: {
-    backgroundColor: "#E8F8F2",
-    borderRadius: Radius.round,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.successSurface,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.inline,
+    paddingVertical: Spacing.control,
   },
   statusPillText: {
     color: Colors.success,
@@ -505,25 +521,24 @@ const styles = StyleSheet.create({
   infoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.control,
   },
   infoItem: {
-    backgroundColor: "#F7F9FD",
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexBasis: 220,
+    backgroundColor: Colors.surfaceMuted,
+    borderRadius: Radius.control,
+    flexBasis: 200,
     flexGrow: 1,
-    padding: Spacing.lg,
+    minWidth: 0,
+    padding: Spacing.inline,
   },
   infoLabel: {
     color: Colors.textMuted,
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.compact,
   },
   infoValue: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.bold,
   },
@@ -531,59 +546,53 @@ const styles = StyleSheet.create({
     color: Colors.textBody,
     fontSize: Typography.body,
     lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.lg,
   },
   mutedText: {
     color: Colors.textMuted,
     fontSize: Typography.body,
     lineHeight: Typography.lineHeight.body,
   },
-  errorText: {
-    color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: Spacing.control,
   },
   chip: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#BFD2FF",
-    borderRadius: Radius.round,
+    backgroundColor: Colors.primarySoft,
+    borderColor: Colors.informationBorder,
+    borderRadius: Radius.pill,
     borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.inline,
+    paddingVertical: Spacing.control,
   },
   chipText: {
-    color: "#145CFF",
+    color: Colors.primaryPressed,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
   },
   cardButton: {
-    marginTop: Spacing.lg,
+    alignSelf: "flex-start",
+    marginTop: Spacing.component,
   },
   vaultGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
-    marginTop: Spacing.lg,
+    gap: Spacing.control,
+    marginTop: Spacing.component,
   },
   vaultItem: {
     backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexBasis: 220,
+    borderRadius: Radius.control,
+    flexBasis: 200,
     flexGrow: 1,
-    padding: Spacing.lg,
+    minWidth: 0,
+    padding: Spacing.inline,
   },
   vaultLabel: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.compact,
   },
   vaultStatus: {
     color: Colors.textMuted,
@@ -593,24 +602,11 @@ const styles = StyleSheet.create({
   actionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: Spacing.control,
   },
   actionButton: {
-    backgroundColor: Colors.white,
-    borderColor: Colors.brand,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
+    flexBasis: 180,
     flexGrow: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  actionButtonDisabled: {
-    opacity: 0.55,
-  },
-  actionButtonText: {
-    color: Colors.brand,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-    textAlign: "center",
+    minWidth: 0,
   },
 });

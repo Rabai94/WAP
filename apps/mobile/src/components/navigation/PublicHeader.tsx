@@ -1,7 +1,24 @@
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import {
+  Colors,
+  ControlHeight,
+  InteractionStyles,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/theme";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type PressableProps,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 type PublicTab = "home" | "jobs" | "tasks" | "services" | "courses";
 
@@ -27,16 +44,19 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
 
   return (
     <View style={styles.bar}>
-      <Pressable
+      <InteractivePressable
+        accessibilityLabel="RabAI — Acasă"
         accessibilityRole="button"
+        hoverStyle={styles.neutralHover}
         onPress={() => router.replace("/" as never)}
+        pressedStyle={styles.neutralPressed}
         style={styles.brandWrap}
       >
         <View style={styles.logoMark}>
           <Text style={styles.logoText}>R</Text>
         </View>
         <Text style={styles.brandTitle}>RabAI</Text>
-      </Pressable>
+      </InteractivePressable>
 
       <View style={styles.navLinks}>
         {publicNavItems.map((item) => (
@@ -50,20 +70,24 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
       </View>
 
       <View style={styles.authActions}>
-        <Pressable
+        <InteractivePressable
           accessibilityRole="button"
+          hoverStyle={styles.neutralHover}
           onPress={() => router.push("/login" as never)}
+          pressedStyle={styles.neutralPressed}
           style={styles.loginButton}
         >
           <Text style={styles.loginText}>{t("common.login")}</Text>
-        </Pressable>
-        <Pressable
+        </InteractivePressable>
+        <InteractivePressable
           accessibilityRole="button"
+          hoverStyle={styles.primaryHover}
           onPress={() => router.push("/login?mode=signup" as never)}
+          pressedStyle={styles.primaryPressed}
           style={styles.signupButton}
         >
           <Text style={styles.signupText}>{t("common.register")}</Text>
-        </Pressable>
+        </InteractivePressable>
       </View>
     </View>
   );
@@ -79,10 +103,12 @@ function NavLink({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <InteractivePressable
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      hoverStyle={styles.neutralHover}
       onPress={onPress}
+      pressedStyle={styles.neutralPressed}
       style={[styles.navLink, active && styles.navLinkActive]}
     >
       <Text
@@ -91,7 +117,58 @@ function NavLink({
       >
         {label}
       </Text>
-    </Pressable>
+    </InteractivePressable>
+  );
+}
+
+type InteractivePressableProps = Omit<PressableProps, "style"> & {
+  hoverStyle?: StyleProp<ViewStyle>;
+  pressedStyle?: StyleProp<ViewStyle>;
+  style?: StyleProp<ViewStyle>;
+};
+
+function InteractivePressable({
+  disabled,
+  hoverStyle,
+  onBlur,
+  onFocus,
+  onHoverIn,
+  onHoverOut,
+  pressedStyle,
+  style,
+  ...props
+}: InteractivePressableProps) {
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Pressable
+      {...props}
+      disabled={disabled}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onHoverIn={(event) => {
+        setHovered(true);
+        onHoverIn?.(event);
+      }}
+      onHoverOut={(event) => {
+        setHovered(false);
+        onHoverOut?.(event);
+      }}
+      style={({ pressed }) => [
+        style,
+        !disabled && InteractionStyles.pointer,
+        !disabled && hovered && hoverStyle,
+        !disabled && pressed && pressedStyle,
+        !disabled && focused && InteractionStyles.focusRing,
+      ]}
+    />
   );
 }
 
@@ -112,8 +189,11 @@ const styles = StyleSheet.create({
   },
   brandWrap: {
     alignItems: "center",
+    borderRadius: Radius.lg,
     flexDirection: "row",
     gap: Spacing.sm,
+    minHeight: ControlHeight.minimumTouch,
+    paddingHorizontal: Spacing.compact,
   },
   logoMark: {
     alignItems: "center",
@@ -143,7 +223,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: Radius.lg,
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: ControlHeight.minimumTouch,
     minWidth: 86,
     paddingHorizontal: Spacing.md,
   },
@@ -172,7 +252,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 42,
+    minHeight: ControlHeight.minimumTouch,
     minWidth: 104,
     paddingHorizontal: Spacing.md,
   },
@@ -184,10 +264,10 @@ const styles = StyleSheet.create({
   },
   signupButton: {
     alignItems: "center",
-    backgroundColor: Colors.accent,
+    backgroundColor: Colors.primary,
     borderRadius: Radius.lg,
     justifyContent: "center",
-    minHeight: 42,
+    minHeight: ControlHeight.minimumTouch,
     minWidth: 104,
     paddingHorizontal: Spacing.md,
   },
@@ -196,5 +276,17 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
     textAlign: "center",
+  },
+  neutralHover: {
+    backgroundColor: Colors.surfaceInteractive,
+  },
+  neutralPressed: {
+    backgroundColor: Colors.selection,
+  },
+  primaryHover: {
+    backgroundColor: Colors.primaryHover,
+  },
+  primaryPressed: {
+    backgroundColor: Colors.primaryPressed,
   },
 });

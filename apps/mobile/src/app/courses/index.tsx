@@ -6,6 +6,16 @@ import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
 import PublicHeader from "@/components/navigation/PublicHeader";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  RabAICard,
+  RabAIInput,
+} from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -21,17 +31,10 @@ import {
   searchLocationSuggestions,
   type LocationSuggestion,
 } from "@/services/search/heroAutocomplete";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Colors, Layers, Spacing, Typography } from "@/theme";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 const deliveryModeOptions = [
   { label: "Toate", value: "" },
@@ -307,40 +310,46 @@ export default function CoursesScreen() {
     addQueryParam(query, "page", nextPage > 1 ? String(nextPage) : "");
 
     const queryString = query.toString();
-    router.replace(`/courses${queryString ? `?${queryString}` : ""}` as any);
+    router.replace(
+      `/courses${queryString ? `?${queryString}` : ""}` as Href
+    );
   }
 
   return (
     <View style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={styles.content}
+      <PageContainer
+        contentStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        maxWidth="content"
+        scroll
         scrollEnabled={!courseSelection}
-        showsVerticalScrollIndicator={false}
       >
         {!authLoading && !isAuthenticated ? <PublicHeader active="courses" /> : null}
 
-        <View style={styles.heroCard}>
-          <Text style={styles.heroEyebrow}>Cursuri RabAI</Text>
-          <Text style={styles.heroTitle}>Cursuri reale pentru urmatorul pas profesional.</Text>
-          <Text style={styles.heroSubtitle}>
-            Cauta programe active, furnizori verificati si certificari utile pentru munca in Germania.
-          </Text>
-        </View>
+      <PageHeader
+        description="Cauta programe active, furnizori verificati si certificari utile pentru munca in Germania."
+        eyebrow="Cursuri RabAI"
+        style={styles.pageHeader}
+        title="Cursuri reale pentru urmatorul pas profesional."
+        titleSize="hero"
+      />
 
-        <View style={styles.filterCard}>
-          <Text style={styles.filterTitle}>Filtreaza cursurile</Text>
-          {categoriesError ? (
-            <Text style={styles.inlineErrorText}>{categoriesError}</Text>
-          ) : null}
+      <RabAICard padding="lg" title="Filtreaza cursurile" variant="outlined">
+        {categoriesError ? (
+          <ErrorState
+            compact
+            description={categoriesError}
+            style={styles.inlineState}
+            title="Categoriile nu au putut fi încărcate"
+          />
+        ) : null}
 
-          <View style={styles.filterGrid}>
+        <View style={styles.filterGrid}>
             <View style={styles.inputWrap}>
-              <Text style={styles.inputLabel}>Cautare</Text>
-              <TextInput
+              <RabAIInput
+                label="Cautare"
                 onChangeText={setSearchText}
                 placeholder="ex: germana, depozit, siguranta"
-                placeholderTextColor={Colors.textMuted}
-                style={styles.input}
                 value={searchText}
               />
             </View>
@@ -373,17 +382,15 @@ export default function CoursesScreen() {
             </View>
 
             <View style={styles.inputWrap}>
-              <Text style={styles.inputLabel}>Pret maxim</Text>
-              <TextInput
+              <RabAIInput
                 keyboardType="numeric"
+                label="Pret maxim"
                 onChangeText={setMaximumPrice}
                 placeholder="ex: 300"
-                placeholderTextColor={Colors.textMuted}
-                style={styles.input}
                 value={maximumPrice}
               />
             </View>
-          </View>
+        </View>
 
           <FilterChips
             label="Categorie"
@@ -416,30 +423,27 @@ export default function CoursesScreen() {
             value={level}
           />
 
-          <Pressable accessibilityRole="button" onPress={() => submitFilters(1)} style={styles.searchButton}>
-            <Text style={styles.searchButtonText}>Cauta cursuri</Text>
-          </Pressable>
-        </View>
+        <RabAIButton
+          onPress={() => submitFilters(1)}
+          style={styles.searchButton}
+          title="Cauta cursuri"
+        />
+      </RabAICard>
 
-        {loading ? (
-          <View style={styles.resultsCard}>
-            <LoadingSkeleton />
-          </View>
-        ) : error ? (
-          <View style={styles.resultsCard}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : courses.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>
-              Momentan nu exista cursuri care corespund cautarii.
-            </Text>
-            <Text style={styles.emptyText}>
-              Poti modifica filtrele sau reveni mai tarziu.
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.resultsCard}>
+      {loading ? (
+        <LoadingState title="Se încarcă cursurile..." />
+      ) : error ? (
+        <ErrorState
+          description={error}
+          title="Cursurile nu au putut fi încărcate"
+        />
+      ) : courses.length === 0 ? (
+        <EmptyState
+          description="Poti modifica filtrele sau reveni mai tarziu."
+          title="Momentan nu exista cursuri care corespund cautarii."
+        />
+      ) : (
+          <RabAICard padding="lg" variant="outlined">
             <View style={styles.resultsHeader}>
               <Text style={styles.resultsTitle}>Cursuri gasite</Text>
               <Text style={styles.resultsCount}>{totalCount} rezultate</Text>
@@ -463,35 +467,25 @@ export default function CoursesScreen() {
             ))}
 
             <View style={styles.paginationRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !hasPreviousPage }}
+              <RabAIButton
                 disabled={!hasPreviousPage}
                 onPress={() => submitFilters(page - 1)}
-                style={[
-                  styles.pageButton,
-                  !hasPreviousPage && styles.pageButtonDisabled,
-                ]}
-              >
-                <Text style={styles.pageButtonText}>Inapoi</Text>
-              </Pressable>
+                size="sm"
+                title="Inapoi"
+                variant="outline"
+              />
               <Text style={styles.pageText}>Pagina {page}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !hasNextPage }}
+              <RabAIButton
                 disabled={!hasNextPage}
                 onPress={() => submitFilters(page + 1)}
-                style={[
-                  styles.pageButton,
-                  !hasNextPage && styles.pageButtonDisabled,
-                ]}
-              >
-                <Text style={styles.pageButtonText}>Urmatoarea</Text>
-              </Pressable>
+                size="sm"
+                title="Urmatoarea"
+                variant="outline"
+              />
             </View>
-          </View>
+          </RabAICard>
         )}
-      </ScrollView>
+      </PageContainer>
       <CourseQuickView
         onClose={closeCourseQuickView}
         selection={courseSelection}
@@ -512,48 +506,31 @@ function FilterChips({
   value: string;
 }) {
   return (
-    <View style={styles.chipBlock}>
+    <View
+      accessibilityLabel={label}
+      accessibilityRole="radiogroup"
+      style={styles.chipBlock}
+    >
       <Text style={styles.inputLabel}>{label}</Text>
       <View style={styles.chipRow}>
         {options.map((option) => {
           const active = value === option.value;
 
           return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
+            <RabAIButton
+              accessibilityRole="radio"
+              accessibilityState={{ checked: active }}
               key={option.value || "all"}
               onPress={() => onChange(option.value)}
-              style={[styles.filterChip, active && styles.filterChipActive]}
-            >
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.filterChipText,
-                  active && styles.filterChipTextActive,
-                ]}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
+              size="sm"
+              style={styles.filterChip}
+              title={option.label}
+              variant={active ? "secondary" : "outline"}
+            />
           );
         })}
       </View>
     </View>
-  );
-}
-
-function LoadingSkeleton() {
-  return (
-    <>
-      {[0, 1, 2].map((item) => (
-        <View key={item} style={styles.skeletonCard}>
-          <View style={styles.skeletonLineLarge} />
-          <View style={styles.skeletonLine} />
-          <View style={styles.skeletonLineShort} />
-        </View>
-      ))}
-    </>
   );
 }
 
@@ -606,285 +583,78 @@ function readError(error: unknown) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#F5F8FF",
   },
   content: {
-    alignSelf: "center",
-    gap: Spacing.lg,
-    maxWidth: 1080,
-    padding: Spacing.four,
-    paddingBottom: Spacing.five,
-    width: "100%",
+    gap: Spacing.component,
   },
-  publicHeader: {
-    alignItems: "center",
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
+  pageHeader: {
+    marginBottom: 0,
   },
-  publicLink: {
-    paddingVertical: Spacing.sm,
-  },
-  publicLinkText: {
-    color: "#145CFF",
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  publicPrimaryButton: {
-    backgroundColor: "#145CFF",
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  publicPrimaryButtonText: {
-    color: Colors.white,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  publicSecondaryButton: {
-    backgroundColor: "#F3F7FF",
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  publicSecondaryButtonText: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  heroCard: {
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
-    elevation: 2,
-  },
-  heroEyebrow: {
-    color: "#6E1DFF",
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: 6,
-    textTransform: "uppercase",
-  },
-  heroTitle: {
-    color: Colors.text,
-    fontSize: Typography.headline,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  heroSubtitle: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    lineHeight: 24,
-    marginTop: Spacing.sm,
-  },
-  filterCard: {
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.lg,
-    shadowColor: "#153058",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 2,
-  },
-  filterTitle: {
-    color: Colors.text,
-    fontSize: Typography.cardTitleLarge,
-    fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.md,
+  inlineState: {
+    marginBottom: Spacing.component,
   },
   filterGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.component,
   },
   inputWrap: {
     flexBasis: 240,
     flexGrow: 1,
+    minWidth: 0,
   },
   locationAutocompleteWrap: {
-    zIndex: 20,
+    zIndex: Layers.dropdown,
   },
   inputLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: "#F7FAFF",
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    color: Colors.text,
-    minHeight: 48,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    color: Colors.textSecondary,
+    fontSize: Typography.bodySmall,
+    fontWeight: Typography.fontWeight.semibold,
+    marginBottom: Spacing.control,
   },
   chipBlock: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.component,
   },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: Spacing.control,
   },
   filterChip: {
-    backgroundColor: "#F7FAFF",
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.round,
-    borderWidth: 1,
     maxWidth: 260,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  filterChipActive: {
-    backgroundColor: "#F1E9FF",
-    borderColor: "#6E1DFF",
-  },
-  filterChipText: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  filterChipTextActive: {
-    color: "#5D37EA",
   },
   searchButton: {
     alignSelf: "flex-start",
-    backgroundColor: "#6E1DFF",
-    borderRadius: Radius.lg,
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  searchButtonText: {
-    color: Colors.white,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  resultsCard: {
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.lg,
+    marginTop: Spacing.component,
   },
   resultsHeader: {
     alignItems: "center",
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.control,
     justifyContent: "space-between",
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.component,
   },
   resultsTitle: {
-    color: Colors.text,
-    fontSize: Typography.cardTitleLarge,
-    fontWeight: Typography.fontWeight.extraBold,
+    color: Colors.textPrimary,
+    fontSize: Typography.h4,
+    fontWeight: Typography.fontWeight.bold,
   },
   resultsCount: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: Typography.body,
   },
   paginationRow: {
     alignItems: "center",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.control,
     justifyContent: "center",
-    marginTop: Spacing.md,
-  },
-  pageButton: {
-    backgroundColor: "#145CFF",
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  pageButtonDisabled: {
-    opacity: 0.45,
-  },
-  pageButtonText: {
-    color: Colors.white,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
+    marginTop: Spacing.component,
   },
   pageText: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.bold,
-  },
-  skeletonCard: {
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-    padding: Spacing.lg,
-  },
-  skeletonLineLarge: {
-    backgroundColor: "#E6ECF7",
-    borderRadius: Radius.round,
-    height: 18,
-    marginBottom: Spacing.md,
-    width: "60%",
-  },
-  skeletonLine: {
-    backgroundColor: "#EEF3FA",
-    borderRadius: Radius.round,
-    height: 14,
-    marginBottom: Spacing.sm,
-    width: "82%",
-  },
-  skeletonLineShort: {
-    backgroundColor: "#EEF3FA",
-    borderRadius: Radius.round,
-    height: 14,
-    width: "42%",
-  },
-  emptyCard: {
-    alignItems: "flex-start",
-    backgroundColor: Colors.white,
-    borderColor: "#E6ECF7",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.lg,
-  },
-  emptyTitle: {
-    color: Colors.text,
-    fontSize: Typography.cardTitleLarge,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  emptyText: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    lineHeight: 22,
-    marginTop: Spacing.sm,
-  },
-  errorText: {
-    color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  inlineErrorText: {
-    color: Colors.danger,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.md,
   },
 });

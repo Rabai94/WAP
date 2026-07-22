@@ -6,6 +6,7 @@ import { useCourseQuickView } from "@/components/courses/quick-view/useCourseQui
 import JobSummaryCard from "@/components/jobs/JobSummaryCard";
 import JobQuickView from "@/components/jobs/quick-view/JobQuickView";
 import { useJobQuickView } from "@/components/jobs/quick-view/useJobQuickView";
+import { PageContainer, RabAIButton, RabAICard } from "@/components/ui";
 import RecentActivityCard from "@/components/engine/RecentActivityCard";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import type { LanguageCode } from "@/i18n/translations";
@@ -18,21 +19,23 @@ import {
   fetchLatestPublishedJobs,
   type SearchJobResult,
 } from "@/services/jobs/jobFlowService";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import {
+  Colors,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/theme";
 import { useRouter } from "expo-router";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   ImageBackground,
-  Platform,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
   View,
   type LayoutChangeEvent,
-  type ViewStyle,
 } from "react-native";
 
 type SearchMode = "jobs" | "courses";
@@ -293,11 +296,6 @@ const copyByLanguage = {
   },
 } satisfies Record<LanguageCode, DashboardCopy>;
 
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
-
 export default function EngineDashboard() {
   const router = useRouter();
   const { language } = useLanguage();
@@ -382,13 +380,14 @@ export default function EngineDashboard() {
 
   return (
     <View onLayout={handleLayout} style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={[
+      <PageContainer
+        contentStyle={[
           styles.content,
           isMobile && styles.contentMobile,
         ]}
+        maxWidth="dashboard"
+        scroll
         scrollEnabled={!jobSelection && !courseSelection}
-        showsVerticalScrollIndicator={false}
       >
         <ImageBackground
           imageStyle={styles.welcomeBannerImage}
@@ -399,7 +398,7 @@ export default function EngineDashboard() {
             isMobile && styles.welcomeBannerMobile,
           ]}
         >
-          <View pointerEvents="none" style={styles.welcomeBannerOverlay} />
+          <View style={[styles.welcomeBannerOverlay, styles.nonInteractive]} />
           <View
             style={[
               styles.welcomeBannerContent,
@@ -443,41 +442,27 @@ export default function EngineDashboard() {
         </ImageBackground>
 
         <View style={styles.dashboardGrid}>
-          <View style={styles.quickActionsCard}>
+          <RabAICard
+            padding="lg"
+            style={styles.quickActionsCard}
+            variant="elevated"
+          >
             <SectionHeading
               subtitle={copy.quickActionsSubtitle}
               title={copy.quickActionsTitle}
             />
             <View style={styles.quickActionsGrid}>
               {quickActions.map((action) => (
-                <Pressable
-                  accessibilityLabel={copy.quickActions[action.key].label}
-                  accessibilityRole="button"
+                <QuickActionControl
+                  icon={action.icon}
                   key={action.key}
+                  label={copy.quickActions[action.key].label}
                   onPress={() => router.push(action.route as never)}
-                  style={({ hovered, pressed }) => [
-                    styles.quickAction,
-                    pointerWebStyle,
-                    hovered && styles.quickActionHovered,
-                    pressed && styles.quickActionPressed,
-                  ]}
-                >
-                  <View style={styles.quickActionIcon}>
-                    <AppIcon color={Colors.brandDeep} name={action.icon} size={20} />
-                  </View>
-                  <View style={styles.quickActionCopy}>
-                    <Text style={styles.quickActionTitle}>
-                      {copy.quickActions[action.key].label}
-                    </Text>
-                    <Text style={styles.quickActionSubtitle}>
-                      {copy.quickActions[action.key].subtitle}
-                    </Text>
-                  </View>
-                  <AppIcon color={Colors.textMuted} name="chevron-right" size={16} />
-                </Pressable>
+                  subtitle={copy.quickActions[action.key].subtitle}
+                />
               ))}
             </View>
-          </View>
+          </RabAICard>
 
           <RecentActivityCard
             key={user?.id ?? "signed-out"}
@@ -557,7 +542,7 @@ export default function EngineDashboard() {
           </RecommendationCard>
         </View>
 
-        <View style={styles.servicesCard}>
+        <RabAICard padding="lg" style={styles.servicesCard}>
           <View style={styles.servicesIcon}>
             <AppIcon color={Colors.brandDeep} name="service" size={22} />
           </View>
@@ -565,21 +550,52 @@ export default function EngineDashboard() {
             <Text style={styles.servicesTitle}>{copy.services.title}</Text>
             <Text style={styles.servicesText}>{copy.services.empty}</Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
+          <RabAIButton
             onPress={() => router.push("/services" as never)}
-            style={[styles.secondaryAction, pointerWebStyle]}
-          >
-            <Text style={styles.secondaryActionText}>{copy.services.action}</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+            size="sm"
+            title={copy.services.action}
+            variant="secondary"
+          />
+        </RabAICard>
+      </PageContainer>
       <JobQuickView onClose={closeJobQuickView} selection={jobSelection} />
       <CourseQuickView
         onClose={closeCourseQuickView}
         selection={courseSelection}
       />
     </View>
+  );
+}
+
+function QuickActionControl({
+  icon,
+  label,
+  onPress,
+  subtitle,
+}: {
+  icon: AppIconName;
+  label: string;
+  onPress: () => void;
+  subtitle: string;
+}) {
+  return (
+    <RabAICard
+      accessibilityLabel={label}
+      interactive
+      onPress={onPress}
+      padding="sm"
+      style={styles.quickAction}
+      variant="filled"
+    >
+      <View style={styles.quickActionIcon}>
+        <AppIcon color={Colors.brandDeep} name={icon} size={20} />
+      </View>
+      <View style={styles.quickActionCopy}>
+        <Text style={styles.quickActionTitle}>{label}</Text>
+        <Text style={styles.quickActionSubtitle}>{subtitle}</Text>
+      </View>
+      <AppIcon color={Colors.textMuted} name="chevron-right" size={16} />
+    </RabAICard>
   );
 }
 
@@ -606,7 +622,7 @@ function GlobalSearchCard({
 
   return (
     <View style={[styles.searchCard, isMobile && styles.searchCardMobile]}>
-      <View style={styles.searchModes}>
+      <View accessibilityRole="radiogroup" style={styles.searchModes}>
         <SearchModeButton
           active={mode === "jobs"}
           label={copy.jobMode}
@@ -625,12 +641,7 @@ function GlobalSearchCard({
           isMobile && styles.searchInputRowMobile,
         ]}
       >
-        <View
-          style={[
-            styles.dashboardSearchField,
-            isMobile && styles.dashboardSearchFieldMobile,
-          ]}
-        >
+        <View style={styles.dashboardSearchField}>
           <AppIcon color={Colors.textMuted} name="search" size={21} />
           <TextInput
             accessibilityLabel={
@@ -651,18 +662,11 @@ function GlobalSearchCard({
             value={query}
           />
         </View>
-        <Pressable
-          accessibilityRole="button"
+        <RabAIButton
+          fullWidth={isMobile}
           onPress={submit}
-          style={({ pressed }) => [
-            styles.primaryAction,
-            isMobile && styles.primaryActionMobile,
-            pointerWebStyle,
-            pressed && styles.primaryActionPressed,
-          ]}
-        >
-          <Text style={styles.primaryActionText}>{copy.submit}</Text>
-        </Pressable>
+          title={copy.submit}
+        />
       </View>
     </View>
   );
@@ -678,16 +682,14 @@ function SearchModeButton({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
+    <RabAIButton
+      accessibilityRole="radio"
+      accessibilityState={{ checked: active }}
       onPress={onPress}
-      style={[styles.searchMode, active && styles.searchModeActive, pointerWebStyle]}
-    >
-      <Text style={[styles.searchModeText, active && styles.searchModeTextActive]}>
-        {label}
-      </Text>
-    </Pressable>
+      size="sm"
+      title={label}
+      variant={active ? "secondary" : "ghost"}
+    />
   );
 }
 
@@ -707,7 +709,11 @@ function RecommendationCard({
   title: string;
 }) {
   return (
-    <View style={styles.recommendationCard}>
+    <RabAICard
+      padding="lg"
+      style={styles.recommendationCard}
+      variant="elevated"
+    >
       <View style={styles.cardHeaderRow}>
         <View style={styles.cardTitleIcon}>
           <AppIcon color={Colors.brandDeep} name={icon} size={20} />
@@ -716,16 +722,15 @@ function RecommendationCard({
           <Text style={styles.cardTitle}>{title}</Text>
           <Text style={styles.cardSubtitle}>{subtitle}</Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
+        <RabAIButton
           onPress={onAction}
-          style={[styles.cardTextAction, pointerWebStyle]}
-        >
-          <Text style={styles.cardTextActionLabel}>{actionLabel}</Text>
-        </Pressable>
+          size="sm"
+          title={actionLabel}
+          variant="ghost"
+        />
       </View>
       {children}
-    </View>
+    </RabAICard>
   );
 }
 
@@ -781,22 +786,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     flex: 1,
   },
+  nonInteractive: {
+    pointerEvents: "none",
+  },
   content: {
-    alignSelf: "center",
     gap: Spacing.screen,
-    maxWidth: 1400,
-    padding: Spacing.eight,
-    paddingBottom: 56,
-    width: "100%",
   },
   contentMobile: {
     gap: Spacing.three,
-    padding: Spacing.three,
-    paddingBottom: 88,
   },
   welcomeBanner: {
-    backgroundColor: "#071126",
-    borderColor: "rgba(8, 24, 55, 0.34)",
+    backgroundColor: Colors.surfaceInverse,
+    borderColor: Colors.borderOnInverse,
     borderRadius: Radius.card,
     borderWidth: 1,
     minHeight: 240,
@@ -811,7 +812,7 @@ const styles = StyleSheet.create({
   },
   welcomeBannerOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(3, 10, 28, 0.74)",
+    backgroundColor: Colors.overlayStrong,
   },
   welcomeBannerContent: {
     flex: 1,
@@ -838,9 +839,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   eyebrow: {
-    color: "rgba(255, 255, 255, 0.76)",
+    color: Colors.textOnInverseMuted,
     flex: 1,
-    fontSize: Typography.small,
+    fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
     letterSpacing: 0.7,
     textTransform: "uppercase",
@@ -856,7 +857,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   welcomeSubtitle: {
-    color: "rgba(255, 255, 255, 0.84)",
+    color: Colors.textOnInverseSecondary,
     fontSize: Typography.body,
     lineHeight: 23,
     marginTop: Spacing.sm,
@@ -868,8 +869,8 @@ const styles = StyleSheet.create({
   },
   secureStatus: {
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderColor: "rgba(255, 255, 255, 0.20)",
+    backgroundColor: Colors.surfaceInverseSubtle,
+    borderColor: Colors.borderInverse,
     borderRadius: Radius.round,
     borderWidth: 1,
     flexDirection: "row",
@@ -886,13 +887,13 @@ const styles = StyleSheet.create({
   },
   secureStatusText: {
     color: Colors.white,
-    fontSize: 10,
+    fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
   },
   searchCard: {
     alignItems: "center",
-    backgroundColor: "rgba(6, 17, 40, 0.88)",
-    borderColor: "rgba(255, 255, 255, 0.18)",
+    backgroundColor: Colors.surfaceInverseElevated,
+    borderColor: Colors.borderInverse,
     borderRadius: Radius.xl,
     borderWidth: 1,
     flexDirection: "row",
@@ -906,33 +907,13 @@ const styles = StyleSheet.create({
     padding: Spacing.xs,
   },
   searchModes: {
-    backgroundColor: "rgba(255, 255, 255, 0.10)",
-    borderColor: "rgba(255, 255, 255, 0.16)",
+    backgroundColor: Colors.surfaceInverseMuted,
+    borderColor: Colors.borderInverse,
     borderRadius: Radius.lg,
     borderWidth: 1,
     flexDirection: "row",
     gap: Spacing.xs,
     padding: Spacing.xs,
-  },
-  searchMode: {
-    alignItems: "center",
-    borderRadius: Radius.md,
-    justifyContent: "center",
-    minHeight: 30,
-    paddingHorizontal: Spacing.xl,
-  },
-  searchModeActive: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderWidth: 1,
-  },
-  searchModeText: {
-    color: "rgba(255, 255, 255, 0.82)",
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  searchModeTextActive: {
-    color: Colors.brandDeep,
   },
   searchInputRow: {
     alignItems: "stretch",
@@ -947,8 +928,8 @@ const styles = StyleSheet.create({
   },
   dashboardSearchField: {
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.97)",
-    borderColor: "rgba(255, 255, 255, 0.28)",
+    backgroundColor: Colors.surfaceElevated,
+    borderColor: Colors.borderInverseStrong,
     borderRadius: Radius.lg,
     borderWidth: 1,
     flex: 1,
@@ -958,38 +939,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: Spacing.three,
   },
-  dashboardSearchFieldMobile: {
-    minHeight: 40,
-  },
   dashboardSearchInput: {
     color: Colors.text,
     flex: 1,
     fontSize: Typography.body,
     minHeight: 40,
     paddingVertical: 0,
-  },
-  primaryAction: {
-    alignItems: "center",
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.lg,
-    justifyContent: "center",
-    minHeight: 46,
-    minWidth: 112,
-    paddingHorizontal: Spacing.three,
-    ...Shadows.button,
-  },
-  primaryActionPressed: {
-    opacity: 0.82,
-  },
-  primaryActionMobile: {
-    minHeight: 34,
-    minWidth: 0,
-    width: "100%",
-  },
-  primaryActionText: {
-    color: Colors.brandOn,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
   },
   dashboardGrid: {
     alignItems: "stretch",
@@ -998,15 +953,9 @@ const styles = StyleSheet.create({
     gap: Spacing.screen,
   },
   quickActionsCard: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.card,
-    borderWidth: 1,
     flex: 1,
     flexBasis: 520,
     minWidth: 0,
-    padding: Spacing.screen,
-    ...Shadows.card,
   },
   activityPanel: {
     flex: 1,
@@ -1037,25 +986,11 @@ const styles = StyleSheet.create({
   },
   quickAction: {
     alignItems: "center",
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
     flexBasis: 200,
     flexGrow: 1,
     flexDirection: "row",
     gap: Spacing.xl,
     minHeight: 68,
-    padding: Spacing.xl,
-  },
-  quickActionHovered: {
-    backgroundColor: Colors.surface,
-    borderColor: "rgba(20, 92, 255, 0.28)",
-    transform: [{ translateY: -1 }],
-  },
-  quickActionPressed: {
-    opacity: 0.8,
-    transform: [{ translateY: 0 }],
   },
   quickActionIcon: {
     alignItems: "center",
@@ -1076,13 +1011,12 @@ const styles = StyleSheet.create({
   },
   quickActionSubtitle: {
     color: Colors.textMuted,
-    fontSize: Typography.small,
+    fontSize: Typography.bodySmall,
     lineHeight: 17,
     marginTop: 3,
   },
   recommendationHeader: {
     flexDirection: "row",
-    marginBottom: -Spacing.md,
   },
   recommendationGrid: {
     alignItems: "stretch",
@@ -1091,15 +1025,9 @@ const styles = StyleSheet.create({
     gap: Spacing.screen,
   },
   recommendationCard: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.card,
-    borderWidth: 1,
     flex: 1,
     flexBasis: 520,
     minWidth: 0,
-    padding: Spacing.screen,
-    ...Shadows.card,
   },
   cardHeaderRow: {
     alignItems: "flex-start",
@@ -1127,19 +1055,9 @@ const styles = StyleSheet.create({
   },
   cardSubtitle: {
     color: Colors.textMuted,
-    fontSize: Typography.small,
+    fontSize: Typography.bodySmall,
     lineHeight: 18,
     marginTop: 3,
-  },
-  cardTextAction: {
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  cardTextActionLabel: {
-    color: Colors.brandDeep,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
   },
   recommendationItems: {
     flexDirection: "row",
@@ -1148,14 +1066,9 @@ const styles = StyleSheet.create({
   },
   servicesCard: {
     alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.card,
-    borderWidth: 1,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.three,
-    padding: Spacing.screen,
   },
   servicesIcon: {
     alignItems: "center",
@@ -1167,7 +1080,8 @@ const styles = StyleSheet.create({
   },
   servicesCopy: {
     flex: 1,
-    minWidth: 220,
+    flexBasis: 180,
+    minWidth: 0,
   },
   servicesTitle: {
     color: Colors.text,
@@ -1179,21 +1093,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.bodySmall,
     lineHeight: 20,
     marginTop: Spacing.xs,
-  },
-  secondaryAction: {
-    alignItems: "center",
-    backgroundColor: Colors.brandSoft,
-    borderColor: "rgba(20, 92, 255, 0.16)",
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    justifyContent: "center",
-    minHeight: 40,
-    paddingHorizontal: Spacing.three,
-  },
-  secondaryActionText: {
-    color: Colors.brandDeep,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
   },
   skeletonStack: {
     flexDirection: "row",
@@ -1241,8 +1140,8 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   stateMessageError: {
-    backgroundColor: "#FFF6F7",
-    borderColor: "rgba(225, 29, 72, 0.16)",
+    backgroundColor: Colors.dangerSurface,
+    borderColor: Colors.dangerBorder,
   },
   stateMessageText: {
     color: Colors.textMuted,

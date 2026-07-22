@@ -6,6 +6,13 @@ import {
 } from "react-native";
 import type { ImageSourcePropType } from "react-native";
 import type { NationalIdentity } from "@/domain/nationality/nationalities";
+import {
+  Colors,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/theme";
 
 const insigniaAssets: Partial<Record<string, ImageSourcePropType>> = {
   DE: require("../assets/insignias/de.png"),
@@ -76,22 +83,18 @@ const styles = StyleSheet.create({
   container: {
     alignItems: "center",
     alignSelf: "flex-start",
-    backgroundColor: "#FFFFFF",
-    borderColor: "#D9D2EA",
-    borderRadius: 999,
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
+    borderRadius: Radius.pill,
     borderWidth: 1,
     flexDirection: "row",
-    shadowColor: "#172033",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 3,
+    ...Shadows.card,
   },
   containerSm: {
     gap: 7,
     minHeight: 40,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
   },
   containerMd: {
     gap: 9,
@@ -102,8 +105,8 @@ const styles = StyleSheet.create({
   containerLg: {
     gap: 11,
     minHeight: 66,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: Spacing.component,
+    paddingVertical: Spacing.lg,
   },
   insigniaImage: {
     borderRadius: 8,
@@ -122,15 +125,11 @@ const styles = StyleSheet.create({
   },
   placeholderShield: {
     alignItems: "center",
-    backgroundColor: "#F8F5FF",
-    borderColor: "#C8B06A",
+    backgroundColor: Colors.accentSoft,
+    borderColor: Colors.warningBorder,
     borderWidth: 1,
     justifyContent: "center",
-    shadowColor: "#172033",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    ...Shadows.card,
   },
   placeholderSm: {
     borderBottomLeftRadius: 12,
@@ -157,8 +156,8 @@ const styles = StyleSheet.create({
     width: 50,
   },
   placeholderCode: {
-    color: "#4C1D95",
-    fontWeight: "900",
+    color: Colors.accent,
+    fontWeight: Typography.fontWeight.black,
     letterSpacing: 0,
   },
   placeholderTextSm: {
@@ -171,23 +170,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   code: {
-    color: "#111827",
-    fontWeight: "900",
+    color: Colors.textPrimary,
+    fontWeight: Typography.fontWeight.black,
     letterSpacing: 0,
   },
   name: {
-    color: "#374151",
-    fontWeight: "700",
+    color: Colors.textSecondary,
+    fontWeight: Typography.fontWeight.bold,
     letterSpacing: 0,
   },
   dialCode: {
-    color: "#5B21B6",
-    fontWeight: "900",
+    color: Colors.accent,
+    fontWeight: Typography.fontWeight.black,
     letterSpacing: 0,
   },
   chevron: {
-    color: "#6B7280",
-    fontWeight: "900",
+    color: Colors.textMuted,
+    fontWeight: Typography.fontWeight.black,
     letterSpacing: 0,
   },
   textSm: {

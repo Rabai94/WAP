@@ -2,7 +2,15 @@ import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Input, Screen } from "@/components/ui";
+import {
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  RabAICard,
+  RabAIInput,
+} from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -16,10 +24,10 @@ import {
   saveOwnWorkerProfile,
   type WorkerProfile,
 } from "@/services/worker/workerService";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Spacing, Typography } from "@/theme";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 type LocationOption = HeroAutocompleteOption & {
   suggestion: LocationSuggestion;
@@ -62,6 +70,7 @@ function ProfileEditContent() {
   const router = useRouter();
   const { language, t } = useLanguage();
   const { user } = useAuth();
+  const userId = user?.id;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -93,8 +102,10 @@ function ProfileEditContent() {
   const [occupationActiveIndex, setOccupationActiveIndex] = useState(-1);
   const [errors, setErrors] = useState<FormErrors>({});
   const [loadError, setLoadError] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const profileLoadRequestId = useRef(0);
   const locationRequestId = useRef(0);
   const occupationRequestId = useRef(0);
 
@@ -164,47 +175,52 @@ function ProfileEditContent() {
     [language]
   );
 
-  useEffect(() => {
-    let mounted = true;
+  const loadProfile = useCallback(async () => {
+    const requestId = profileLoadRequestId.current + 1;
+    profileLoadRequestId.current = requestId;
 
-    async function loadProfile() {
-      if (!user?.id) {
-        return;
-      }
-
-      setLoadingProfile(true);
-      setLoadError("");
-
-      try {
-        const profile = await fetchOwnWorkerProfile(user.id);
-
-        if (mounted && profile) {
-          hydrateProfile(profile);
-        }
-      } catch (error) {
-        if (mounted) {
-          setLoadError(readError(error, t));
-        }
-      } finally {
-        if (mounted) {
-          setLoadingProfile(false);
-        }
-      }
+    if (!userId) {
+      setLoadingProfile(false);
+      return;
     }
 
-    void loadProfile();
+    setLoadingProfile(true);
+    setLoadError("");
 
-    return () => {
-      mounted = false;
-    };
-  }, [hydrateProfile, t, user?.id]);
+    try {
+      const profile = await fetchOwnWorkerProfile(userId);
+
+      if (profileLoadRequestId.current === requestId && profile) {
+        hydrateProfile(profile);
+      }
+    } catch (error) {
+      if (profileLoadRequestId.current === requestId) {
+        setLoadError(readError(error, t));
+      }
+    } finally {
+      if (profileLoadRequestId.current === requestId) {
+        setLoadingProfile(false);
+      }
+    }
+  }, [hydrateProfile, t, userId]);
 
   useEffect(() => {
-    const trimmedLocation = locationText.trim();
+    const timeoutId = setTimeout(() => {
+      void loadProfile();
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      profileLoadRequestId.current += 1;
+    };
+  }, [loadProfile]);
+
+  useEffect(() => {
+    const searchQuery = normalizeLocationSearchQuery(locationText);
     locationRequestId.current += 1;
     const requestId = locationRequestId.current;
 
-    if (trimmedLocation.length < 2) {
+    if (searchQuery.length < 2) {
       return;
     }
 
@@ -212,7 +228,7 @@ function ProfileEditContent() {
       setLocationLoading(true);
       setLocationError(null);
 
-      searchLocationSuggestions(trimmedLocation, 10)
+      searchLocationSuggestions(searchQuery, 10)
         .then((suggestions) => {
           if (locationRequestId.current !== requestId) {
             return;
@@ -288,7 +304,7 @@ function ProfileEditContent() {
       setSelectedLocation(null);
     }
 
-    if (text.trim().length < 2) {
+    if (normalizeLocationSearchQuery(text).length < 2) {
       locationRequestId.current += 1;
       setLocationSuggestions([]);
       setLocationActiveIndex(-1);
@@ -338,7 +354,7 @@ function ProfileEditContent() {
     }
 
     setSubmitting(true);
-    setLoadError("");
+    setSaveError("");
 
     try {
       await saveOwnWorkerProfile({
@@ -355,71 +371,98 @@ function ProfileEditContent() {
       });
       router.replace("/profile" as any);
     } catch (error) {
-      setLoadError(readError(error, t));
+      setSaveError(readError(error, t));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Screen centered={false}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Header title={t("profileEdit.title")} subtitle={t("profileEdit.subtitle")} />
+    <PageContainer
+      contentStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      maxWidth="form"
+      scroll
+    >
+      <PageHeader
+        description={t("profileEdit.subtitle")}
+        title={t("profileEdit.title")}
+      />
 
-        {loadingProfile ? (
-          <Card>
-            <Text style={styles.mutedText}>{t("profileEdit.loading")}</Text>
-          </Card>
-        ) : null}
+      {loadingProfile ? (
+        <LoadingState title={t("profileEdit.loading")} />
+      ) : loadError ? (
+        <ErrorState
+          description={loadError}
+          onRetry={() => void loadProfile()}
+          retryLabel={getRetryLabel(language)}
+          title={t("profileEdit.title")}
+        />
+      ) : (
+        <>
+          {saveError ? (
+            <ErrorState
+              compact
+              description={saveError}
+              title={t("profileEdit.saveError")}
+            />
+          ) : null}
 
-        {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
-
-        <Card title={t("profileEdit.personalTitle")}>
-          <View style={styles.twoColumn}>
-            <View style={styles.fieldColumn}>
-              <Input
-                label={t("profileEdit.firstName")}
-                onChangeText={setFirstName}
-                placeholder={t("profileEdit.firstNamePlaceholder")}
-                value={firstName}
-              />
-              <FieldError message={errors.firstName} />
+          <RabAICard title={t("profileEdit.personalTitle")}>
+            <View style={styles.twoColumn}>
+              <View style={styles.fieldColumn}>
+                <RabAIInput
+                  disabled={submitting}
+                  errorText={errors.firstName}
+                  label={t("profileEdit.firstName")}
+                  onChangeText={setFirstName}
+                  placeholder={t("profileEdit.firstNamePlaceholder")}
+                  required
+                  value={firstName}
+                />
+              </View>
+              <View style={styles.fieldColumn}>
+                <RabAIInput
+                  disabled={submitting}
+                  errorText={errors.lastName}
+                  label={t("profileEdit.lastName")}
+                  onChangeText={setLastName}
+                  placeholder={t("profileEdit.lastNamePlaceholder")}
+                  required
+                  value={lastName}
+                />
+              </View>
             </View>
-            <View style={styles.fieldColumn}>
-              <Input
-                label={t("profileEdit.lastName")}
-                onChangeText={setLastName}
-                placeholder={t("profileEdit.lastNamePlaceholder")}
-                value={lastName}
-              />
-              <FieldError message={errors.lastName} />
-            </View>
-          </View>
 
-          <Input
-            label={t("common.phone")}
-            onChangeText={setPhone}
-            placeholder="+49 151 12345678"
-            value={phone}
-          />
-          <FieldError message={errors.phone} />
-        </Card>
+            <RabAIInput
+              disabled={submitting}
+              errorText={errors.phone}
+              label={t("common.phone")}
+              onChangeText={setPhone}
+              placeholder="+49 151 12345678"
+              value={phone}
+            />
+          </RabAICard>
 
-        <Card title={t("profileEdit.professionalTitle")}>
-          <View style={styles.autocompleteStack}>
-            <View style={styles.autocompleteWrap}>
+          <RabAICard title={t("profileEdit.professionalTitle")}>
+            <View style={styles.autocompleteStack}>
               <HeroAutocompleteField
                 activeIndex={locationActiveIndex}
+                disabled={submitting}
+                dropdownMode="inline"
                 emptyMessage={t("profileEdit.noResults")}
                 errorMessage={locationError}
                 fieldId="profile-location"
-                isOpen={locationOpen && locationText.trim().length >= 2}
+                isOpen={
+                  locationOpen &&
+                  normalizeLocationSearchQuery(locationText).length >= 2
+                }
                 label={t("common.location")}
                 loading={locationLoading}
                 onActiveIndexChange={setLocationActiveIndex}
                 onChangeText={handleLocationTextChange}
                 onFocus={() => {
-                  if (locationText.trim().length >= 2) {
+                  if (normalizeLocationSearchQuery(locationText).length >= 2) {
                     setLocationOpen(true);
                   }
                 }}
@@ -432,15 +475,16 @@ function ProfileEditContent() {
                 }}
                 placeholder={t("profileEdit.locationPlaceholder")}
                 queryText={locationText}
+                required
                 suggestions={locationOptions}
+                validationError={errors.location}
                 value={locationText}
               />
-              <FieldError message={errors.location} />
-            </View>
 
-            <View style={styles.autocompleteWrap}>
               <HeroAutocompleteField
                 activeIndex={occupationActiveIndex}
+                disabled={submitting}
+                dropdownMode="inline"
                 emptyMessage={t("profileEdit.noResults")}
                 errorMessage={occupationError}
                 fieldId="profile-occupation"
@@ -463,112 +507,117 @@ function ProfileEditContent() {
                 }}
                 placeholder={t("profileEdit.occupationPlaceholder")}
                 queryText={occupationText}
+                required
                 suggestions={occupationOptions}
+                validationError={errors.occupation}
                 value={occupationText}
               />
-              <FieldError message={errors.occupation} />
             </View>
-          </View>
 
-          <Input
-            keyboardType="numeric"
-            label={t("profileUnified.experience")}
-            onChangeText={setExperienceYears}
-            placeholder="0"
-            value={experienceYears}
+            <RabAIInput
+              disabled={submitting}
+              errorText={errors.experienceYears}
+              keyboardType="numeric"
+              label={t("profileUnified.experience")}
+              onChangeText={setExperienceYears}
+              placeholder="0"
+              required
+              value={experienceYears}
+            />
+
+            <SegmentedControl
+              disabled={submitting}
+              label={t("profileUnified.preferredLanguage")}
+              onChange={setPreferredLanguage}
+              options={languageOptions.map((value) => ({
+                label: t(`profile.language.${value}`),
+                value,
+              }))}
+              value={preferredLanguage}
+            />
+
+            <SegmentedControl
+              disabled={submitting}
+              label={t("profileUnified.availability")}
+              onChange={setAvailabilityStatus}
+              options={availabilityOptions.map((value) => ({
+                label: t(`profileUnified.availability.${value}`),
+                value,
+              }))}
+              value={availabilityStatus}
+            />
+
+            <SegmentedControl
+              disabled={submitting}
+              label={t("profileUnified.workAuthorization")}
+              onChange={setWorkAuthorizationStatus}
+              options={workAuthorizationOptions.map((value) => ({
+                label: t(`profileUnified.workAuthorization.${value}`),
+                value,
+              }))}
+              value={workAuthorizationStatus}
+            />
+
+            <RabAIInput
+              disabled={submitting}
+              label={t("profileEdit.summary")}
+              multiline
+              onChangeText={setProfessionalSummary}
+              placeholder={t("profileEdit.summaryPlaceholder")}
+              value={professionalSummary}
+            />
+          </RabAICard>
+
+          <RabAIButton
+            disabled={submitting}
+            fullWidth
+            loading={submitting}
+            loadingLabel={t("profileEdit.saving")}
+            onPress={() => void handleSubmit()}
+            title={t("profileEdit.save")}
           />
-          <FieldError message={errors.experienceYears} />
-
-          <SegmentedControl
-            label={t("profileUnified.preferredLanguage")}
-            onChange={setPreferredLanguage}
-            options={languageOptions.map((value) => ({
-              label: t(`profile.language.${value}`),
-              value,
-            }))}
-            value={preferredLanguage}
-          />
-
-          <SegmentedControl
-            label={t("profileUnified.availability")}
-            onChange={setAvailabilityStatus}
-            options={availabilityOptions.map((value) => ({
-              label: t(`profileUnified.availability.${value}`),
-              value,
-            }))}
-            value={availabilityStatus}
-          />
-
-          <SegmentedControl
-            label={t("profileUnified.workAuthorization")}
-            onChange={setWorkAuthorizationStatus}
-            options={workAuthorizationOptions.map((value) => ({
-              label: t(`profileUnified.workAuthorization.${value}`),
-              value,
-            }))}
-            value={workAuthorizationStatus}
-          />
-
-          <Text style={styles.label}>{t("profileEdit.summary")}</Text>
-          <TextInput
-            multiline
-            onChangeText={setProfessionalSummary}
-            placeholder={t("profileEdit.summaryPlaceholder")}
-            placeholderTextColor={Colors.placeholder}
-            style={styles.summaryInput}
-            value={professionalSummary}
-          />
-        </Card>
-
-        <Button
-          disabled={submitting}
-          title={submitting ? t("profileEdit.saving") : t("profileEdit.save")}
-          onPress={handleSubmit}
-        />
-      </ScrollView>
-    </Screen>
+        </>
+      )}
+    </PageContainer>
   );
 }
 
-function FieldError({ message }: { message?: string }) {
-  return message ? <Text style={styles.fieldError}>{message}</Text> : null;
-}
-
 function SegmentedControl({
+  disabled,
   label,
   onChange,
   options,
   value,
 }: {
+  disabled?: boolean;
   label: string;
   onChange: (value: string) => void;
   options: { label: string; value: string }[];
   value: string;
 }) {
   return (
-    <View style={styles.segmentBlock}>
+    <View
+      accessibilityLabel={label}
+      accessibilityRole="radiogroup"
+      style={styles.segmentBlock}
+    >
       <Text style={styles.label}>{label}</Text>
       <View style={styles.segmentRow}>
         {options.map((option) => {
           const active = option.value === value;
 
           return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
+            <RabAIButton
+              accessibilityRole="radio"
+              accessibilityState={{ checked: active }}
+              disabled={disabled}
               key={option.value}
               onPress={() => onChange(option.value)}
-              style={[styles.segmentButton, active && styles.segmentButtonActive]}
-            >
-              <Text
-                style={[
-                  styles.segmentButtonText,
-                  active && styles.segmentButtonTextActive,
-                ]}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
+              size="sm"
+              style={styles.segmentButton}
+              title={option.label}
+              variant={active ? "secondary" : "outline"}
+            />
           );
         })}
       </View>
@@ -651,94 +700,60 @@ function formatLocationLabel(location: {
   return `${location.postal_code} ${cityLabel}, ${location.state}`;
 }
 
+function normalizeLocationSearchQuery(value: string) {
+  const [cityQuery = ""] = value.trim().split(",", 1);
+  return cityQuery.trim();
+}
+
+function getRetryLabel(language: string) {
+  if (language === "de") {
+    return "Erneut versuchen";
+  }
+
+  if (language === "en") {
+    return "Try again";
+  }
+
+  return "Reîncearcă";
+}
+
 function readError(error: unknown, t: (key: string) => string) {
   return error instanceof Error ? error.message : t("profileEdit.saveError");
 }
 
 const styles = StyleSheet.create({
   content: {
-    alignSelf: "center",
-    gap: Spacing.md,
-    maxWidth: 1080,
-    paddingBottom: Spacing.five,
-    width: "100%",
+    gap: Spacing.section,
   },
   twoColumn: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.component,
   },
   fieldColumn: {
-    flexBasis: 260,
+    flexBasis: 240,
     flexGrow: 1,
+    minWidth: 0,
   },
   autocompleteStack: {
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-    zIndex: 20,
-  },
-  autocompleteWrap: {
-    zIndex: 20,
+    gap: Spacing.component,
   },
   label: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.label,
-    fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.sm,
-  },
-  summaryInput: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    color: Colors.text,
-    fontSize: Typography.body,
-    minHeight: 140,
-    padding: Spacing.xxl,
-    textAlignVertical: "top",
+    fontWeight: Typography.fontWeight.bold,
   },
   segmentBlock: {
-    marginBottom: Spacing.xxl,
+    gap: Spacing.control,
   },
   segmentRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: Spacing.control,
   },
   segmentButton: {
-    backgroundColor: "#F4F7FB",
-    borderColor: Colors.border,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  segmentButtonActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
-  },
-  segmentButtonText: {
-    color: Colors.textBody,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  segmentButtonTextActive: {
-    color: "#145CFF",
-  },
-  fieldError: {
-    color: Colors.danger,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.md,
-    marginTop: -Spacing.lg,
-  },
-  errorText: {
-    color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  mutedText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.body,
+    flexBasis: 128,
+    flexGrow: 1,
+    minWidth: 0,
   },
 });

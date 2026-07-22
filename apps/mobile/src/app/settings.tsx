@@ -1,8 +1,9 @@
 import RequireAuth from "@/components/RequireAuth";
+import { PageContainer, PageHeader, RabAICard } from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { languages, type LanguageCode } from "@/i18n/translations";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { StyleSheet, Text, View } from "react-native";
 
 type SettingsCopy = {
   current: string;
@@ -39,11 +40,6 @@ const copyByLanguage = {
   },
 } satisfies Record<LanguageCode, SettingsCopy>;
 
-const pointerWebStyle =
-  Platform.OS === "web"
-    ? ({ cursor: "pointer" } as unknown as ViewStyle)
-    : null;
-
 export default function SettingsScreen() {
   return (
     <RequireAuth>
@@ -57,165 +53,94 @@ function SettingsContent() {
   const copy = copyByLanguage[language];
 
   return (
-    <View style={styles.screen}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+    <PageContainer
+      contentStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      maxWidth="content"
+      scroll
+    >
+      <PageHeader
+        description={copy.subtitle}
+        eyebrow="RabAI"
+        title={copy.title}
+      />
+
+      <RabAICard
+        description={copy.languageDescription}
+        title={copy.languageTitle}
       >
-        <View style={styles.header}>
-          <Text style={styles.eyebrow}>RabAI</Text>
-          <Text style={styles.title}>{copy.title}</Text>
-          <Text style={styles.subtitle}>{copy.subtitle}</Text>
-        </View>
+        <View accessibilityRole="radiogroup" style={styles.languageList}>
+          {languages.map((item) => {
+            const selected = item.code === language;
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{copy.languageTitle}</Text>
-          <Text style={styles.cardDescription}>{copy.languageDescription}</Text>
-
-          <View accessibilityRole="radiogroup" style={styles.languageList}>
-            {languages.map((item) => {
-              const selected = item.code === language;
-
-              return (
-                <Pressable
-                  accessibilityLabel={item.label}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: selected }}
-                  key={item.code}
-                  onPress={() => setLanguage(item.code)}
-                  style={({ hovered, pressed }) => [
-                    styles.languageOption,
-                    selected && styles.languageOptionSelected,
-                    hovered && !selected && styles.languageOptionHovered,
-                    pressed && styles.languageOptionPressed,
-                    pointerWebStyle,
-                  ]}
-                >
+            return (
+              <RabAICard
+                accessibilityLabel={item.label}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                interactive
+                key={item.code}
+                onPress={() => setLanguage(item.code)}
+                padding="sm"
+                selected={selected}
+                style={styles.languageOption}
+                variant="filled"
+              >
+                <View style={styles.languageRow}>
                   <View
-                    style={[
-                      styles.radio,
-                      selected && styles.radioSelected,
-                    ]}
+                    accessibilityElementsHidden
+                    style={[styles.radio, selected && styles.radioSelected]}
                   >
                     {selected ? <View style={styles.radioDot} /> : null}
                   </View>
                   <View style={styles.languageCopy}>
                     <Text style={styles.languageName}>{item.label}</Text>
-                    <Text style={styles.languageCode}>
+                    <Text style={styles.languageMeta}>
                       {item.code.toUpperCase()}
+                      {selected ? ` · ${copy.current}` : ""}
                     </Text>
                   </View>
-                  {selected ? (
-                    <View style={styles.selectedBadge}>
-                      <Text style={styles.selectedBadgeText}>{copy.current}</Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </View>
+                </View>
+              </RabAICard>
+            );
+          })}
         </View>
-      </ScrollView>
-    </View>
+      </RabAICard>
+    </PageContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    backgroundColor: Colors.background,
-    flex: 1,
-  },
   content: {
-    alignSelf: "center",
-    gap: Spacing.screen,
-    maxWidth: 920,
-    padding: Spacing.eight,
-    paddingBottom: 64,
-    width: "100%",
-  },
-  header: {
-    maxWidth: 680,
-  },
-  eyebrow: {
-    color: Colors.brandDeep,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
-    letterSpacing: 0.7,
-    marginBottom: Spacing.sm,
-    textTransform: "uppercase",
-  },
-  title: {
-    color: Colors.text,
-    fontSize: Typography.h2,
-    fontWeight: Typography.fontWeight.black,
-  },
-  subtitle: {
-    color: Colors.textSubtle,
-    fontSize: Typography.body,
-    lineHeight: 23,
-    marginTop: Spacing.sm,
-  },
-  card: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    padding: Spacing.screen,
-    ...Shadows.card,
-  },
-  cardTitle: {
-    color: Colors.text,
-    fontSize: Typography.cardTitle,
-    fontWeight: Typography.fontWeight.black,
-  },
-  cardDescription: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: 20,
-    marginTop: Spacing.xs,
+    gap: Spacing.section,
   },
   languageList: {
-    gap: Spacing.md,
-    marginTop: Spacing.screen,
+    gap: Spacing.control,
   },
   languageOption: {
-    alignItems: "center",
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: Spacing.xl,
     minHeight: 64,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.xl,
   },
-  languageOptionSelected: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: "rgba(20, 92, 255, 0.28)",
-  },
-  languageOptionHovered: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-  },
-  languageOptionPressed: {
-    opacity: 0.8,
+  languageRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: Spacing.inline,
+    minWidth: 0,
   },
   radio: {
     alignItems: "center",
     borderColor: Colors.placeholder,
-    borderRadius: Radius.round,
+    borderRadius: Radius.pill,
     borderWidth: 2,
     height: 20,
     justifyContent: "center",
     width: 20,
   },
   radioSelected: {
-    borderColor: Colors.brand,
+    borderColor: Colors.primary,
   },
   radioDot: {
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.round,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
     height: 10,
     width: 10,
   },
@@ -224,26 +149,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   languageName: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
+    fontWeight: Typography.fontWeight.bold,
   },
-  languageCode: {
-    color: Colors.textMuted,
+  languageMeta: {
+    color: Colors.textSecondary,
     fontSize: Typography.small,
-    marginTop: Spacing.xs,
-  },
-  selectedBadge: {
-    backgroundColor: Colors.surface,
-    borderColor: "rgba(20, 92, 255, 0.18)",
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.sm,
-  },
-  selectedBadgeText: {
-    color: Colors.brandDeep,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
+    marginTop: Spacing.compact,
   },
 });
