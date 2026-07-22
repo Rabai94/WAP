@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
 import {
   existsSync,
   readFileSync,
@@ -20,6 +19,7 @@ const appDirectory = path.join(
   "app",
 );
 const sourceDirectory = path.join(repositoryRoot, "apps", "mobile", "src");
+const publicDirectory = path.join(repositoryRoot, "apps", "mobile", "public");
 const appPrefix = "apps/mobile/src/app/";
 const supportedExtensions = new Set([".ts", ".tsx"]);
 
@@ -33,7 +33,7 @@ if (options.help) {
 const collectionWarnings = [];
 const targets = options.paths.length > 0
   ? collectExplicitTargets(options.paths, collectionWarnings)
-  : collectNewAndUntrackedTargets(collectionWarnings);
+  : collectProductionTargets();
 
 const findings = [];
 
@@ -41,7 +41,10 @@ for (const target of targets) {
   auditFile(target, findings);
 }
 
-auditDesignLabImports(findings);
+auditSourceStructures(findings);
+auditForbiddenProductionPaths(findings);
+auditForbiddenSourceReferences(findings);
+auditForbiddenPublicAssets(findings);
 
 for (const warning of collectionWarnings) {
   console.warn(`[rabai-ui-audit] ${warning}`);
@@ -58,7 +61,7 @@ const warningCount = collectionWarnings.length + findings.length;
 
 if (targets.length === 0 && collectionWarnings.length === 0) {
   console.log(
-    "[rabai-ui-audit] No new or untracked app pages found. Pass explicit paths to audit existing pages.",
+    "[rabai-ui-audit] No production app route files found.",
   );
 } else {
   console.log(
@@ -108,43 +111,13 @@ Usage:
   npm run ui:audit -- apps/mobile/src/app/example.tsx
   npm run ui:audit -- --strict apps/mobile/src/app/example.tsx
 
-Without paths, only app route files newly added to the working tree/index or
-untracked app route files are inspected. Explicit files or directories may be
-used to audit existing app routes. The audit always exits 0 unless --strict is
-provided.`);
+Without paths, every production app route is inspected. Explicit files or
+directories may be used for a focused audit. Source-wide forbidden references
+are checked in both modes. The audit exits 0 unless --strict is provided.`);
 }
 
-function collectNewAndUntrackedTargets(warnings) {
-  const repositoryPaths = new Set();
-  const commands = [
-    ["diff", "--name-only", "--diff-filter=A", "--", appPrefix],
-    ["diff", "--cached", "--name-only", "--diff-filter=A", "--", appPrefix],
-    ["ls-files", "--others", "--exclude-standard", "--", appPrefix],
-  ];
-
-  for (const command of commands) {
-    try {
-      const output = execFileSync("git", command, {
-        cwd: repositoryRoot,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-
-      for (const line of output.split(/\r?\n/u)) {
-        const candidate = normalizeRepositoryPath(line.trim());
-        if (candidate) {
-          repositoryPaths.add(candidate);
-        }
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      warnings.push(`Could not query git targets: ${message}`);
-      break;
-    }
-  }
-
-  return [...repositoryPaths]
-    .map((repositoryPath) => path.resolve(repositoryRoot, repositoryPath))
+function collectProductionTargets() {
+  return [...walkDirectory(appDirectory)]
     .filter(isAuditableFile)
     .sort(comparePaths);
 }
@@ -221,8 +194,7 @@ function auditFile(filePath, output) {
 
   if (
     fileName === "_layout.ts" ||
-    fileName === "_layout.tsx" ||
-    isDesignLabRoute(repositoryPath)
+    fileName === "_layout.tsx"
   ) {
     return;
   }
@@ -231,9 +203,10 @@ function auditFile(filePath, output) {
   const lines = source.split(/\r?\n/u);
 
   lines.forEach((line, index) => {
-    const colors = [...line.matchAll(/#[0-9a-fA-F]{3,8}\b/gu)].map(
-      (match) => match[0],
-    );
+    const colors = [
+      ...line.matchAll(/#[0-9a-fA-F]{3,8}\b/gu),
+      ...line.matchAll(/\b(?:rgb|hsl)a?\s*\([^)]*\)/gu),
+    ].map((match) => match[0]);
 
     if (colors.length > 0) {
       output.push({
@@ -260,11 +233,13 @@ function auditFile(filePath, output) {
   });
 
   auditNestedPressables(source, repositoryPath, output);
+  auditNestedCards(source, repositoryPath, output);
+  auditHandlerlessControls(source, repositoryPath, output);
   auditOneOffUiComponents(lines, repositoryPath, output);
 
   if (
     !isRedirectOnly(source) &&
-    !isRouteDelegate(source) &&
+    !isRouteDelegate(source, filePath) &&
     !/<PageContainer(?:\s|>)/u.test(source)
   ) {
     output.push({
@@ -312,6 +287,60 @@ function auditNestedPressables(source, repositoryPath, output) {
   }
 }
 
+function auditNestedCards(source, repositoryPath, output) {
+  const tagPattern = /<\/?(?:RabAICard|Card)\b[^>]*>/gu;
+  const openCards = [];
+
+  for (const match of source.matchAll(tagPattern)) {
+    const tag = match[0];
+
+    if (tag.startsWith("</")) {
+      openCards.pop();
+      continue;
+    }
+
+    if (tag.endsWith("/>")) {
+      continue;
+    }
+
+    if (openCards.length > 0) {
+      output.push({
+        file: repositoryPath,
+        line: lineForOffset(source, match.index ?? 0),
+        message: "Nested Card found; use sections, rows, or a single composed surface.",
+        rule: "card-in-card",
+      });
+    }
+
+    openCards.push(match.index ?? 0);
+  }
+}
+
+function auditHandlerlessControls(source, repositoryPath, output) {
+  const tagPattern =
+    /<(RabAIButton|Button|RabAIIconButton|IconButton)\b[\s\S]*?>/gu;
+
+  for (const match of source.matchAll(tagPattern)) {
+    const tag = match[0];
+
+    if (
+      /\bonPress\s*=/u.test(tag) ||
+      /\bhref\s*=/u.test(tag) ||
+      /\bdisabled(?:\s|=|\/?>)/u.test(tag) ||
+      /\{\.\.\./u.test(tag)
+    ) {
+      continue;
+    }
+
+    output.push({
+      file: repositoryPath,
+      line: lineForOffset(source, match.index ?? 0),
+      message: `${match[1]} has no detectable onPress/href handler or explicit disabled state.`,
+      rule: "control-without-handler",
+    });
+  }
+}
+
 function auditOneOffUiComponents(lines, repositoryPath, output) {
   lines.forEach((line, index) => {
     const match = line.match(
@@ -329,24 +358,120 @@ function auditOneOffUiComponents(lines, repositoryPath, output) {
   });
 }
 
-function auditDesignLabImports(output) {
+function auditSourceStructures(output) {
   for (const filePath of walkDirectory(sourceDirectory)) {
-    if (!isSourceFile(filePath) || isDesignLabSourceFile(filePath)) {
+    const repositoryPath = toRepositoryPath(filePath);
+
+    if (
+      path.extname(filePath).toLowerCase() !== ".tsx" ||
+      repositoryPath.startsWith(appPrefix)
+    ) {
       continue;
     }
 
     const source = readFileSync(filePath, "utf8");
+    auditNestedPressables(source, repositoryPath, output);
+    auditNestedCards(source, repositoryPath, output);
+    auditHandlerlessControls(source, repositoryPath, output);
+  }
+}
+
+function auditForbiddenSourceReferences(output) {
+  const forbiddenPatterns = [
+    {
+      message: "FloatingMessagesButton is forbidden in the product shell.",
+      pattern: /\bFloatingMessagesButton\b/u,
+      rule: "floating-messages-button",
+    },
+    {
+      message: "Product source must not reference the eliminated design-lab.",
+      pattern: /(?:design-lab|engine-a|engine-b|engine-c|rabai-signature-preview)/u,
+      rule: "design-lab-reference",
+    },
+    {
+      message: "Experimental theme tokens must not be used in product source.",
+      pattern: /\bexperimentalTokens\b/u,
+      rule: "experimental-token-reference",
+    },
+  ];
+
+  for (const filePath of walkDirectory(sourceDirectory)) {
+    if (!isSourceFile(filePath)) {
+      continue;
+    }
+
+    const repositoryPath = toRepositoryPath(filePath);
+    const source = readFileSync(filePath, "utf8");
     const lines = source.split(/\r?\n/u);
 
     lines.forEach((line, index) => {
-      if (/\bfrom\s+["']@\/design-lab(?:\/|["'])/u.test(line)) {
+      for (const forbidden of forbiddenPatterns) {
+        if (forbidden.pattern.test(line)) {
+          output.push({
+            file: repositoryPath,
+            line: index + 1,
+            message: forbidden.message,
+            rule: forbidden.rule,
+          });
+        }
+      }
+    });
+  }
+}
+
+function auditForbiddenProductionPaths(output) {
+  const forbiddenPathPatterns = [
+    {
+      message: "The eliminated design-lab must not exist in production source.",
+      pattern: /(?:^|\/)design-lab(?:\/|\.|$)/u,
+      rule: "design-lab-path",
+    },
+    {
+      message: "Experimental engine variants must not exist in production source.",
+      pattern: /(?:^|\/)(?:engine-a|engine-b|engine-c)(?:\/|\.|$)/u,
+      rule: "experimental-engine-path",
+    },
+  ];
+
+  for (const filePath of walkDirectory(sourceDirectory)) {
+    const repositoryPath = toRepositoryPath(filePath);
+
+    for (const forbidden of forbiddenPathPatterns) {
+      if (forbidden.pattern.test(repositoryPath)) {
         output.push({
-          file: toRepositoryPath(filePath),
-          line: index + 1,
-          message: "Product code imports from design-lab; migrate approved primitives first and keep experimental code isolated.",
-          rule: "design-lab-import",
+          file: repositoryPath,
+          line: null,
+          message: forbidden.message,
+          rule: forbidden.rule,
         });
       }
+    }
+  }
+}
+
+function auditForbiddenPublicAssets(output) {
+  const forbiddenAssets = [
+    {
+      file: path.join(
+        publicDirectory,
+        "images",
+        "rabai-home-hero-background-v001.png",
+      ),
+      message: "Legacy RabAI wallpaper is copied into every web export; remove it from public assets.",
+      rule: "forbidden-public-wallpaper",
+    },
+  ];
+
+  for (const forbidden of forbiddenAssets) {
+    if (!existsSync(forbidden.file)) {
+      continue;
+    }
+
+    output.push({
+      file: toRepositoryPath(forbidden.file),
+      line: null,
+      message: forbidden.message,
+      rule: forbidden.rule,
     });
   }
 }
@@ -355,36 +480,68 @@ function isSourceFile(filePath) {
   return supportedExtensions.has(path.extname(filePath).toLowerCase());
 }
 
-function isDesignLabRoute(repositoryPath) {
-  return repositoryPath.startsWith("apps/mobile/src/app/design-lab/");
-}
-
-function isDesignLabSourceFile(filePath) {
-  const repositoryPath = toRepositoryPath(filePath);
-  return (
-    repositoryPath.startsWith("apps/mobile/src/design-lab/") ||
-    isDesignLabRoute(repositoryPath)
-  );
-}
-
-function isRouteDelegate(source) {
+function isRouteDelegate(source, routeFilePath) {
   const defaultImport = source.match(
     /^import\s+([A-Z][A-Za-z0-9_]*)\s+from\s+["'][^"']+["'];?\s*$/mu,
   );
 
-  if (!defaultImport) {
-    return false;
+  if (defaultImport) {
+    const remainder = source
+      .replace(/^import\s+[^;]+;\s*$/gmu, "")
+      .replace(
+        new RegExp(`^export default ${defaultImport[1]};?\\s*$`, "mu"),
+        "",
+      )
+      .trim();
+
+    if (remainder.length === 0) {
+      return true;
+    }
   }
 
-  const remainder = source
-    .replace(/^import\s+[^;]+;\s*$/gmu, "")
-    .replace(
-      new RegExp(`^export default ${defaultImport[1]};?\\s*$`, "mu"),
-      "",
-    )
-    .trim();
+  const componentImports = source.matchAll(
+    /^import\s+([A-Z][A-Za-z0-9_]*)\s+from\s+["']([^"']+)["'];?\s*$/gmu,
+  );
 
-  return remainder.length === 0;
+  for (const componentImport of componentImports) {
+    const [, componentName, moduleName] = componentImport;
+
+    if (!new RegExp(`<${componentName}(?:\\s|/?>)`, "u").test(source)) {
+      continue;
+    }
+
+    const componentFile = resolveSourceModule(moduleName, routeFilePath);
+    if (
+      componentFile &&
+      /<PageContainer(?:\s|>)/u.test(readFileSync(componentFile, "utf8"))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function resolveSourceModule(moduleName, importerPath) {
+  let modulePath;
+
+  if (moduleName.startsWith("@/")) {
+    modulePath = path.join(sourceDirectory, moduleName.slice(2));
+  } else if (moduleName.startsWith(".")) {
+    modulePath = path.resolve(path.dirname(importerPath), moduleName);
+  } else {
+    return null;
+  }
+
+  const candidates = [
+    modulePath,
+    `${modulePath}.ts`,
+    `${modulePath}.tsx`,
+    path.join(modulePath, "index.ts"),
+    path.join(modulePath, "index.tsx"),
+  ];
+
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
 
 function lineForOffset(source, offset) {

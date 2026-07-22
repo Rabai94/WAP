@@ -6,7 +6,7 @@ Documentul trebuie tratat ca un sistem viu: fiecare decizie majora de design tre
 
 ## RabAI Signature in produs
 
-Acest document pastreaza intentia de brand. Contractul executabil pentru UI de produs este `docs/rabai-design-system.md`; acesta prevaleaza pentru tokeni, shell, navigatie, tipografie, liste, carduri si responsive. RabAI Signature urmareste un instrument matur si calm: shell intunecat, canvas cald, accent rar si fara spectacol tehnologic.
+Acest document pastreaza intentia de brand. Contractul executabil pentru UI de produs este `docs/rabai-design-system.md`; acesta prevaleaza pentru tokeni, shell, navigatie, tipografie, liste, carduri si responsive. RabAI Signature urmareste un instrument matur si calm: shell charcoal, canvas warm ivory, accent matte gold rar, liste inaintea cardurilor si fara spectacol tehnologic.
 
 ## 1. Vision
 
@@ -94,24 +94,21 @@ Profunzimea trebuie folosita pentru ierarhie si orientare, nu ca decor. Umbrele 
 
 Culoarea trebuie sa semnaleze ierarhie, stare, interactiune si identitate. Sistemul cromatic trebuie sa fie suficient de distinct pentru brand, dar suficient de functional pentru interfete dense.
 
-### Paleta primara
+### Paleta primara adoptata
 
-Paleta primara trebuie sa exprime incredere, tehnologie si claritate. Culorile principale trebuie folosite cu disciplina, pentru a evita senzatia de saturatie sau confuzie.
+RabAI Signature foloseste charcoal `#101214` pentru shell, warm ivory `#F4F0E7` pentru canvas, ink `#191A1C` pentru text si matte gold `#A98538` pentru CTA-ul primar. Gold ramane rar: nu coloreaza fiecare border sau titlu si nu semnalizeaza warning, succes, eroare ori actiuni destructive.
 
-### Paleta secundara
+### Paleta secundara adoptata
 
-Culorile secundare trebuie sa sustina stari, categorii si accente. Ele nu trebuie sa concureze cu paleta principala si trebuie sa ramana accesibile in contexte luminoase si intunecate.
+Suprafetele folosesc `#FAF7F0` si `#EDE7DB`, borderul de baza este `#D8D1C4`, iar textul secundar foloseste griuri calde. Valorile executabile si rolurile complete sunt definite exclusiv in `apps/mobile/src/theme/colors.ts` si documentate in `docs/rabai-design-system.md`.
 
 ### Stari functionale
 
 Succesul, avertizarea, eroarea, informarea si starea neutra trebuie sa aiba culori clare, consecvente si testate pentru contrast.
 
-### TODO
+### Contract de produs
 
-- TODO: Defineste valorile exacte pentru paleta primara.
-- TODO: Defineste valorile exacte pentru paleta secundara si neutre.
-- TODO: Creeaza reguli de contrast pentru text, fundaluri, butoane si grafice.
-- TODO: Documenteaza utilizarea culorilor in light mode si dark mode.
+UI-ul operational este list-first, nu card-first; nu permite card in card, mai mult de un CTA primar intr-un grup, navigatie duplicata, text sub 13 px sau o mascota/bula plutitoare peste continut. Design Lab si tokenii experimentali au fost eliminati din arborele de productie. Orice explorare aprobata intra in produs numai prin tema semantica si primitivele globale.
 
 ## 6. Motion Principles
 
@@ -312,6 +309,8 @@ Acest document trebuie consultat inaintea oricarei decizii majore privind interf
 ### Actualizare
 
 Orice modificare a directiei de design trebuie documentata aici, impreuna cu motivatia schimbarii si impactul asupra produsului.
+
+RabAI Signature este directia activa pentru web, Android si iOS. Schimbarile de produs se verifica prin contractul UI, checklistul de pagina si auditul strict; nu se reintroduc sisteme navy/albastre, card-first sau preview-uri Design Lab paralele.
 
 ### TODO
 

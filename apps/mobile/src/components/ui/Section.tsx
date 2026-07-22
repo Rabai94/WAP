@@ -68,14 +68,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: Colors.textPrimary,
-    fontSize: Typography.h4,
-    fontWeight: Typography.fontWeight.bold,
-    lineHeight: Typography.lineHeight.default,
+    fontSize: Typography.sectionHeading,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.heading,
   },
   description: {
     color: Colors.textSecondary,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
     marginTop: Spacing.compact,
   },
   action: {

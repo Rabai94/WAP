@@ -49,6 +49,27 @@ export type { PageHeaderProps } from "./PageHeader";
 export { default as Section } from "./Section";
 export type { SectionProps } from "./Section";
 
+export { default as FilterBar } from "./FilterBar";
+export type { FilterBarProps } from "./FilterBar";
+export {
+  default as FilterSheet,
+  FilterDrawer,
+} from "./FilterSheet";
+export type { FilterSheetProps } from "./FilterSheet";
+
+export { default as ListingRow } from "./ListingRow";
+export type {
+  ListingRowMetaItem,
+  ListingRowProps,
+} from "./ListingRow";
+export { default as DefinitionList } from "./DefinitionList";
+export type {
+  DefinitionListItem,
+  DefinitionListProps,
+} from "./DefinitionList";
+export { default as IdentityHeader } from "./IdentityHeader";
+export type { IdentityHeaderProps } from "./IdentityHeader";
+
 export { EmptyState, ErrorState, LoadingState, Skeleton } from "./States";
 export { default as ConfirmationDialog } from "./ConfirmationDialog";
 export type { ConfirmationDialogProps } from "./ConfirmationDialog";

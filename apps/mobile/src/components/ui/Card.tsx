@@ -62,7 +62,7 @@ export function RabAICard({
   style,
   testID,
   title,
-  variant = "outlined",
+  variant = "default",
 }: RabAICardProps) {
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -149,11 +149,16 @@ export function SectionCard(props: RabAICardProps) {
   return <RabAICard {...props} />;
 }
 
-type NormalizedCardVariant = "outlined" | "filled" | "elevated" | "warning";
+type NormalizedCardVariant =
+  | "surface"
+  | "outlined"
+  | "filled"
+  | "elevated"
+  | "warning";
 
 function normalizeVariant(variant: RabAICardVariant): NormalizedCardVariant {
   if (variant === "default") {
-    return "outlined";
+    return "surface";
   }
 
   if (variant === "muted") {
@@ -182,6 +187,10 @@ const styles = StyleSheet.create({
   paddingLg: {
     padding: Spacing.section,
   },
+  surface: {
+    backgroundColor: Colors.surface,
+    borderColor: "transparent",
+  },
   outlined: {
     backgroundColor: Colors.surface,
     borderColor: Colors.border,
@@ -200,8 +209,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.warningBorder,
   },
   selected: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.goldMuted,
+    borderColor: Colors.goldPrimary,
     borderWidth: 2,
   },
   disabled: {
@@ -228,14 +237,14 @@ const styles = StyleSheet.create({
   },
   title: {
     color: Colors.textPrimary,
-    fontSize: Typography.h4,
-    fontWeight: Typography.fontWeight.bold,
-    lineHeight: Typography.lineHeight.default,
+    fontSize: Typography.sectionHeading,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.heading,
   },
   description: {
     color: Colors.textSecondary,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
     marginTop: Spacing.compact,
   },
   action: {
@@ -254,6 +263,7 @@ const paddingStyles: Record<RabAICardPadding, ViewStyle> = {
 };
 
 const variantStyles: Record<NormalizedCardVariant, ViewStyle> = {
+  surface: styles.surface,
   outlined: styles.outlined,
   filled: styles.filled,
   elevated: styles.elevated,

@@ -1,5 +1,6 @@
+import { DefinitionList, Section } from "@/components/ui";
 import type { PublicCompanyProfile } from "@/services/company/companyService";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import { Colors, Radius, Spacing, Typography } from "@/theme";
 import { StyleSheet, Text, View } from "react-native";
 import {
   calculateOrganizationCompletion,
@@ -32,24 +33,19 @@ export default function OrganizationProfileCompletion({
   const completion = calculateOrganizationCompletion(company);
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text accessibilityRole="header" style={styles.title}>
-            {title}
-          </Text>
-          <Text style={styles.summary}>
-            {summary(completion.completedCount, completion.totalCount)}
-          </Text>
-        </View>
-        <Text
-          aria-hidden
-          style={styles.percentage}
-        >
+    <Section
+      action={
+        <Text accessibilityElementsHidden style={styles.percentage}>
           {completion.percentage}%
         </Text>
-      </View>
-
+      }
+      contentStyle={styles.content}
+      description={summary(
+        completion.completedCount,
+        completion.totalCount
+      )}
+      title={title}
+    >
       <View
         accessibilityLabel={`${title}: ${completion.percentage}%`}
         accessibilityRole="progressbar"
@@ -73,151 +69,79 @@ export default function OrganizationProfileCompletion({
           <Text accessibilityRole="header" style={styles.checklistTitle}>
             {checklistTitle}
           </Text>
-          <View style={styles.checklistGrid}>
-            {organizationCompletionFieldKeys.map((field) => {
+          <DefinitionList
+            columns={2}
+            items={organizationCompletionFieldKeys.map((field) => {
               const complete = completion.fields[field];
               const statusLabel = complete
                 ? statusLabels.complete
                 : statusLabels.incomplete;
 
-              return (
-                <View
-                  accessibilityLabel={`${labels[field]}: ${statusLabel}`}
-                  accessible
-                  key={field}
-                  style={styles.checklistItem}
-                >
-                  <View
+              return {
+                accessibilityLabel: `${labels[field]}: ${statusLabel}`,
+                label: labels[field],
+                value: (
+                  <Text
                     style={[
-                      styles.checkmark,
-                      complete
-                        ? styles.checkmarkComplete
-                        : styles.checkmarkIncomplete,
+                      styles.status,
+                      complete ? styles.statusComplete : styles.statusIncomplete,
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.checkmarkText,
-                        !complete && styles.checkmarkTextIncomplete,
-                      ]}
-                    >
-                      {complete ? "✓" : "—"}
-                    </Text>
-                  </View>
-                  <Text style={styles.fieldLabel}>{labels[field]}</Text>
-                </View>
-              );
+                    {statusLabel}
+                  </Text>
+                ),
+              };
             })}
-          </View>
+          />
         </View>
       ) : null}
-    </View>
+    </Section>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    gap: Spacing.md,
-    padding: Spacing.three,
-    ...Shadows.card,
-  },
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: Spacing.three,
-    justifyContent: "space-between",
-  },
-  headerCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  summary: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    lineHeight: Typography.lineHeight.compact,
-    marginTop: Spacing.xs,
+  content: {
+    gap: Spacing.component,
   },
   percentage: {
-    color: Colors.brandDeep,
-    fontSize: Typography.h4,
-    fontWeight: Typography.fontWeight.black,
+    color: Colors.goldPressed,
+    fontSize: Typography.sectionHeading,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.heading,
   },
   progressTrack: {
-    backgroundColor: Colors.borderMuted,
-    borderRadius: Radius.round,
-    height: 10,
+    backgroundColor: Colors.border,
+    borderRadius: Radius.pill,
+    height: 8,
     overflow: "hidden",
     width: "100%",
   },
   progressValue: {
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.round,
+    backgroundColor: Colors.goldPrimary,
+    borderRadius: Radius.pill,
     height: "100%",
   },
   checklist: {
-    borderTopColor: Colors.borderMuted,
+    borderTopColor: Colors.border,
     borderTopWidth: 1,
-    gap: Spacing.md,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.three,
+    gap: Spacing.control,
+    paddingTop: Spacing.component,
   },
   checklistTitle: {
-    color: Colors.text,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
+    color: Colors.textPrimary,
+    fontSize: Typography.supporting,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.supporting,
   },
-  checklistGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
+  status: {
+    fontSize: Typography.supporting,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.supporting,
   },
-  checklistItem: {
-    alignItems: "center",
-    flexBasis: 180,
-    flexDirection: "row",
-    flexGrow: 1,
-    gap: Spacing.md,
-    minWidth: 0,
+  statusComplete: {
+    color: Colors.success,
   },
-  checkmark: {
-    alignItems: "center",
-    borderRadius: Radius.round,
-    height: 28,
-    justifyContent: "center",
-    width: 28,
-  },
-  checkmarkComplete: {
-    backgroundColor: "#E8F8F2",
-    borderColor: "#BEEBD7",
-    borderWidth: 1,
-  },
-  checkmarkIncomplete: {
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.border,
-    borderWidth: 1,
-  },
-  checkmarkText: {
-    color: "#056B4B",
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.black,
-  },
-  checkmarkTextIncomplete: {
+  statusIncomplete: {
     color: Colors.textMuted,
-  },
-  fieldLabel: {
-    color: Colors.textBody,
-    flex: 1,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-    lineHeight: Typography.lineHeight.compact,
   },
 });

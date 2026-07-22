@@ -175,11 +175,9 @@ export default function LoginScreen() {
       maxWidth="narrow"
       scroll
     >
-      <RabAICard padding="lg" style={styles.card} variant="elevated">
+      <View style={styles.form}>
         <View style={styles.brandRow}>
-          <View style={styles.brandMark}>
-            <Text style={styles.brandMarkText}>R</Text>
-          </View>
+          <View style={styles.brandAccent} />
           <View>
             <Text style={styles.logo}>RabAI</Text>
             <Text style={styles.brandSubtitle}>{t("login.brandSubtitle")}</Text>
@@ -350,7 +348,7 @@ export default function LoginScreen() {
             variant="ghost"
           />
         </View>
-      </RabAICard>
+      </View>
     </PageContainer>
   );
 }
@@ -394,8 +392,11 @@ function IntentOption({
 }
 
 const styles = StyleSheet.create({
-  card: {
+  form: {
     alignSelf: "stretch",
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: Radius.panel,
+    padding: Spacing.section,
     width: "100%",
   },
 
@@ -406,31 +407,23 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.section,
   },
 
-  brandMark: {
-    alignItems: "center",
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.panel,
-    height: ControlHeight.large,
-    justifyContent: "center",
-    width: ControlHeight.large,
-  },
-
-  brandMarkText: {
-    color: Colors.onPrimary,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
+  brandAccent: {
+    alignSelf: "stretch",
+    backgroundColor: Colors.goldPrimary,
+    borderRadius: Radius.pill,
+    width: Spacing.compact,
   },
 
   logo: {
     color: Colors.textPrimary,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
+    fontSize: Typography.sectionHeading,
+    fontWeight: Typography.fontWeight.semibold,
   },
 
   brandSubtitle: {
-    color: Colors.primaryPressed,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.black,
+    color: Colors.textMuted,
+    fontSize: Typography.caption,
+    fontWeight: Typography.fontWeight.semibold,
     marginTop: Spacing.compact,
     textTransform: "uppercase",
   },
@@ -442,7 +435,7 @@ const styles = StyleSheet.create({
   intentTitle: {
     color: Colors.textPrimary,
     fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.control,
   },
 
@@ -457,12 +450,12 @@ const styles = StyleSheet.create({
   intentOptionTitle: {
     color: Colors.textPrimary,
     fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
+    fontWeight: Typography.fontWeight.semibold,
     marginBottom: Spacing.compact,
   },
 
   intentOptionTitleActive: {
-    color: Colors.primaryPressed,
+    color: Colors.goldPressed,
   },
 
   intentOptionText: {
@@ -478,7 +471,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: Colors.textBody,
     fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.medium,
     lineHeight: Typography.lineHeight.body,
     marginTop: Spacing.control,
     padding: Spacing.inline,
@@ -495,7 +488,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: Colors.danger,
     fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
+    fontWeight: Typography.fontWeight.semibold,
     lineHeight: Typography.lineHeight.body,
     marginBottom: Spacing.component,
     padding: Spacing.inline,
@@ -508,7 +501,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     color: Colors.success,
     fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
+    fontWeight: Typography.fontWeight.semibold,
     lineHeight: Typography.lineHeight.body,
     marginBottom: Spacing.component,
     padding: Spacing.inline,

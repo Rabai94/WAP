@@ -43,7 +43,7 @@ export default function Screen({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.canvas,
     flex: 1,
     minHeight: 0,
     minWidth: 0,
@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   plain: {
-    backgroundColor: Colors.backgroundPlain,
+    backgroundColor: Colors.surface,
   },
 });

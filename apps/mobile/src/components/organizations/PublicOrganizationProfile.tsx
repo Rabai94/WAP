@@ -1,8 +1,9 @@
 import { ExternalLink } from "@/components/external-link";
+import { DefinitionList, Section } from "@/components/ui";
 import type { PublicCompanyProfile } from "@/services/company/companyService";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import { Colors, Spacing, Typography } from "@/theme";
 import type { Href } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
 import type { OrganizationCopy } from "./organizationCopy";
 
 type PublicOrganizationLabels = {
@@ -26,73 +27,58 @@ export default function PublicOrganizationProfile({
   labels,
 }: PublicOrganizationProfileProps) {
   const website = readSafeWebsite(company.website);
-  const facts = [
-    { label: labels.industry, value: company.industry },
-    { label: labels.location, value: company.city },
-    { label: labels.companySize, value: company.employee_count_range },
-    {
-      label: labels.verification,
-      value:
-        company.verification_status === "verified"
-          ? labels.verified
-          : copy.notProvided,
-    },
-  ];
 
   return (
-    <View
-      accessibilityLabel={copy.publicProfile}
-      style={styles.section}
+    <Section
+      contentStyle={styles.content}
+      description={`${copy.publicProfileSubtitle} ${copy.publicDataNote}`}
+      title={copy.aboutCompany}
     >
-      <View style={styles.sectionHeader}>
-        <View style={styles.headingCopy}>
-          <Text style={styles.eyebrow}>
-            {copy.publicProfile}
-          </Text>
-          <Text accessibilityRole="header" style={styles.title}>
-            {copy.aboutCompany}
-          </Text>
-          <Text style={styles.subtitle}>{copy.publicProfileSubtitle}</Text>
-        </View>
-        <View accessible style={styles.publicNote}>
-          <Text style={styles.publicNoteText}>{copy.publicDataNote}</Text>
-        </View>
-      </View>
+      <Text selectable style={styles.description}>
+        {company.description?.trim() || copy.notProvided}
+      </Text>
 
-      <View style={styles.aboutCard}>
-        <Text selectable style={styles.description}>
-          {company.description?.trim() || copy.notProvided}
-        </Text>
-      </View>
-
-      <View style={styles.factGrid}>
-        {facts.map((fact) => (
-          <View key={fact.label} style={styles.factCard}>
-            <Text style={styles.factLabel}>{fact.label}</Text>
-            <Text selectable style={styles.factValue}>
-              {fact.value?.trim() || copy.notProvided}
-            </Text>
-          </View>
-        ))}
-
-        <View style={styles.factCard}>
-          <Text style={styles.factLabel}>{labels.website}</Text>
-          {website ? (
-            <ExternalLink
-              accessibilityHint={copy.openWebsite}
-              accessibilityLabel={`${copy.openWebsite}: ${company.name}`}
-              accessibilityRole="link"
-              href={website as Href & string}
-              style={styles.websiteLink}
-            >
-              {formatWebsiteLabel(website)}
-            </ExternalLink>
-          ) : (
-            <Text style={styles.factValue}>{copy.notProvided}</Text>
-          )}
-        </View>
-      </View>
-    </View>
+      <DefinitionList
+        columns={2}
+        items={[
+          {
+            label: labels.industry,
+            value: company.industry?.trim() || copy.notProvided,
+          },
+          {
+            label: labels.location,
+            value: company.city?.trim() || copy.notProvided,
+          },
+          {
+            label: labels.companySize,
+            value: company.employee_count_range?.trim() || copy.notProvided,
+          },
+          {
+            label: labels.verification,
+            value:
+              company.verification_status === "verified"
+                ? labels.verified
+                : copy.notProvided,
+          },
+          {
+            label: labels.website,
+            value: website ? (
+              <ExternalLink
+                accessibilityHint={copy.openWebsite}
+                accessibilityLabel={`${copy.openWebsite}: ${company.name}`}
+                accessibilityRole="link"
+                href={website as Href & string}
+                style={styles.websiteLink}
+              >
+                {formatWebsiteLabel(website)}
+              </ExternalLink>
+            ) : (
+              copy.notProvided
+            ),
+          },
+        ]}
+      />
+    </Section>
   );
 }
 
@@ -121,103 +107,21 @@ function formatWebsiteLabel(value: string) {
 }
 
 const styles = StyleSheet.create({
-  section: {
-    gap: Spacing.three,
-  },
-  sectionHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.three,
-    justifyContent: "space-between",
-  },
-  headingCopy: {
-    flex: 1,
-    minWidth: 220,
-  },
-  eyebrow: {
-    color: Colors.brand,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    textTransform: "uppercase",
-  },
-  title: {
-    color: Colors.text,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
-    lineHeight: 30,
-  },
-  subtitle: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.sm,
-  },
-  publicNote: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: Colors.border,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    maxWidth: 340,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-  },
-  publicNoteText: {
-    color: Colors.brandDeep,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    lineHeight: Typography.lineHeight.compact,
-  },
-  aboutCard: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.screen,
-    ...Shadows.card,
+  content: {
+    gap: Spacing.component,
   },
   description: {
-    color: Colors.textBody,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
-    lineHeight: 26,
-  },
-  factGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-  },
-  factCard: {
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.border,
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    flexBasis: 180,
-    flexGrow: 1,
-    minWidth: 0,
-    padding: Spacing.three,
-  },
-  factLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.sm,
-  },
-  factValue: {
-    color: Colors.text,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: Typography.lineHeight.compact,
+    lineHeight: Typography.lineHeight.body,
   },
   websiteLink: {
     alignSelf: "flex-start",
     color: Colors.link,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: Typography.lineHeight.compact,
+    fontSize: Typography.body,
+    lineHeight: Typography.lineHeight.body,
     minHeight: 44,
-    paddingVertical: Spacing.xl,
+    paddingVertical: Spacing.control,
     textDecorationLine: "underline",
   },
 });

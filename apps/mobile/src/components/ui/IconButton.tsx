@@ -64,6 +64,7 @@ export default function RabAIIconButton({
           styles.button,
           variantStyles[variant],
           hovered && hoverStyles[variant],
+          pressed && pressedStyles[variant],
           pressed && styles.pressed,
           focused && InteractionStyles.focusRing,
           isDisabled && styles.disabled,
@@ -107,25 +108,36 @@ const styles = StyleSheet.create({
     opacity: Opacity.disabled,
   },
   primary: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.goldPrimary,
+    borderColor: Colors.goldPrimary,
   },
   primaryHover: {
-    backgroundColor: Colors.primaryHover,
+    backgroundColor: Colors.goldHover,
+    borderColor: Colors.goldHover,
+  },
+  primaryPressed: {
+    backgroundColor: Colors.goldPressed,
+    borderColor: Colors.goldPressed,
   },
   secondary: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: Colors.primarySoft,
+    backgroundColor: Colors.surface,
+    borderColor: Colors.borderStrong,
   },
   secondaryHover: {
-    borderColor: Colors.primary,
+    backgroundColor: Colors.surfaceInteractive,
+  },
+  secondaryPressed: {
+    backgroundColor: Colors.surfaceMuted,
   },
   ghost: {
     backgroundColor: "transparent",
     borderColor: "transparent",
   },
   ghostHover: {
-    backgroundColor: Colors.primarySoft,
+    backgroundColor: Colors.surfaceMuted,
+  },
+  ghostPressed: {
+    backgroundColor: Colors.goldMuted,
   },
   destructive: {
     backgroundColor: Colors.dangerSurface,
@@ -133,6 +145,11 @@ const styles = StyleSheet.create({
   },
   destructiveHover: {
     backgroundColor: Colors.danger,
+    borderColor: Colors.danger,
+  },
+  destructivePressed: {
+    backgroundColor: Colors.dangerPressed,
+    borderColor: Colors.dangerPressed,
   },
   tooltip: {
     backgroundColor: Colors.textPrimary,
@@ -146,8 +163,9 @@ const styles = StyleSheet.create({
     zIndex: Layers.toast,
   },
   tooltipText: {
-    color: Colors.white,
-    fontSize: Typography.small,
+    color: Colors.textOnDark,
+    fontSize: Typography.caption,
+    lineHeight: Typography.lineHeight.compact,
   },
 });
 
@@ -163,4 +181,11 @@ const hoverStyles: Record<IconButtonVariant, ViewStyle> = {
   secondary: styles.secondaryHover,
   ghost: styles.ghostHover,
   destructive: styles.destructiveHover,
+};
+
+const pressedStyles: Record<IconButtonVariant, ViewStyle> = {
+  primary: styles.primaryPressed,
+  secondary: styles.secondaryPressed,
+  ghost: styles.ghostPressed,
+  destructive: styles.destructivePressed,
 };

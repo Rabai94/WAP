@@ -118,7 +118,7 @@ export function RabAIInput({
           {loading ? (
             <ActivityIndicator
               accessibilityLabel="Se încarcă"
-              color={Colors.primary}
+              color={Colors.goldPressed}
               size="small"
             />
           ) : suffix ? (
@@ -162,7 +162,6 @@ const styles = StyleSheet.create({
   },
   inputFrameFocused: {
     borderColor: Colors.focusRing,
-    borderWidth: 2,
     ...InteractionStyles.focusRing,
   },
   inputFrameError: {

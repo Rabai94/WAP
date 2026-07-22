@@ -79,9 +79,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.compact,
   },
   label: {
-    fontSize: Typography.small,
+    fontSize: Typography.caption,
     fontWeight: Typography.fontWeight.semibold,
-    lineHeight: Typography.lineHeight.tight,
+    lineHeight: Typography.lineHeight.compact,
   },
   neutral: {
     backgroundColor: Colors.surfaceMuted,
@@ -91,11 +91,11 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   primary: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: Colors.informationBorder,
+    backgroundColor: Colors.goldMuted,
+    borderColor: Colors.goldPrimary,
   },
   primaryText: {
-    color: Colors.primaryPressed,
+    color: Colors.textPrimary,
   },
   success: {
     backgroundColor: Colors.successSurface,
@@ -152,6 +152,7 @@ const defaultStatusTones: Record<string, RabAIBadgeTone> = {
   completed: "success",
   success: "success",
   pending: "warning",
+  verified: "success",
   soon: "warning",
   warning: "warning",
   cancelled: "danger",

@@ -112,6 +112,7 @@ const RabAIButton = forwardRef<View, RabAIButtonProps>(function RabAIButton(
         sizeStyles[size],
         variantStyles[normalizedVariant],
         hovered && hoverStyles[normalizedVariant],
+        pressed && pressedStyles[normalizedVariant],
         pressed && styles.pressed,
         focused && InteractionStyles.focusRing,
         fullWidth && styles.fullWidth,
@@ -225,35 +226,50 @@ const styles = StyleSheet.create({
     fontSize: Typography.body,
   },
   primary: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.goldPrimary,
+    borderColor: Colors.goldPrimary,
   },
   primaryHover: {
-    backgroundColor: Colors.primaryHover,
-    borderColor: Colors.primaryHover,
+    backgroundColor: Colors.goldHover,
+    borderColor: Colors.goldHover,
+  },
+  primaryPressed: {
+    backgroundColor: Colors.goldPressed,
+    borderColor: Colors.goldPressed,
   },
   secondary: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: Colors.primarySoft,
-  },
-  secondaryHover: {
-    backgroundColor: Colors.selection,
-    borderColor: Colors.informationBorder,
-  },
-  outline: {
     backgroundColor: Colors.surface,
     borderColor: Colors.borderStrong,
   },
+  secondaryHover: {
+    backgroundColor: Colors.surfaceInteractive,
+    borderColor: Colors.borderStrong,
+  },
+  secondaryPressed: {
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.borderStrong,
+  },
+  outline: {
+    backgroundColor: "transparent",
+    borderColor: Colors.border,
+  },
   outlineHover: {
     backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.primary,
+    borderColor: Colors.borderStrong,
+  },
+  outlinePressed: {
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.textMuted,
   },
   ghost: {
     backgroundColor: "transparent",
     borderColor: "transparent",
   },
   ghostHover: {
-    backgroundColor: Colors.primarySoft,
+    backgroundColor: Colors.surfaceMuted,
+  },
+  ghostPressed: {
+    backgroundColor: Colors.goldMuted,
   },
   destructive: {
     backgroundColor: Colors.danger,
@@ -263,12 +279,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dangerHover,
     borderColor: Colors.dangerHover,
   },
+  destructivePressed: {
+    backgroundColor: Colors.dangerPressed,
+    borderColor: Colors.dangerPressed,
+  },
   success: {
     backgroundColor: Colors.success,
     borderColor: Colors.success,
   },
   successHover: {
-    opacity: 0.9,
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
+  },
+  successPressed: {
+    backgroundColor: Colors.success,
+    borderColor: Colors.success,
   },
 });
 
@@ -304,11 +329,20 @@ const hoverStyles: Record<NormalizedVariant, ViewStyle> = {
   success: styles.successHover,
 };
 
+const pressedStyles: Record<NormalizedVariant, ViewStyle> = {
+  primary: styles.primaryPressed,
+  secondary: styles.secondaryPressed,
+  outline: styles.outlinePressed,
+  ghost: styles.ghostPressed,
+  destructive: styles.destructivePressed,
+  success: styles.successPressed,
+};
+
 const foregroundColors: Record<NormalizedVariant, string> = {
-  primary: Colors.onPrimary,
-  secondary: Colors.primaryPressed,
+  primary: Colors.textPrimary,
+  secondary: Colors.textPrimary,
   outline: Colors.textPrimary,
-  ghost: Colors.primaryPressed,
+  ghost: Colors.textPrimary,
   destructive: Colors.onDanger,
   success: Colors.onSuccess,
 };

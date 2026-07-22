@@ -1,55 +1,62 @@
-import { ScrollView, StyleSheet, Text } from "react-native";
-import { useRouter } from "expo-router";
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Screen } from "../components/ui";
-import { useLanguage } from "../i18n/LanguageProvider";
-import { Colors, Spacing, Typography } from "@/theme";
+import {
+  DefinitionList,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  Section,
+  StatusBadge,
+  type DefinitionListItem,
+} from "@/components/ui";
+import { useLanguage } from "@/i18n/LanguageProvider";
+import { Spacing } from "@/theme";
+import { useRouter } from "expo-router";
+import { StyleSheet, View } from "react-native";
 
 export default function JobPublishedScreen() {
   const router = useRouter();
   const { t } = useLanguage();
+  const nextSteps: DefinitionListItem[] = [
+    { label: "1", value: t("jobPublished.item1") },
+    { label: "2", value: t("jobPublished.item2") },
+    { label: "3", value: t("jobPublished.item3") },
+  ];
 
   return (
     <RequireAuth>
-      <Screen centered={false}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Header
-            icon="✅"
-            title={t("jobPublished.title")}
-            subtitle={t("jobPublished.subtitle")}
-            hero
-          />
-
-          <Card title={t("jobPublished.cardTitle")}>
-            <Text style={styles.item}>✓ {t("jobPublished.item1")}</Text>
-            <Text style={styles.item}>✓ {t("jobPublished.item2")}</Text>
-            <Text style={styles.item}>✓ {t("jobPublished.item3")}</Text>
-          </Card>
-
-          <Button
+      <PageContainer contentStyle={styles.content} maxWidth="form" scroll>
+        <PageHeader
+          actions={
+            <StatusBadge
+              label={t("jobPublished.title")}
+              status="completed"
+            />
+          }
+          description={t("jobPublished.subtitle")}
+          title={t("jobPublished.title")}
+        />
+        <Section title={t("jobPublished.cardTitle")}>
+          <DefinitionList items={nextSteps} />
+        </Section>
+        <View style={styles.actions}>
+          <RabAIButton
+            onPress={() => router.replace("/engine")}
             title={t("common.ok")}
-            onPress={() => {
-              router.replace("/engine" as any);
-            }}
           />
-        </ScrollView>
-      </Screen>
+        </View>
+      </PageContainer>
     </RequireAuth>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
+  content: {
+    gap: Spacing.section,
   },
-
-  item: {
-    fontSize: Typography.body,
-    color: Colors.textBody,
-    marginBottom: Spacing.md,
+  actions: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.control,
   },
 });

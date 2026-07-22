@@ -3,12 +3,13 @@ import type { CourseEnrollmentSnapshot } from "@/components/courses/quick-view/c
 import { formatCourseEnrollmentStatus } from "@/components/courses/quick-view/courseEnrollmentStatus";
 import type { SearchCourseResult } from "@/services/courses/courseService";
 import {
+  ListingRow,
   RabAIBadge,
   RabAIButton,
-  RabAICard,
+  type ListingRowMetaItem,
   type RabAIBadgeTone,
 } from "@/components/ui";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, ControlHeight, Radius, Spacing, Typography } from "@/theme";
 import { StyleSheet, Text, View } from "react-native";
 
 type CourseSummaryCardVariant = "list" | "compact";
@@ -45,73 +46,38 @@ export default function CourseSummaryCard({
   const enrollmentStatusLabel = enrollment
     ? formatCourseEnrollmentStatus(enrollment.status)
     : null;
+  const courseLanguage = formatLanguage(course.language_code);
+  const meta: ListingRowMetaItem[] = [];
+
+  if (deliveryMode) {
+    meta.push({ label: "Format", value: deliveryMode });
+  }
+
+  if (price) {
+    meta.push({ label: "Preț", value: price });
+  }
+
+  if (duration) {
+    meta.push({ label: "Durată", value: duration });
+  }
+
+  if (courseLanguage) {
+    meta.push({ label: "Limbă", value: courseLanguage });
+  }
+
+  if (course.level) {
+    meta.push({ label: "Nivel", value: humanize(course.level) });
+  }
+
+  if (startDate) {
+    meta.push({ label: "Începe", value: startDate });
+  }
 
   return (
-    <RabAICard
-      padding="md"
-      style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}
-      variant={isCompact ? "filled" : "outlined"}
-    >
-      <View style={styles.body}>
-        <View style={styles.header}>
-          <View style={styles.titleWrap}>
-            <Text numberOfLines={isCompact ? 2 : 3} style={styles.title}>
-              {course.title}
-            </Text>
-            <Text numberOfLines={1} style={styles.provider}>
-              {course.provider_name}
-            </Text>
-            {location ? (
-              <Text numberOfLines={1} style={styles.meta}>
-                {location}
-              </Text>
-            ) : null}
-            {enrollment && enrollmentStatusLabel ? (
-              <RabAIBadge
-                label={enrollmentStatusLabel}
-                style={styles.enrollmentBadge}
-                tone={courseEnrollmentTone(enrollment.status)}
-              />
-            ) : null}
-          </View>
-          {!isCompact && startDate ? (
-            <Text numberOfLines={1} style={styles.startDate}>
-              {startDate}
-            </Text>
-          ) : null}
-        </View>
-
-        {course.short_description && !isCompact ? (
-          <Text numberOfLines={2} style={styles.description}>
-            {course.short_description}
-          </Text>
-        ) : null}
-
-        {categoryLabel || deliveryMode || price || course.certificate_available ? (
-          <View style={styles.pillRow}>
-            {categoryLabel ? (
-              <InfoPill compact={isCompact} label="Categorie" value={categoryLabel} />
-            ) : null}
-            {deliveryMode ? (
-              <InfoPill compact={isCompact} label="Format" value={deliveryMode} />
-            ) : null}
-            {price ? (
-              <InfoPill compact={isCompact} label="Preț" value={price} />
-            ) : null}
-            {!isCompact && course.certificate_available ? (
-              <InfoPill compact={false} label="Certificat" value="Disponibil" />
-            ) : null}
-          </View>
-        ) : null}
-      </View>
-
-      <View style={[styles.footer, isCompact && styles.footerCompact]}>
-        {(isCompact ? startDate : duration) ? (
-          <Text numberOfLines={1} style={styles.date}>
-            {isCompact ? startDate : duration}
-          </Text>
-        ) : null}
-        <View style={styles.actionRow}>
+    <ListingRow
+      accessibilityLabel={`${course.title}, ${course.provider_name}`}
+      actions={
+        <View style={[styles.actionRow, isCompact && styles.actionRowCompact]}>
           <CourseAction
             accessibilityHint={
               returnLabel
@@ -146,8 +112,30 @@ export default function CourseSummaryCard({
             tone="primary"
           />
         </View>
-      </View>
-    </RabAICard>
+      }
+      badges={
+        <View style={styles.badgeRow}>
+          {enrollment && enrollmentStatusLabel ? (
+            <RabAIBadge
+              label={enrollmentStatusLabel}
+              tone={courseEnrollmentTone(enrollment.status)}
+            />
+          ) : deliveryMode ? (
+            <RabAIBadge label={deliveryMode} tone="neutral" />
+          ) : null}
+          {categoryLabel ? (
+            <RabAIBadge label={categoryLabel} tone="information" />
+          ) : null}
+        </View>
+      }
+      compact={isCompact}
+      description={!isCompact ? course.short_description ?? undefined : undefined}
+      leading={<ProviderMonogram name={course.provider_name} />}
+      meta={meta}
+      style={styles.row}
+      subtitle={[course.provider_name, location].filter(Boolean).join(" · ")}
+      title={course.title}
+    />
   );
 }
 
@@ -198,23 +186,42 @@ function courseEnrollmentTone(
   return "neutral";
 }
 
-function InfoPill({
-  compact,
-  label,
-  value,
-}: {
-  compact: boolean;
-  label: string;
-  value: string;
-}) {
+function ProviderMonogram({ name }: { name: string }) {
+  const initials = name
+    .split(/\s+/u)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "—";
+
   return (
-    <View style={[styles.infoPill, compact && styles.infoPillCompact]}>
-      {!compact ? <Text style={styles.infoLabel}>{label}</Text> : null}
-      <Text numberOfLines={1} style={styles.infoValue}>
-        {value}
-      </Text>
+    <View accessibilityElementsHidden style={styles.monogram}>
+      <Text style={styles.monogramText}>{initials}</Text>
     </View>
   );
+}
+
+function formatLanguage(value: string | null) {
+  if (value === "ro") {
+    return "Română";
+  }
+
+  if (value === "de") {
+    return "Deutsch";
+  }
+
+  if (value === "en") {
+    return "English";
+  }
+
+  return value?.trim().toUpperCase() ?? "";
+}
+
+function humanize(value: string) {
+  const normalized = value.trim().replace(/_/gu, " ");
+  return normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : "";
 }
 
 function getCategoryLabel(course: SearchCourseResult, language: LanguageCode) {
@@ -322,127 +329,41 @@ function formatDate(value: string | null, language: LanguageCode) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    justifyContent: "space-between",
+  row: {
+    backgroundColor: "transparent",
   },
-  cardList: {
-    marginBottom: Spacing.md,
-    minHeight: 220,
-  },
-  cardCompact: {
-    flexBasis: 220,
-    flexGrow: 1,
-    minHeight: 218,
-  },
-  body: {
-    gap: Spacing.sm,
-    minWidth: 0,
-  },
-  header: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    justifyContent: "space-between",
-  },
-  titleWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    color: Colors.textPrimary,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: Typography.lineHeight.body,
-  },
-  provider: {
-    color: Colors.textBody,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-    marginTop: Spacing.xs,
-  },
-  meta: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    marginTop: Spacing.compact,
-  },
-  enrollmentBadge: {
-    marginTop: Spacing.sm,
-    maxWidth: "100%",
-  },
-  startDate: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  description: {
-    color: Colors.textBody,
-    fontSize: Typography.bodySmall,
-    lineHeight: 20,
-  },
-  pillRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
-  infoPill: {
+  monogram: {
+    alignItems: "center",
     backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.borderMuted,
+    borderColor: Colors.borderStrong,
     borderRadius: Radius.control,
     borderWidth: 1,
-    minWidth: 0,
-    padding: Spacing.md,
+    height: ControlHeight.medium,
+    justifyContent: "center",
+    width: ControlHeight.medium,
   },
-  infoPillCompact: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.borderMuted,
-    borderRadius: Radius.pill,
-    minWidth: 0,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  infoLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    marginBottom: Spacing.compact,
-  },
-  infoValue: {
+  monogramText: {
     color: Colors.textPrimary,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
+    fontSize: Typography.supporting,
+    fontWeight: Typography.fontWeight.semibold,
   },
-  footer: {
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.control,
+  },
+  actionRow: {
     alignItems: "center",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
-    justifyContent: "space-between",
-    marginTop: Spacing.md,
-    minWidth: 0,
-  },
-  footerCompact: {
-    alignItems: "stretch",
-    flexDirection: "column",
-  },
-  date: {
-    color: Colors.textMuted,
-    flexGrow: 1,
-    flexShrink: 1,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-    minWidth: 0,
-  },
-  actionRow: {
-    flexDirection: "row",
-    flexGrow: 1,
-    flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: Spacing.control,
     justifyContent: "flex-end",
-    minWidth: 0,
+  },
+  actionRowCompact: {
+    justifyContent: "space-between",
+    width: "100%",
   },
   actionButton: {
-    flexGrow: 1,
-    minWidth: 96,
+    minWidth: 104,
   },
 });

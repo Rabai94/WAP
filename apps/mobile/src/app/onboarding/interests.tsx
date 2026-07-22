@@ -1,20 +1,42 @@
-import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Screen } from "@/components/ui";
-import type { PersonalInterest } from "@/domain/account";
+import { EmptyState, PageContainer, PageHeader } from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import type { LanguageCode } from "@/i18n/translations";
+import { useRouter } from "expo-router";
 
-const interestOptions: PersonalInterest[] = [
-  "find_jobs",
-  "find_tasks",
-  "offer_services",
-  "request_service",
-  "find_courses",
-  "explore_only",
-];
+type InterestsUnavailableCopy = {
+  action: string;
+  description: string;
+  subtitle: string;
+  title: string;
+};
+
+const unavailableCopy = {
+  ro: {
+    action: "Înapoi la profil",
+    description:
+      "Serviciul de profil nu salvează încă interesele profesionale. RabAI nu va simula o selecție care nu poate fi păstrată.",
+    subtitle:
+      "Interesele vor putea fi editate după conectarea lor la serviciul de profil.",
+    title: "Editarea intereselor nu este disponibilă încă",
+  },
+  en: {
+    action: "Back to profile",
+    description:
+      "The profile service does not save professional interests yet. RabAI will not simulate a selection that cannot be retained.",
+    subtitle:
+      "Interests can be edited after they are connected to the profile service.",
+    title: "Interest editing is not available yet",
+  },
+  de: {
+    action: "Zurück zum Profil",
+    description:
+      "Der Profildienst speichert berufliche Interessen noch nicht. RabAI simuliert keine Auswahl, die nicht erhalten werden kann.",
+    subtitle:
+      "Interessen können bearbeitet werden, sobald sie mit dem Profildienst verbunden sind.",
+    title: "Interessen können noch nicht bearbeitet werden",
+  },
+} satisfies Record<LanguageCode, InterestsUnavailableCopy>;
 
 export default function InterestsOnboardingScreen() {
   return (
@@ -26,117 +48,23 @@ export default function InterestsOnboardingScreen() {
 
 function InterestsOnboardingContent() {
   const router = useRouter();
-  const { t } = useLanguage();
-  const [selectedInterests, setSelectedInterests] = useState<
-    PersonalInterest[]
-  >([]);
-
-  const selectedCountLabel = useMemo(
-    () =>
-      t("interests.selectedCount").replace(
-        "{count}",
-        String(selectedInterests.length)
-      ),
-    [selectedInterests.length, t]
-  );
-
-  function toggleInterest(interest: PersonalInterest) {
-    setSelectedInterests((current) => {
-      if (current.includes(interest)) {
-        return current.filter((item) => item !== interest);
-      }
-
-      return [...current, interest];
-    });
-  }
+  const { language, t } = useLanguage();
+  const copy = unavailableCopy[language];
 
   return (
-    <Screen centered={false}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Header title={t("interests.title")} subtitle={t("interests.subtitle")} />
-
-        <Card title={t("interests.cardTitle")}>
-          <Text style={styles.text}>{t("interests.storageNote")}</Text>
-          <View style={styles.optionGrid}>
-            {interestOptions.map((interest) => {
-              const active = selectedInterests.includes(interest);
-
-              return (
-                <Pressable
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: active }}
-                  key={interest}
-                  onPress={() => toggleInterest(interest)}
-                  style={[styles.optionButton, active && styles.optionButtonActive]}
-                >
-                  <Text
-                    style={[
-                      styles.optionText,
-                      active && styles.optionTextActive,
-                    ]}
-                  >
-                    {t(`interest.${interest}`)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={styles.selectedText}>{selectedCountLabel}</Text>
-        </Card>
-
-        <Button
-          title={t("common.continue")}
-          onPress={() => {
-            router.replace("/profile" as any);
-          }}
-        />
-      </ScrollView>
-    </Screen>
+    <PageContainer maxWidth="form" scroll>
+      <PageHeader
+        backLabel={t("common.back")}
+        description={copy.subtitle}
+        onBack={() => router.replace("/profile" as never)}
+        title={copy.title}
+      />
+      <EmptyState
+        actionLabel={copy.action}
+        description={copy.description}
+        onAction={() => router.replace("/profile" as never)}
+        title={copy.title}
+      />
+    </PageContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    alignSelf: "center",
-    gap: Spacing.md,
-    maxWidth: 860,
-    paddingBottom: Spacing.five,
-    width: "100%",
-  },
-  text: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.body,
-    marginBottom: Spacing.three,
-  },
-  optionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
-  },
-  optionButton: {
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.border,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  optionButtonActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
-  },
-  optionText: {
-    color: Colors.textBody,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  optionTextActive: {
-    color: "#145CFF",
-  },
-  selectedText: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    marginTop: Spacing.three,
-  },
-});

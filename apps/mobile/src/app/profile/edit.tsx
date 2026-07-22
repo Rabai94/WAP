@@ -568,14 +568,23 @@ function ProfileEditContent() {
             />
           </RabAICard>
 
-          <RabAIButton
-            disabled={submitting}
-            fullWidth
-            loading={submitting}
-            loadingLabel={t("profileEdit.saving")}
-            onPress={() => void handleSubmit()}
-            title={t("profileEdit.save")}
-          />
+          <View style={styles.formActions}>
+            <RabAIButton
+              disabled={submitting}
+              onPress={() => router.replace("/profile" as any)}
+              style={styles.formAction}
+              title={t("common.cancel")}
+              variant="secondary"
+            />
+            <RabAIButton
+              disabled={submitting}
+              loading={submitting}
+              loadingLabel={t("profileEdit.saving")}
+              onPress={() => void handleSubmit()}
+              style={styles.formAction}
+              title={t("profileEdit.save")}
+            />
+          </View>
         </>
       )}
     </PageContainer>
@@ -724,6 +733,16 @@ function readError(error: unknown, t: (key: string) => string) {
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.section,
+  },
+  formActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.control,
+    justifyContent: "flex-end",
+  },
+  formAction: {
+    flexBasis: "45%",
+    flexGrow: 1,
   },
   twoColumn: {
     flexDirection: "row",

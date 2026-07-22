@@ -1,9 +1,18 @@
+import {
+  DefinitionList,
+  EmptyState,
+  ListingRow,
+  RabAIButton,
+  Section,
+  StatusBadge,
+} from "@/components/ui";
 import type {
+  CompanyDashboardJob,
   CompanyProfile,
   CompanyStatus,
   CompanyVerificationStatus,
 } from "@/services/company/companyService";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import { Colors, Spacing, Typography } from "@/theme";
 import { StyleSheet, Text, View } from "react-native";
 import OrganizationActionButton from "./OrganizationActionButton";
 import OrganizationProfileCompletion from "./OrganizationProfileCompletion";
@@ -19,14 +28,25 @@ type CompletionLabels = {
   website: string;
 };
 
+type JobLabels = {
+  activeJobs: string;
+  editJob: string;
+  jobsTitle: string;
+  noJobs: string;
+};
+
 type OwnerOrganizationDashboardProps = {
   company: CompanyProfile;
   completionLabels: CompletionLabels;
   copy: OrganizationCopy;
+  formatJobStatus: (status: string) => string;
   formatStatus: (status: CompanyStatus) => string;
   formatVerification: (status: CompanyVerificationStatus) => string;
   isMobile: boolean;
+  jobLabels: JobLabels;
+  jobs: readonly CompanyDashboardJob[];
   onEdit: () => void;
+  onEditJob: (jobId: string) => void;
   onOpenApplications: () => void;
   onPublishJob: () => void;
   onViewPublicProfile: () => void;
@@ -38,10 +58,14 @@ export default function OwnerOrganizationDashboard({
   company,
   completionLabels,
   copy,
+  formatJobStatus,
   formatStatus,
   formatVerification,
   isMobile,
+  jobLabels,
+  jobs,
   onEdit,
+  onEditJob,
   onOpenApplications,
   onPublishJob,
   onViewPublicProfile,
@@ -49,45 +73,47 @@ export default function OwnerOrganizationDashboard({
   verificationLabel,
 }: OwnerOrganizationDashboardProps) {
   const completion = calculateOrganizationCompletion(company);
+  const activeJobCount = jobs.filter((job) => job.status === "published").length;
   const canPublishJobs =
     company.status === "active" &&
     company.verification_status === "verified";
 
   return (
-    <View
-      accessibilityLabel={copy.ownerDashboard}
-      style={styles.section}
-    >
-      <View>
-        <Text style={styles.eyebrow}>
-          {copy.ownedOrganization}
-        </Text>
-        <Text accessibilityRole="header" style={styles.title}>
-          {copy.ownerDashboard}
-        </Text>
-        <Text style={styles.subtitle}>{copy.ownerDashboardSubtitle}</Text>
-      </View>
-
-      <View style={styles.internalCard}>
-        <Text style={styles.internalLabel}>{copy.internalStatus}</Text>
-        <View style={styles.statusGrid}>
-          <StatusItem
-            label={statusLabel}
-            value={formatStatus(company.status)}
-          />
-          <StatusItem
-            label={verificationLabel}
-            tone={
-              company.verification_status === "verified"
-                ? "success"
-                : company.verification_status === "rejected"
-                  ? "danger"
-                  : "warning"
-            }
-            value={formatVerification(company.verification_status)}
-          />
-        </View>
-      </View>
+    <View accessibilityLabel={copy.ownerDashboard} style={styles.dashboard}>
+      <Section
+        contentStyle={styles.statusContent}
+        description={copy.ownerDashboardSubtitle}
+        title={copy.ownerDashboard}
+      >
+        <Text style={styles.privateLabel}>{copy.internalStatus}</Text>
+        <DefinitionList
+          columns={2}
+          items={[
+            {
+              label: statusLabel,
+              value: (
+                <StatusBadge
+                  label={formatStatus(company.status)}
+                  status={company.status}
+                />
+              ),
+            },
+            {
+              label: verificationLabel,
+              value: (
+                <StatusBadge
+                  label={formatVerification(company.verification_status)}
+                  status={company.verification_status}
+                />
+              ),
+            },
+            {
+              label: jobLabels.activeJobs,
+              value: String(activeJobCount),
+            },
+          ]}
+        />
+      </Section>
 
       <OrganizationProfileCompletion
         checklistTitle={copy.completionChecklist}
@@ -102,8 +128,41 @@ export default function OwnerOrganizationDashboard({
         title={copy.profileCompletion}
       />
 
-      <View style={styles.actionCard}>
-        <View style={styles.actionGrid}>
+      <Section title={jobLabels.jobsTitle}>
+        {jobs.length > 0 ? (
+          <View style={styles.jobList}>
+            {jobs.map((job) => (
+              <ListingRow
+                actions={
+                  <RabAIButton
+                    accessibilityLabel={`${jobLabels.editJob}: ${job.title}`}
+                    onPress={() => onEditJob(job.id)}
+                    size="sm"
+                    title={jobLabels.editJob}
+                    variant="outline"
+                  />
+                }
+                badges={
+                  <StatusBadge
+                    label={formatJobStatus(job.status)}
+                    status={job.status}
+                  />
+                }
+                key={job.id}
+                subtitle={formatJobLocation(job)}
+                title={job.title}
+              />
+            ))}
+          </View>
+        ) : (
+          <EmptyState compact title={jobLabels.noJobs} />
+        )}
+      </Section>
+
+      <Section contentStyle={styles.actionContent}>
+        <View
+          style={[styles.actionGrid, isMobile && styles.actionGridMobile]}
+        >
           <OrganizationActionButton
             accessibilityHint={copy.formSubtitle}
             fullWidth={isMobile}
@@ -145,137 +204,69 @@ export default function OwnerOrganizationDashboard({
             {copy.publicationUnavailable}
           </Text>
         ) : null}
-        <Text style={styles.routeNote}>{copy.verificationUnavailable}</Text>
-      </View>
-    </View>
-  );
-}
-
-function StatusItem({
-  label,
-  tone = "neutral",
-  value,
-}: {
-  label: string;
-  tone?: "danger" | "neutral" | "success" | "warning";
-  value: string;
-}) {
-  return (
-    <View
-      style={[
-        styles.statusItem,
-        tone === "success" && styles.statusItemSuccess,
-        tone === "warning" && styles.statusItemWarning,
-        tone === "danger" && styles.statusItemDanger,
-      ]}
-    >
-      <Text style={styles.statusLabel}>{label}</Text>
-      <Text style={styles.statusValue}>{value}</Text>
+      </Section>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  section: {
+  dashboard: {
+    alignSelf: "stretch",
     borderTopColor: Colors.border,
     borderTopWidth: 1,
-    gap: Spacing.three,
-    paddingTop: Spacing.screen,
-  },
-  eyebrow: {
-    color: Colors.accent,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    textTransform: "uppercase",
-  },
-  title: {
-    color: Colors.text,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
-    lineHeight: 30,
-  },
-  subtitle: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.sm,
-  },
-  internalCard: {
-    backgroundColor: "#17213F",
-    borderRadius: Radius.xxl,
-    padding: Spacing.three,
-    ...Shadows.card,
-  },
-  internalLabel: {
-    color: "rgba(255, 255, 255, 0.72)",
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
-    letterSpacing: 0.7,
-    marginBottom: Spacing.md,
-    textTransform: "uppercase",
-  },
-  statusGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-  },
-  statusItem: {
-    backgroundColor: "rgba(255, 255, 255, 0.10)",
-    borderColor: "rgba(255, 255, 255, 0.18)",
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    flexBasis: 180,
-    flexGrow: 1,
     minWidth: 0,
-    padding: Spacing.three,
+    paddingTop: Spacing.section,
   },
-  statusItemSuccess: {
-    backgroundColor: "rgba(7, 134, 92, 0.24)",
-    borderColor: "rgba(167, 243, 208, 0.34)",
+  statusContent: {
+    gap: Spacing.control,
   },
-  statusItemWarning: {
-    backgroundColor: "rgba(217, 119, 6, 0.22)",
-    borderColor: "rgba(253, 186, 116, 0.42)",
+  privateLabel: {
+    color: Colors.textMuted,
+    fontSize: Typography.caption,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: Typography.letterSpacing.eyebrow,
+    lineHeight: Typography.lineHeight.compact,
+    textTransform: "uppercase",
   },
-  statusItemDanger: {
-    backgroundColor: "rgba(225, 29, 72, 0.22)",
-    borderColor: "rgba(253, 164, 175, 0.40)",
+  actionContent: {
+    borderTopColor: Colors.border,
+    borderTopWidth: 1,
+    gap: Spacing.inline,
+    paddingTop: Spacing.component,
   },
-  statusLabel: {
-    color: "rgba(255, 255, 255, 0.68)",
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  statusValue: {
-    color: Colors.white,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-    marginTop: Spacing.xs,
-  },
-  actionCard: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    gap: Spacing.md,
-    padding: Spacing.three,
-    ...Shadows.card,
+  jobList: {
+    borderTopColor: Colors.border,
+    borderTopWidth: 1,
+    minWidth: 0,
   },
   actionGrid: {
+    alignItems: "center",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.control,
+  },
+  actionGridMobile: {
+    alignItems: "stretch",
+    flexDirection: "column",
   },
   actionHint: {
     color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-  },
-  routeNote: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    lineHeight: Typography.lineHeight.compact,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
   },
 });
+
+function formatJobLocation(job: CompanyDashboardJob) {
+  if (!job.location) {
+    return undefined;
+  }
+
+  return [
+    job.location.postal_code,
+    job.location.city,
+    job.location.district,
+    job.location.state,
+  ]
+    .filter(Boolean)
+    .join(" / ");
+}

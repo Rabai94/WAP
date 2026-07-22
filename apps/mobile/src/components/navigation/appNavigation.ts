@@ -2,144 +2,108 @@ import type { AppIconName } from "@/components/navigation/AppIcon";
 import type { LanguageCode } from "@/i18n/translations";
 
 export type SidebarNavigationItem = {
-  activePaths?: string[];
-  disabled?: boolean;
+  activePaths: string[];
   icon: AppIconName;
-  key: MainNavigationKey | AdminNavigationKey | "settings" | "logout";
+  key: MainNavigationKey;
   label: string;
-  route?: string;
-  soon?: boolean;
+  route: string;
 };
 
 type MainNavigationKey =
   | "home"
-  | "profile"
   | "jobs"
-  | "tasks"
-  | "services"
-  | "transport"
   | "courses"
-  | "messages"
-  | "organizations";
-
-type AdminNavigationKey = "moderation" | "admin-organizations" | "reports";
+  | "profile"
+  | "organizations"
+  | "messages";
 
 const navigationCopy = {
   ro: {
-    home: "Acasă",
-    profile: "Contul meu",
-    jobs: "Locuri de muncă",
-    tasks: "Lucrări",
-    services: "Servicii",
-    transport: "Transport",
     courses: "Cursuri",
+    home: "Acasă",
+    jobs: "Locuri de muncă",
+    logout: "Deconectare",
     messages: "Mesaje",
     organizations: "Organizațiile mele",
-    adminSection: "Administrare platformă",
-    moderation: "Moderare",
-    adminOrganizations: "Organizații",
-    reports: "Raportări",
+    profile: "Contul meu",
     settings: "Setări",
-    logout: "Logout",
-    soon: "În curând",
   },
   en: {
-    home: "Home",
-    profile: "My account",
-    jobs: "Jobs",
-    tasks: "Tasks",
-    services: "Services",
-    transport: "Transport",
     courses: "Courses",
+    home: "Home",
+    jobs: "Jobs",
+    logout: "Sign out",
     messages: "Messages",
     organizations: "My organizations",
-    adminSection: "Platform administration",
-    moderation: "Moderation",
-    adminOrganizations: "Organizations",
-    reports: "Reports",
+    profile: "My account",
     settings: "Settings",
-    logout: "Logout",
-    soon: "Coming soon",
   },
   de: {
-    home: "Start",
-    profile: "Mein Konto",
-    jobs: "Jobs",
-    tasks: "Aufträge",
-    services: "Dienstleistungen",
-    transport: "Transport",
     courses: "Kurse",
+    home: "Start",
+    jobs: "Jobs",
+    logout: "Abmelden",
     messages: "Nachrichten",
     organizations: "Meine Organisationen",
-    adminSection: "Plattformverwaltung",
-    moderation: "Moderation",
-    adminOrganizations: "Organisationen",
-    reports: "Meldungen",
+    profile: "Mein Konto",
     settings: "Einstellungen",
-    logout: "Abmelden",
-    soon: "Demnächst",
   },
 } satisfies Record<LanguageCode, Record<string, string>>;
 
-export function getMainNavigation(language: LanguageCode): SidebarNavigationItem[] {
+export function getMainNavigation(
+  language: LanguageCode
+): SidebarNavigationItem[] {
   const copy = navigationCopy[language];
 
   return [
-    { key: "home", label: copy.home, icon: "home", route: "/engine", activePaths: ["/engine"] },
     {
-      key: "profile",
-      label: copy.profile,
-      icon: "profile",
-      route: "/profile",
-      activePaths: ["/profile", "/onboarding"],
+      activePaths: ["/engine"],
+      icon: "home",
+      key: "home",
+      label: copy.home,
+      route: "/engine",
     },
     {
-      key: "jobs",
-      label: copy.jobs,
-      icon: "briefcase",
-      route: "/jobs",
       activePaths: [
         "/jobs",
         "/create-job",
-        "/job-",
+        "/job-published",
         "/applications",
-        "/application-",
-        "/contract",
-        "/worker-accepted",
-        "/check-in",
-        "/check-out",
-        "/payment",
-        "/rating",
+        "/application-sent",
       ],
+      icon: "briefcase",
+      key: "jobs",
+      label: copy.jobs,
+      route: "/jobs",
     },
-    { key: "tasks", label: copy.tasks, icon: "task", route: "/tasks", activePaths: ["/tasks"] },
-    { key: "services", label: copy.services, icon: "service", route: "/services", activePaths: ["/services"] },
-    { key: "transport", label: copy.transport, icon: "transport", disabled: true, soon: true },
-    { key: "courses", label: copy.courses, icon: "course", route: "/courses", activePaths: ["/courses"] },
-    { key: "messages", label: copy.messages, icon: "message", route: "/messages", activePaths: ["/messages"] },
     {
+      activePaths: ["/courses"],
+      icon: "course",
+      key: "courses",
+      label: copy.courses,
+      route: "/courses",
+    },
+    {
+      activePaths: ["/profile", "/onboarding"],
+      icon: "profile",
+      key: "profile",
+      label: copy.profile,
+      route: "/profile",
+    },
+    {
+      activePaths: ["/organizations"],
+      icon: "organization",
       key: "organizations",
       label: copy.organizations,
-      icon: "organization",
       route: "/organizations",
-      activePaths: ["/organizations"],
     },
-  ];
-}
-
-export function getAdminNavigation(language: LanguageCode): SidebarNavigationItem[] {
-  const copy = navigationCopy[language];
-
-  return [
-    { key: "moderation", label: copy.moderation, icon: "admin", disabled: true, soon: true },
     {
-      key: "admin-organizations",
-      label: copy.adminOrganizations,
-      icon: "organization",
-      disabled: true,
-      soon: true,
+      activePaths: ["/messages"],
+      icon: "message",
+      key: "messages",
+      label: copy.messages,
+      route: "/messages",
     },
-    { key: "reports", label: copy.reports, icon: "report", disabled: true, soon: true },
   ];
 }
 
@@ -147,19 +111,16 @@ export function getSidebarUtilityCopy(language: LanguageCode) {
   const copy = navigationCopy[language];
 
   return {
-    adminSection: copy.adminSection,
     logout: copy.logout,
     settings: copy.settings,
-    soon: copy.soon,
   };
 }
 
-export function isSidebarRouteActive(pathname: string, item: SidebarNavigationItem) {
-  return Boolean(
-    item.activePaths?.some((path) =>
-      path === "/engine"
-        ? pathname === path
-        : pathname === path || pathname.startsWith(`${path}/`) || pathname.startsWith(path)
-    )
+export function isSidebarRouteActive(
+  pathname: string,
+  item: SidebarNavigationItem
+) {
+  return item.activePaths.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 }

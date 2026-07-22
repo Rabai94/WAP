@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import DesktopAppShell from "@/components/navigation/DesktopAppShell";
 import { LanguageProvider } from "../i18n/LanguageProvider";
 import { AuthProvider, useAuth } from "@/providers/AuthProvider";
+import { Colors } from "@/theme";
 
 const shellFreePaths = new Set([
   "/",
@@ -72,6 +73,7 @@ function AuthenticatedAppFrame() {
 
 const styles = StyleSheet.create({
   root: {
+    backgroundColor: Colors.canvas,
     flex: 1,
     minHeight: 0,
     minWidth: 0,

@@ -1,7 +1,12 @@
 import type { LanguageCode } from "@/i18n/translations";
 import type { SearchJobResult } from "@/services/jobs/jobFlowService";
-import { RabAIButton, RabAICard } from "@/components/ui";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import {
+  ListingRow,
+  RabAIBadge,
+  RabAIButton,
+  type ListingRowMetaItem,
+} from "@/components/ui";
+import { Colors, ControlHeight, Radius, Spacing, Typography } from "@/theme";
 import { StyleSheet, Text, View } from "react-native";
 
 type JobSummaryCardVariant = "list" | "compact";
@@ -34,57 +39,26 @@ export default function JobSummaryCard({
         : job.occupation_name_ro;
   const locationLabel =
     job.location_label || [job.postal_code, job.city, job.state].filter(Boolean).join(" ");
+  const publishedAt = formatPublishedDate(job.published_at, language);
+  const meta: ListingRowMetaItem[] = [];
+
+  if (salary) {
+    meta.push({ label: "Salariu", value: salary });
+  }
+
+  if (occupationName) {
+    meta.push({ label: "Ocupație", value: occupationName });
+  }
+
+  if (publishedAt) {
+    meta.push({ label: "Publicat", value: publishedAt });
+  }
 
   return (
-    <RabAICard
-      padding="md"
-      style={[styles.card, isCompact ? styles.cardCompact : styles.cardList]}
-      variant={isCompact ? "filled" : "outlined"}
-    >
-      <View style={styles.body}>
-        <View style={styles.header}>
-          <View style={styles.titleWrap}>
-            <Text numberOfLines={isCompact ? 2 : 3} style={styles.title}>
-              {displayTitle}
-            </Text>
-            <Text numberOfLines={1} style={styles.company}>
-              {job.company_name}
-            </Text>
-            <Text numberOfLines={1} style={styles.meta}>
-              {locationLabel}
-            </Text>
-          </View>
-          {!isCompact ? (
-            <Text numberOfLines={1} style={styles.publishedAt}>
-              {formatPublishedDate(job.published_at, language)}
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.pillRow}>
-          {salary ? <InfoPill label="Salariu" value={salary} compact={isCompact} /> : null}
-          <InfoPill
-            label="Contract"
-            value={formatEmploymentType(job.employment_type)}
-            compact={isCompact}
-          />
-          {!isCompact ? (
-            <InfoPill
-              label="Ocupatie"
-              value={occupationName}
-              compact={false}
-            />
-          ) : null}
-        </View>
-      </View>
-
-      <View style={styles.footer}>
-        {isCompact ? (
-          <Text numberOfLines={1} style={styles.date}>
-            {formatPublishedDate(job.published_at, language)}
-          </Text>
-        ) : null}
-        <View style={styles.actionRow}>
+    <ListingRow
+      accessibilityLabel={`${displayTitle}, ${job.company_name}`}
+      actions={
+        <View style={[styles.actionRow, isCompact && styles.actionRowCompact]}>
           <RabAIButton
             accessibilityHint={
               returnLabel
@@ -94,38 +68,46 @@ export default function JobSummaryCard({
             accessibilityLabel={`Vezi jobul ${displayTitle}`}
             onPress={() => onAction(job, "view")}
             size="sm"
-            style={[styles.actionButton, isCompact && styles.actionButtonCompact]}
+            style={styles.actionButton}
             title="Vezi jobul"
-            variant="outline"
+            variant="secondary"
           />
           <RabAIButton
             accessibilityLabel={`Aplică la jobul ${displayTitle}`}
             onPress={() => onAction(job, "apply")}
             size="sm"
-            style={[styles.actionButton, isCompact && styles.actionButtonCompact]}
+            style={styles.actionButton}
             title="Aplică"
           />
         </View>
-      </View>
-    </RabAICard>
+      }
+      badges={
+        <RabAIBadge
+          label={formatEmploymentType(job.employment_type)}
+          tone="neutral"
+        />
+      }
+      compact={isCompact}
+      leading={<CompanyMonogram name={job.company_name} />}
+      meta={meta}
+      style={styles.row}
+      subtitle={[job.company_name, locationLabel].filter(Boolean).join(" · ")}
+      title={displayTitle}
+    />
   );
 }
 
-function InfoPill({
-  compact,
-  label,
-  value,
-}: {
-  compact: boolean;
-  label: string;
-  value: string;
-}) {
+function CompanyMonogram({ name }: { name: string }) {
+  const initials = name
+    .split(/\s+/u)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "—";
+
   return (
-    <View style={[styles.infoPill, compact && styles.infoPillCompact]}>
-      {!compact ? <Text style={styles.infoLabel}>{label}</Text> : null}
-      <Text numberOfLines={1} style={styles.infoValue}>
-        {value}
-      </Text>
+    <View accessibilityElementsHidden style={styles.monogram}>
+      <Text style={styles.monogramText}>{initials}</Text>
     </View>
   );
 }
@@ -234,110 +216,36 @@ function formatPublishedDate(value: string, language: LanguageCode) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    justifyContent: "space-between",
+  row: {
+    backgroundColor: "transparent",
   },
-  cardList: {
-    marginBottom: Spacing.md,
-    minHeight: 190,
-  },
-  cardCompact: {
-    flexBasis: 220,
-    flexGrow: 1,
-    minHeight: 194,
-  },
-  body: {
-    gap: Spacing.sm,
-  },
-  header: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    justifyContent: "space-between",
-  },
-  titleWrap: {
-    flex: 1,
-    minWidth: 180,
-  },
-  title: {
-    color: Colors.textPrimary,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: Typography.lineHeight.body,
-  },
-  company: {
-    color: Colors.textBody,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-    marginTop: Spacing.xs,
-  },
-  meta: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    marginTop: Spacing.compact,
-  },
-  publishedAt: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  pillRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
-  infoPill: {
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.borderMuted,
+  monogram: {
+    alignItems: "center",
+    backgroundColor: Colors.goldMuted,
+    borderColor: Colors.borderStrong,
     borderRadius: Radius.control,
     borderWidth: 1,
-    minWidth: 150,
-    padding: Spacing.md,
+    height: ControlHeight.medium,
+    justifyContent: "center",
+    width: ControlHeight.medium,
   },
-  infoPillCompact: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.borderMuted,
-    borderRadius: Radius.pill,
-    minWidth: 0,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  infoLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    marginBottom: Spacing.compact,
-  },
-  infoValue: {
+  monogramText: {
     color: Colors.textPrimary,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  footer: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: Spacing.sm,
-    justifyContent: "space-between",
-    marginTop: Spacing.md,
+    fontSize: Typography.supporting,
+    fontWeight: Typography.fontWeight.semibold,
   },
   actionRow: {
+    alignItems: "center",
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.control,
     justifyContent: "flex-end",
-    marginLeft: "auto",
   },
-  date: {
-    color: Colors.textMuted,
-    flex: 1,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
+  actionRowCompact: {
+    justifyContent: "space-between",
+    width: "100%",
   },
   actionButton: {
-    flexGrow: 1,
-  },
-  actionButtonCompact: {
-    flexBasis: 104,
+    minWidth: 104,
   },
 });

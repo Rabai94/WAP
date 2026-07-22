@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
   placeholderTextSm: {
-    fontSize: 11,
+    fontSize: Typography.caption,
   },
   placeholderTextMd: {
     fontSize: 13,

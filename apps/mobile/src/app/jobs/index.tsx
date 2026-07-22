@@ -8,12 +8,14 @@ import PublicHeader from "@/components/navigation/PublicHeader";
 import {
   EmptyState,
   ErrorState,
+  FilterBar,
+  FilterSheet,
   LoadingState,
   PageContainer,
   PageHeader,
   RabAIButton,
-  RabAICard,
   RabAIInput,
+  Section,
 } from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -30,7 +32,7 @@ import {
   type OccupationSuggestion,
 } from "@/services/search/heroAutocomplete";
 import { Colors, Layers, Spacing, Typography } from "@/theme";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
@@ -65,6 +67,15 @@ type SelectedLocationFilter = {
   longitude: number | null;
 };
 
+type JobsFilterSnapshot = {
+  occupation: string;
+  location: string;
+  employmentType: string;
+  salaryMin: string;
+  selectedOccupation: SelectedOccupationFilter | null;
+  selectedLocation: SelectedLocationFilter | null;
+};
+
 export default function JobsScreen() {
   const router = useRouter();
   const responsive = useResponsiveLayout();
@@ -89,34 +100,62 @@ export default function JobsScreen() {
     () => buildInternalReturnPath("/jobs", params),
     [params]
   );
-  const initialOccupation = readParam(params.occupation) || readParam(params.search);
-  const initialLocation = readParam(params.location);
-  const initialEmploymentType = readParam(params.employmentType);
-  const initialSalaryMin = readParam(params.salaryMin);
-  const initialOccupationId = readParam(params.occupationId);
-  const initialLocationId = readParam(params.locationId);
-  const [occupation, setOccupation] = useState(initialOccupation);
-  const [location, setLocation] = useState(initialLocation);
-  const [employmentType, setEmploymentType] = useState(initialEmploymentType);
-  const [salaryMin, setSalaryMin] = useState(initialSalaryMin);
+  const routeFilterValues = useMemo(() => {
+    const locationId = readParam(params.locationId);
+
+    return {
+      employmentType: readParam(params.employmentType),
+      latitude: parseOptionalNumber(readParam(params.lat)),
+      location: locationId ? readParam(params.location) : "",
+      locationId,
+      longitude: parseOptionalNumber(readParam(params.lng)),
+      occupation:
+        readParam(params.occupation) || readParam(params.search),
+      occupationId: readParam(params.occupationId),
+      salaryMin: readParam(params.salaryMin),
+    };
+  },
+    [
+      params.employmentType,
+      params.lat,
+      params.lng,
+      params.location,
+      params.locationId,
+      params.occupation,
+      params.occupationId,
+      params.salaryMin,
+      params.search,
+    ]);
+  const routeFilterSignature = useMemo(
+    () => JSON.stringify(routeFilterValues),
+    [routeFilterValues]
+  );
+  const [occupation, setOccupation] = useState(routeFilterValues.occupation);
+  const [location, setLocation] = useState(routeFilterValues.location);
+  const [employmentType, setEmploymentType] = useState(
+    routeFilterValues.employmentType
+  );
+  const [salaryMin, setSalaryMin] = useState(routeFilterValues.salaryMin);
   const [selectedOccupation, setSelectedOccupation] =
     useState<SelectedOccupationFilter | null>(
-      initialOccupationId
+      routeFilterValues.occupationId
         ? {
-            id: initialOccupationId,
-            label: initialOccupation,
-            slug: normalizeSlugParam(initialOccupation) ?? initialOccupation,
+            id: routeFilterValues.occupationId,
+            label: routeFilterValues.occupation,
+            slug:
+              normalizeSlugParam(routeFilterValues.occupation) ??
+              routeFilterValues.occupation,
           }
         : null
     );
   const [selectedLocation, setSelectedLocation] =
     useState<SelectedLocationFilter | null>(
-      initialLocationId
+      routeFilterValues.locationId
         ? {
-            id: initialLocationId,
-            label: initialLocation,
-            latitude: parseOptionalNumber(readParam(params.lat)),
-            longitude: parseOptionalNumber(readParam(params.lng)),
+            id: routeFilterValues.locationId,
+            label: routeFilterValues.location,
+            latitude: routeFilterValues.latitude,
+            longitude: routeFilterValues.longitude,
           }
         : null
     );
@@ -130,6 +169,9 @@ export default function JobsScreen() {
   const [locationLoading, setLocationLoading] = useState(false);
   const [occupationError, setOccupationError] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationValidationError, setLocationValidationError] = useState<
+    string | null
+  >(null);
   const [occupationOpen, setOccupationOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
   const [occupationActiveIndex, setOccupationActiveIndex] = useState(-1);
@@ -139,6 +181,10 @@ export default function JobsScreen() {
   const [jobs, setJobs] = useState<SearchJobResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reloadAttempt, setReloadAttempt] = useState(0);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const filterSnapshotRef = useRef<JobsFilterSnapshot | null>(null);
+  const syncedRouteFilterSignatureRef = useRef(routeFilterSignature);
   const { closeJobQuickView, openJobQuickView, selection } = useJobQuickView();
   const totalCount = jobs[0]?.total_count ?? 0;
   const hasNextPage = page * 20 < totalCount;
@@ -190,6 +236,55 @@ export default function JobsScreen() {
   );
 
   useEffect(() => {
+    if (
+      filterSheetOpen ||
+      syncedRouteFilterSignatureRef.current === routeFilterSignature
+    ) {
+      return;
+    }
+
+    syncedRouteFilterSignatureRef.current = routeFilterSignature;
+    occupationRequestId.current += 1;
+    locationRequestId.current += 1;
+    setOccupation(routeFilterValues.occupation);
+    setLocation(routeFilterValues.location);
+    setEmploymentType(routeFilterValues.employmentType);
+    setSalaryMin(routeFilterValues.salaryMin);
+    setSelectedOccupation(
+      routeFilterValues.occupationId
+        ? {
+            id: routeFilterValues.occupationId,
+            label: routeFilterValues.occupation,
+            slug:
+              normalizeSlugParam(routeFilterValues.occupation) ??
+              routeFilterValues.occupation,
+          }
+        : null
+    );
+    setSelectedLocation(
+      routeFilterValues.locationId
+        ? {
+            id: routeFilterValues.locationId,
+            label: routeFilterValues.location,
+            latitude: routeFilterValues.latitude,
+            longitude: routeFilterValues.longitude,
+          }
+        : null
+    );
+    setOccupationSuggestions([]);
+    setLocationSuggestions([]);
+    setOccupationError(null);
+    setLocationError(null);
+    setLocationValidationError(null);
+    setOccupationLoading(false);
+    setLocationLoading(false);
+    setOccupationOpen(false);
+    setLocationOpen(false);
+    setOccupationActiveIndex(-1);
+    setLocationActiveIndex(-1);
+  }, [filterSheetOpen, routeFilterSignature, routeFilterValues]);
+
+  useEffect(() => {
     let mounted = true;
     const timeoutId = setTimeout(() => {
       setLoading(true);
@@ -218,7 +313,7 @@ export default function JobsScreen() {
       mounted = false;
       clearTimeout(timeoutId);
     };
-  }, [searchInput]);
+  }, [reloadAttempt, searchInput]);
 
   useEffect(() => {
     const trimmedOccupation = occupation.trim();
@@ -341,6 +436,7 @@ export default function JobsScreen() {
 
   function handleLocationTextChange(text: string) {
     setLocation(text);
+    setLocationValidationError(null);
 
     if (selectedLocation && text !== selectedLocation.label) {
       setSelectedLocation(null);
@@ -365,6 +461,7 @@ export default function JobsScreen() {
       longitude: option.suggestion.longitude,
     });
     setLocation(option.suggestion.label);
+    setLocationValidationError(null);
     setLocationOpen(false);
     setLocationActiveIndex(-1);
   }
@@ -377,8 +474,20 @@ export default function JobsScreen() {
       selectedOccupation &&
       (trimmedOccupation === selectedOccupation.label ||
         trimmedOccupation === selectedOccupation.slug);
-    const locationMatchesSelection =
-      selectedLocation && trimmedLocation === selectedLocation.label;
+    const matchingLocation =
+      selectedLocation?.id && trimmedLocation === selectedLocation.label
+        ? selectedLocation
+        : null;
+
+    if (trimmedLocation && !matchingLocation) {
+      setLocationValidationError(
+        "Selecteaz\u0103 o loca\u021bie din lista de sugestii."
+      );
+      setLocationOpen(true);
+      return false;
+    }
+
+    setLocationValidationError(null);
 
     addQueryParam(
       query,
@@ -392,24 +501,26 @@ export default function JobsScreen() {
       "occupationId",
       occupationMatchesSelection ? selectedOccupation.id : ""
     );
-    addQueryParam(query, "location", location.trim());
+    addQueryParam(query, "location", matchingLocation?.label ?? "");
     addQueryParam(
       query,
       "locationId",
-      locationMatchesSelection ? selectedLocation.id : ""
+      matchingLocation?.id ?? ""
     );
     addQueryParam(
       query,
       "lat",
-      locationMatchesSelection && selectedLocation.latitude !== null
-        ? String(selectedLocation.latitude)
+      matchingLocation?.latitude !== null &&
+        matchingLocation?.latitude !== undefined
+        ? String(matchingLocation.latitude)
         : ""
     );
     addQueryParam(
       query,
       "lng",
-      locationMatchesSelection && selectedLocation.longitude !== null
-        ? String(selectedLocation.longitude)
+      matchingLocation?.longitude !== null &&
+        matchingLocation?.longitude !== undefined
+        ? String(matchingLocation.longitude)
         : ""
     );
     addQueryParam(query, "employmentType", employmentType);
@@ -417,8 +528,196 @@ export default function JobsScreen() {
     addQueryParam(query, "page", nextPage > 1 ? String(nextPage) : "");
 
     const queryString = query.toString();
-    router.replace(`/jobs${queryString ? `?${queryString}` : ""}` as any);
+    router.replace(`/jobs${queryString ? `?${queryString}` : ""}` as Href);
+    return true;
   }
+
+  function clearFilters() {
+    setOccupation("");
+    setLocation("");
+    setEmploymentType("");
+    setSalaryMin("");
+    setSelectedOccupation(null);
+    setSelectedLocation(null);
+    setOccupationSuggestions([]);
+    setLocationSuggestions([]);
+    setOccupationOpen(false);
+    setLocationOpen(false);
+    setLocationValidationError(null);
+    router.replace("/jobs");
+  }
+
+  function openFilterSheet() {
+    filterSnapshotRef.current = {
+      employmentType,
+      location,
+      occupation,
+      salaryMin,
+      selectedLocation,
+      selectedOccupation,
+    };
+    setFilterSheetOpen(true);
+  }
+
+  function closeFilterSheet() {
+    const snapshot = filterSnapshotRef.current;
+
+    if (snapshot) {
+      occupationRequestId.current += 1;
+      locationRequestId.current += 1;
+      setOccupation(snapshot.occupation);
+      setLocation(snapshot.location);
+      setEmploymentType(snapshot.employmentType);
+      setSalaryMin(snapshot.salaryMin);
+      setSelectedOccupation(snapshot.selectedOccupation);
+      setSelectedLocation(snapshot.selectedLocation);
+      setOccupationSuggestions([]);
+      setLocationSuggestions([]);
+      setOccupationError(null);
+      setLocationError(null);
+      setLocationValidationError(null);
+      setOccupationLoading(false);
+      setLocationLoading(false);
+      setOccupationOpen(false);
+      setLocationOpen(false);
+      setOccupationActiveIndex(-1);
+      setLocationActiveIndex(-1);
+    }
+
+    filterSnapshotRef.current = null;
+    setFilterSheetOpen(false);
+  }
+
+  function applyFilterSheet() {
+    if (!submitFilters(1)) {
+      return;
+    }
+
+    filterSnapshotRef.current = null;
+    setFilterSheetOpen(false);
+  }
+
+  function clearFilterSheet() {
+    filterSnapshotRef.current = null;
+    setFilterSheetOpen(false);
+    clearFilters();
+  }
+
+  const usesFilterSheet = responsive.isMobile || responsive.isTablet;
+  const activeLocationId =
+    selectedLocation?.id && location.trim() === selectedLocation.label
+      ? selectedLocation.id
+      : "";
+  const activeFilterCount = [
+    occupation.trim(),
+    activeLocationId,
+    employmentType,
+    salaryMin.trim(),
+  ].filter(Boolean).length;
+  const primaryFilterFields = (
+    <View
+      style={[
+        styles.filterGrid,
+        usesFilterSheet && styles.filterGridMobile,
+      ]}
+    >
+      <View
+        style={[
+          styles.inputWrap,
+          styles.occupationAutocompleteWrap,
+          { flexBasis: usesFilterSheet ? "100%" : 260 },
+        ]}
+      >
+        <HeroAutocompleteField
+          activeIndex={occupationActiveIndex}
+          emptyMessage="Nu am găsit rezultate"
+          errorMessage={occupationError}
+          fieldId="jobs-filter-occupation"
+          isOpen={occupationOpen && occupation.trim().length >= 2}
+          label="Ocupație"
+          loading={occupationLoading}
+          onActiveIndexChange={setOccupationActiveIndex}
+          onChangeText={handleOccupationTextChange}
+          onFocus={() => {
+            if (occupation.trim().length >= 2) {
+              setOccupationOpen(true);
+            }
+          }}
+          onRequestClose={() => setOccupationOpen(false)}
+          onSelect={handleOccupationSelect}
+          placeholder={t("jobs.search.whatPlaceholder")}
+          queryText={occupation}
+          suggestions={occupationOptions}
+          value={occupation}
+        />
+      </View>
+      <View
+        style={[
+          styles.inputWrap,
+          styles.locationAutocompleteWrap,
+          { flexBasis: usesFilterSheet ? "100%" : 260 },
+        ]}
+      >
+        <HeroAutocompleteField
+          activeIndex={locationActiveIndex}
+          emptyMessage="Nu am găsit rezultate"
+          errorMessage={locationValidationError ?? locationError}
+          fieldId="jobs-filter-location"
+          isOpen={locationOpen && location.trim().length >= 2}
+          label="Locație"
+          loading={locationLoading}
+          onActiveIndexChange={setLocationActiveIndex}
+          onChangeText={handleLocationTextChange}
+          onFocus={() => {
+            if (location.trim().length >= 2) {
+              setLocationOpen(true);
+            }
+          }}
+          onRequestClose={() => setLocationOpen(false)}
+          onSelect={handleLocationSelect}
+          placeholder={t("jobs.search.locationPlaceholder")}
+          queryText={location}
+          suggestions={locationOptions}
+          value={location}
+        />
+      </View>
+    </View>
+  );
+  const advancedFilterFields = (
+    <View style={styles.advancedFilters}>
+      <RabAIInput
+        keyboardType="numeric"
+        label="Salariu minim"
+        onChangeText={setSalaryMin}
+        placeholder="ex: 2000"
+        value={salaryMin}
+      />
+      <View
+        accessibilityLabel="Tipul angajării"
+        accessibilityRole="radiogroup"
+        style={styles.chipBlock}
+      >
+        <Text style={styles.filterLabel}>Tipul angajării</Text>
+        <View style={styles.chipRow}>
+          {employmentTypeOptions.map((option) => {
+            const active = employmentType === option.value;
+
+            return (
+              <RabAIButton
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+                key={option.value || "all"}
+                onPress={() => setEmploymentType(option.value)}
+                size="sm"
+                title={option.label}
+                variant={active ? "secondary" : "ghost"}
+              />
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
 
   return (
     <PageContainer maxWidth="none" padded={false} safeArea={false}>
@@ -441,154 +740,58 @@ export default function JobsScreen() {
           eyebrow={t("jobs.eyebrow")}
           style={styles.pageHeader}
           title={t("jobs.title")}
-          titleSize="hero"
         />
 
-        <RabAICard padding="lg" title={t("jobs.filterTitle")} variant="outlined">
-          <View
-            style={[
-              styles.filterGrid,
-              responsive.isMobile && styles.filterGridMobile,
-            ]}
-          >
-            <View
-              style={[
-                styles.inputWrap,
-                styles.occupationAutocompleteWrap,
-                { flexBasis: responsive.isMobile ? "100%" : 240 },
-              ]}
-            >
-              <HeroAutocompleteField
-                activeIndex={occupationActiveIndex}
-                emptyMessage="Nu am gasit rezultate"
-                errorMessage={occupationError}
-                fieldId="jobs-filter-occupation"
-                isOpen={occupationOpen && occupation.trim().length >= 2}
-                label="Ocupatie"
-                loading={occupationLoading}
-                onActiveIndexChange={setOccupationActiveIndex}
-                onChangeText={handleOccupationTextChange}
-                onFocus={() => {
-                  if (occupation.trim().length >= 2) {
-                    setOccupationOpen(true);
-                  }
-                }}
-                onRequestClose={() => {
-                  setOccupationOpen(false);
-                }}
-                onSelect={handleOccupationSelect}
-                placeholder={t("jobs.search.whatPlaceholder")}
-                queryText={occupation}
-                suggestions={occupationOptions}
-                value={occupation}
+        <FilterBar
+          actions={
+            !usesFilterSheet ? (
+              <RabAIButton
+                onPress={() => submitFilters(1)}
+                size="sm"
+                title={t("jobs.search.button")}
               />
-            </View>
-            <View
-              style={[
-                styles.inputWrap,
-                styles.locationAutocompleteWrap,
-                { flexBasis: responsive.isMobile ? "100%" : 240 },
-              ]}
-            >
-              <HeroAutocompleteField
-                activeIndex={locationActiveIndex}
-                emptyMessage="Nu am gasit rezultate"
-                errorMessage={locationError}
-                fieldId="jobs-filter-location"
-                isOpen={locationOpen && location.trim().length >= 2}
-                label="Locatie"
-                loading={locationLoading}
-                onActiveIndexChange={setLocationActiveIndex}
-                onChangeText={handleLocationTextChange}
-                onFocus={() => {
-                  if (location.trim().length >= 2) {
-                    setLocationOpen(true);
-                  }
-                }}
-                onRequestClose={() => {
-                  setLocationOpen(false);
-                }}
-                onSelect={handleLocationSelect}
-                placeholder={t("jobs.search.locationPlaceholder")}
-                queryText={location}
-                suggestions={locationOptions}
-                value={location}
-              />
-            </View>
-            <View
-              style={[
-                styles.inputWrap,
-                { flexBasis: responsive.isMobile ? "100%" : 220 },
-              ]}
-            >
-              <RabAIInput
-                keyboardType="numeric"
-                label="Salariu minim"
-                onChangeText={setSalaryMin}
-                placeholder="ex: 2000"
-                value={salaryMin}
-              />
-            </View>
-          </View>
-
-          <View
-            accessibilityLabel="Tipul angajării"
-            accessibilityRole="radiogroup"
-            style={styles.chipRow}
-          >
-            {employmentTypeOptions.map((option) => {
-              const active = employmentType === option.value;
-
-              return (
-                <RabAIButton
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: active }}
-                  key={option.value || "all"}
-                  onPress={() => {
-                    setEmploymentType(option.value);
-                  }}
-                  size="sm"
-                  title={option.label}
-                  variant={active ? "secondary" : "outline"}
-                />
-              );
-            })}
-          </View>
-
-          <RabAIButton
-            fullWidth={responsive.isMobile}
-            onPress={() => submitFilters(1)}
-            style={styles.searchButton}
-            title={t("jobs.search.button")}
-          />
-        </RabAICard>
+            ) : undefined
+          }
+          activeFilterCount={activeFilterCount}
+          compact
+          description="Caută după ocupație și locație; păstrează opțiunile avansate într-un singur loc."
+          onClearFilters={clearFilters}
+          onOpenFilters={openFilterSheet}
+          openFiltersLabel={usesFilterSheet ? "Filtrează joburile" : "Filtre avansate"}
+          title={t("jobs.filterTitle")}
+        >
+          {!usesFilterSheet ? primaryFilterFields : null}
+        </FilterBar>
 
         {loading ? (
           <LoadingState title="Se încarcă joburile..." />
         ) : error ? (
           <ErrorState
             description={error}
+            onRetry={() => setReloadAttempt((current) => current + 1)}
             title="Joburile nu au putut fi încărcate"
           />
         ) : jobs.length === 0 ? (
           <EmptyState
-            actionLabel={t("jobs.backToRabai")}
-            description="Poti modifica filtrele sau reveni mai tarziu."
-            onAction={() => router.replace(homeRoute as any)}
+            actionLabel={
+              hasPreviousPage ? "Revino la prima pagină" : t("jobs.backToRabai")
+            }
+            description={
+              hasPreviousPage
+                ? "Pagina cerută nu mai conține rezultate. Revino la începutul listei."
+                : "Poți modifica filtrele sau reveni mai târziu."
+            }
+            onAction={() =>
+              hasPreviousPage ? submitFilters(1) : router.replace(homeRoute)
+            }
             title="Momentan nu exista joburi care corespund cautarii."
           />
         ) : (
-          <RabAICard padding="lg" variant="outlined">
-            <View
-              style={[
-                styles.resultsHeader,
-                responsive.isMobile && styles.resultsHeaderMobile,
-              ]}
-            >
-              <Text style={styles.resultsTitle}>Joburi gasite</Text>
-              <Text style={styles.resultsCount}>{totalCount} rezultate</Text>
-            </View>
-
+          <Section
+            description={`${totalCount} ${totalCount === 1 ? "rezultat" : "rezultate"}`}
+            title="Joburi găsite"
+          >
+            <View style={styles.resultsList}>
             {jobs.map((job) => (
               <JobSummaryCard
                 key={job.job_id}
@@ -600,6 +803,7 @@ export default function JobsScreen() {
                 returnLabel="Înapoi la joburi"
               />
             ))}
+            </View>
 
             <View style={styles.paginationRow}>
               <RabAIButton
@@ -618,9 +822,20 @@ export default function JobsScreen() {
                 variant="outline"
               />
             </View>
-          </RabAICard>
+          </Section>
         )}
       </ScrollView>
+      <FilterSheet
+        applyLabel={t("jobs.search.button")}
+        onApply={applyFilterSheet}
+        onClear={clearFilterSheet}
+        onClose={closeFilterSheet}
+        title="Filtre joburi"
+        visible={filterSheetOpen}
+      >
+        {usesFilterSheet ? primaryFilterFields : null}
+        {advancedFilterFields}
+      </FilterSheet>
       <JobQuickView onClose={closeJobQuickView} selection={selection} />
     </PageContainer>
   );
@@ -684,6 +899,9 @@ const styles = StyleSheet.create({
   filterGridMobile: {
     flexDirection: "column",
   },
+  advancedFilters: {
+    gap: Spacing.component,
+  },
   inputWrap: {
     flexBasis: 240,
     flexGrow: 1,
@@ -699,31 +917,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.control,
-    marginTop: Spacing.component,
   },
-  searchButton: {
-    alignSelf: "flex-start",
-    marginTop: Spacing.component,
+  chipBlock: {
+    gap: Spacing.control,
   },
-  resultsHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: Spacing.component,
-  },
-  resultsHeaderMobile: {
-    alignItems: "flex-start",
-    flexDirection: "column",
-    gap: Spacing.compact,
-  },
-  resultsTitle: {
-    color: Colors.textPrimary,
-    fontSize: Typography.h4,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  resultsCount: {
+  filterLabel: {
     color: Colors.textSecondary,
-    fontSize: Typography.body,
+    fontSize: Typography.supporting,
+    fontWeight: Typography.fontWeight.semibold,
+  },
+  resultsList: {
+    borderTopColor: Colors.border,
+    borderTopWidth: 1,
   },
   paginationRow: {
     alignItems: "center",

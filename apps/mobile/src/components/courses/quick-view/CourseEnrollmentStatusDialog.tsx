@@ -1,4 +1,12 @@
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
+import { useReducedMotion } from "@/components/ui/useReducedMotion";
+import {
+  Colors,
+  ControlHeight,
+  Radius,
+  Shadows,
+  Spacing,
+  Typography,
+} from "@/theme";
 import { useEffect, useRef } from "react";
 import {
   Modal,
@@ -42,6 +50,17 @@ type FocusTarget = {
   focus: () => void;
 };
 
+type GlobalKeyboardTarget = {
+  addEventListener?: (
+    type: "keydown",
+    listener: (event: { key?: string }) => void
+  ) => void;
+  removeEventListener?: (
+    type: "keydown",
+    listener: (event: { key?: string }) => void
+  ) => void;
+};
+
 const pointerWebStyle =
   Platform.OS === "web"
     ? ({ cursor: "pointer" } as unknown as ViewStyle)
@@ -72,7 +91,9 @@ function CourseEnrollmentStatusDialogPanel({
 }: CourseEnrollmentStatusDialogProps) {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const closeButtonRef = useRef<View | null>(null);
+  const returnFocusRef = useRef<FocusTarget | null>(null);
   const canWithdraw = canWithdrawCourseEnrollment(enrollment.status);
   const horizontalPadding = Spacing.three;
   const topPadding = Math.max(insets.top, Spacing.three);
@@ -84,20 +105,46 @@ function CourseEnrollmentStatusDialogPanel({
   const dialogMaxHeight = Math.max(height - topPadding - bottomPadding, 0);
 
   useEffect(() => {
-    if (Platform.OS !== "web") {
+    if (!visible || Platform.OS !== "web") {
       return;
     }
+
+    returnFocusRef.current = globalThis.document
+      ?.activeElement as FocusTarget | null;
 
     const focusTimer = setTimeout(() => {
       focusIfAvailable(closeButtonRef.current);
     }, 0);
 
-    return () => clearTimeout(focusTimer);
-  }, []);
+    return () => {
+      clearTimeout(focusTimer);
+      const target = returnFocusRef.current;
+      returnFocusRef.current = null;
+      setTimeout(() => focusIfAvailable(target), 0);
+    };
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible || Platform.OS !== "web") {
+      return;
+    }
+
+    const keyboardTarget = globalThis as unknown as GlobalKeyboardTarget;
+    const handleKeyDown = (event: { key?: string }) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    keyboardTarget.addEventListener?.("keydown", handleKeyDown);
+    return () => {
+      keyboardTarget.removeEventListener?.("keydown", handleKeyDown);
+    };
+  }, [onClose, visible]);
 
   return (
     <Modal
-      animationType="fade"
+      animationType={reducedMotion ? "none" : "fade"}
       onRequestClose={onClose}
       presentationStyle="overFullScreen"
       transparent
@@ -123,6 +170,7 @@ function CourseEnrollmentStatusDialogPanel({
         <View
           accessibilityLabel={`Starea înscrierii la cursul ${courseTitle}`}
           accessibilityViewIsModal
+          onAccessibilityEscape={onClose}
           role="dialog"
           style={[
             styles.dialog,
@@ -338,7 +386,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(6, 14, 34, 0.68)",
+    backgroundColor: Colors.overlayStrong,
   },
   dialog: {
     backgroundColor: Colors.surface,
@@ -376,8 +424,8 @@ const styles = StyleSheet.create({
     lineHeight: 26,
   },
   statusBadge: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: "#C9D9FF",
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: Colors.informationBorder,
     borderRadius: Radius.round,
     borderWidth: 1,
     paddingHorizontal: Spacing.lg,
@@ -389,8 +437,8 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.extraBold,
   },
   successNotice: {
-    backgroundColor: "#ECFDF5",
-    borderColor: "#A7F3D0",
+    backgroundColor: Colors.successSurface,
+    borderColor: Colors.successBorder,
     borderRadius: Radius.lg,
     borderWidth: 1,
     color: Colors.success,
@@ -473,7 +521,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: ControlHeight.minimumTouch,
     paddingHorizontal: Spacing.three,
   },
   verificationRetryButtonFocus: {
@@ -531,8 +579,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   dangerButtonHover: {
-    backgroundColor: "#BE123C",
-    borderColor: "#BE123C",
+    backgroundColor: Colors.danger,
+    borderColor: Colors.danger,
   },
   dangerButtonDisabled: {
     opacity: 0.55,

@@ -17,6 +17,7 @@ import {
   findNodeHandle,
   useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Breakpoints,
   Colors,
@@ -30,49 +31,55 @@ import {
 import { RabAIButton } from "./Button";
 import { useReducedMotion } from "./useReducedMotion";
 
-export type ConfirmationDialogProps = {
+export type FilterSheetProps = {
   visible: boolean;
   title: string;
   description?: string;
-  children?: ReactNode;
-  confirmLabel: string;
-  cancelLabel?: string;
-  destructive?: boolean;
-  loading?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  onClose: () => void;
+  closeLabel?: string;
+  onApply?: () => void;
+  applyLabel?: string;
+  applying?: boolean;
+  applyDisabled?: boolean;
+  onClear?: () => void;
+  clearLabel?: string;
   returnFocusRef?: RefObject<View | null>;
   testID?: string;
 };
 
 type FocusTarget = View | { focus?: () => void };
 
-export default function ConfirmationDialog({
-  cancelLabel = "Anulează",
+export default function FilterSheet({
+  applyDisabled = false,
+  applyLabel = "Aplică filtrele",
+  applying = false,
   children,
-  confirmLabel,
+  clearLabel = "Resetează",
+  closeLabel = "Închide",
   description,
-  destructive = false,
-  loading = false,
-  onCancel,
-  onConfirm,
+  footer,
+  onApply,
+  onClear,
+  onClose,
   returnFocusRef,
   testID,
   title,
   visible,
-}: ConfirmationDialogProps) {
+}: FilterSheetProps) {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
-  const cancelRef = useRef<View>(null);
-  const confirmRef = useRef<View>(null);
+  const closeRef = useRef<View>(null);
   const automaticReturnFocusRef = useRef<FocusTarget | null>(null);
-  const cancelRequestedRef = useRef(false);
+  const closeRequestedRef = useRef(false);
   const focusRestoredRef = useRef(false);
   const focusRestoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
   const wasVisibleRef = useRef(false);
-  const compact = width < Breakpoints.mobile;
+  const drawer = width >= Breakpoints.tablet;
   const focusRestoreDelay = reducedMotion
     ? Motion.duration.instant
     : Motion.duration.deliberate;
@@ -112,14 +119,14 @@ export default function ConfirmationDialog({
     }, focusRestoreDelay);
   }, [focusRestoreDelay, restoreFocus]);
 
-  const requestCancel = useCallback(() => {
-    if (loading || cancelRequestedRef.current) {
+  const requestClose = useCallback(() => {
+    if (applying || closeRequestedRef.current) {
       return;
     }
 
-    cancelRequestedRef.current = true;
-    onCancel();
-  }, [loading, onCancel]);
+    closeRequestedRef.current = true;
+    onClose();
+  }, [applying, onClose]);
 
   useEffect(() => {
     if (visible) {
@@ -129,7 +136,7 @@ export default function ConfirmationDialog({
       }
 
       automaticReturnFocusRef.current = null;
-      cancelRequestedRef.current = false;
+      closeRequestedRef.current = false;
       focusRestoredRef.current = false;
 
       if (Platform.OS === "web") {
@@ -148,7 +155,7 @@ export default function ConfirmationDialog({
       return;
     }
 
-    const timeoutId = setTimeout(() => focusNode(cancelRef.current), 0);
+    const timeoutId = setTimeout(() => focusNode(closeRef.current), 0);
     return () => clearTimeout(timeoutId);
   }, [visible]);
 
@@ -156,64 +163,91 @@ export default function ConfirmationDialog({
     <Modal
       animationType={reducedMotion ? "none" : "fade"}
       onDismiss={completeFocusRestore}
-      onRequestClose={requestCancel}
+      onRequestClose={requestClose}
       transparent
       visible={visible}
     >
-      <View style={styles.layer}>
+      <View style={[styles.layer, drawer && styles.layerDrawer]}>
         <Pressable
-          accessibilityLabel="Închide dialogul"
+          accessibilityLabel={closeLabel}
           accessibilityRole="button"
-          disabled={loading}
-          onPress={requestCancel}
+          disabled={applying}
+          onPress={requestClose}
           style={styles.backdrop}
         />
         <View
           accessibilityLabel={title}
           accessibilityViewIsModal
-          onAccessibilityEscape={requestCancel}
+          onAccessibilityEscape={requestClose}
           role="dialog"
-          style={[styles.dialog, compact && styles.dialogCompact]}
+          style={[
+            styles.sheet,
+            drawer ? styles.drawer : styles.bottomSheet,
+            {
+              paddingBottom: Math.max(insets.bottom, Spacing.inline),
+              paddingTop: drawer
+                ? Math.max(insets.top, Spacing.component)
+                : Spacing.component,
+            },
+          ]}
           testID={testID}
         >
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator
-            style={styles.scroll}
-          >
-            <Text accessibilityRole="header" style={styles.title}>
-              {title}
-            </Text>
-            {description ? (
-              <Text style={styles.description}>{description}</Text>
-            ) : null}
-            {children ? <View style={styles.content}>{children}</View> : null}
-          </ScrollView>
-          <View style={[styles.actions, compact && styles.actionsCompact]}>
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text accessibilityRole="header" style={styles.title}>
+                {title}
+              </Text>
+              {description ? (
+                <Text style={styles.description}>{description}</Text>
+              ) : null}
+            </View>
             <RabAIButton
-              ref={cancelRef}
-              disabled={loading}
-              fullWidth={compact}
-              onPress={requestCancel}
-              title={cancelLabel}
-              variant="outline"
-            />
-            <RabAIButton
-              ref={confirmRef}
-              fullWidth={compact}
-              loading={loading}
-              loadingLabel={confirmLabel}
-              onPress={onConfirm}
-              title={confirmLabel}
-              variant={destructive ? "destructive" : "primary"}
+              ref={closeRef}
+              disabled={applying}
+              onPress={requestClose}
+              size="sm"
+              title={closeLabel}
+              variant="ghost"
             />
           </View>
+
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
+
+          {footer ? <View style={styles.footerContent}>{footer}</View> : null}
+          {onApply || onClear ? (
+            <View style={styles.actions}>
+              {onClear ? (
+                <RabAIButton
+                  disabled={applying}
+                  onPress={onClear}
+                  title={clearLabel}
+                  variant="ghost"
+                />
+              ) : null}
+              {onApply ? (
+                <RabAIButton
+                  disabled={applyDisabled}
+                  loading={applying}
+                  loadingLabel={applyLabel}
+                  onPress={onApply}
+                  title={applyLabel}
+                />
+              ) : null}
+            </View>
+          ) : null}
         </View>
       </View>
     </Modal>
   );
 }
+
+export { FilterSheet, FilterSheet as FilterDrawer };
 
 function focusNode(node: FocusTarget | null): boolean {
   if (!node) {
@@ -244,39 +278,52 @@ function focusNode(node: FocusTarget | null): boolean {
 const styles = StyleSheet.create({
   layer: {
     ...StyleSheet.absoluteFill,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: Spacing.component,
+    justifyContent: "flex-end",
     zIndex: Layers.modal,
+  },
+  layerDrawer: {
+    alignItems: "flex-end",
+    justifyContent: "flex-start",
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
     backgroundColor: Colors.overlay,
   },
-  dialog: {
+  sheet: {
     backgroundColor: Colors.surfaceElevated,
-    borderColor: Colors.border,
-    borderRadius: Radius.dialog,
-    borderWidth: 1,
-    maxHeight: "90%",
-    maxWidth: 520,
+    maxHeight: "92%",
     minHeight: 0,
     minWidth: 0,
-    padding: Spacing.section,
-    width: "100%",
+    paddingHorizontal: Spacing.component,
     ...Shadows.floating,
   },
-  dialogCompact: {
-    borderRadius: Radius.panel,
-    padding: Spacing.component,
+  bottomSheet: {
+    borderColor: Colors.border,
+    borderTopLeftRadius: Radius.dialog,
+    borderTopRightRadius: Radius.dialog,
+    borderWidth: 1,
+    width: "100%",
   },
-  scroll: {
-    flexShrink: 1,
-    minHeight: 0,
+  drawer: {
+    borderLeftColor: Colors.border,
+    borderLeftWidth: 1,
+    height: "100%",
+    maxHeight: "100%",
+    maxWidth: 480,
+    width: "92%",
+  },
+  header: {
+    alignItems: "flex-start",
+    borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    gap: Spacing.inline,
+    justifyContent: "space-between",
+    paddingBottom: Spacing.inline,
+  },
+  headerCopy: {
+    flex: 1,
     minWidth: 0,
-  },
-  scrollContent: {
-    flexGrow: 1,
   },
   title: {
     color: Colors.textPrimary,
@@ -285,13 +332,19 @@ const styles = StyleSheet.create({
     lineHeight: Typography.lineHeight.pageTitle,
   },
   description: {
-    color: Colors.textSecondary,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.control,
+    color: Colors.textMuted,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
+    marginTop: Spacing.compact,
   },
   content: {
-    marginTop: Spacing.component,
+    gap: Spacing.component,
+    paddingVertical: Spacing.component,
+  },
+  footerContent: {
+    borderTopColor: Colors.border,
+    borderTopWidth: 1,
+    paddingTop: Spacing.inline,
   },
   actions: {
     alignItems: "center",
@@ -301,11 +354,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: Spacing.control,
     justifyContent: "flex-end",
-    marginTop: Spacing.component,
-    paddingTop: Spacing.component,
-  },
-  actionsCompact: {
-    alignItems: "stretch",
-    flexDirection: "column-reverse",
+    paddingTop: Spacing.inline,
   },
 });

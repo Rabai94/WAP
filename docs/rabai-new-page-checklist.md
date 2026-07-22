@@ -42,15 +42,15 @@ Acest checklist este obligatoriu pentru orice pagină nouă și modificare struc
 - [ ] Loading, error, empty și normal sunt mutual exclusive; retry-ul este real când este posibil.
 - [ ] Fiecare control are handler real, `accessibilityRole`, label, state, focus vizibil și target de minimum 44 × 44 px.
 - [ ] Nu există nested `Pressable`; statusurile nu depind doar de culoare.
-- [ ] Pagina nu are overflow la 320 px și se comportă corect la 768, 1024, 1366 și 1920 px.
+- [ ] Pagina nu are overflow la 320 px și se comportă corect la 768, 1024, 1025, 1366 și 1920 px; shell-ul nu sare paradoxal între 1024 și 1025.
 - [ ] Textele lungi, localizările, dropdown-urile și dialogurile rămân în viewport.
 - [ ] Motion respectă `prefers-reduced-motion`.
 
-## Design Lab
+## Eliminarea Design Lab
 
-- [ ] O rută `/design-lab` este marcată „Preview local”, izolată de shell și de datele reale.
-- [ ] Tokenii experimentali rămân locali în lab și nu sunt importați de produsul real.
-- [ ] Conceptul aprobat este migrat în tokenii și primitivele globale înainte de producție.
+- [ ] Nu există ruta `/design-lab`, variante `engine-a`/`engine-b`/`engine-c` sau preview Signature în arborele de producție.
+- [ ] Nu există `experimentalTokens`, importuri din design-lab ori componente preview în produs sau export.
+- [ ] Orice concept aprobat este implementat numai prin tokenii și primitivele globale RabAI Signature.
 
 ## Validare înainte de predare
 
@@ -58,6 +58,7 @@ Din root:
 
 ```powershell
 npm.cmd run ui:audit
+npm.cmd run ui:audit -- --strict
 git diff --check
 git status --short
 git diff --stat
@@ -68,6 +69,8 @@ Din `apps/mobile`:
 ```powershell
 npm.cmd run lint
 npm.cmd run typecheck
+npx.cmd expo install --check
+npx.cmd expo export --platform all --output-dir .expo\rabai-signature-final
 ```
 
 - [ ] Am raportat orice validare care nu a putut fi rulată și orice abatere justificată.

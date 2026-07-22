@@ -1,4 +1,4 @@
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Radius, Typography } from "@/theme";
 import { Image } from "expo-image";
 import { useState } from "react";
 import {
@@ -45,7 +45,7 @@ export default function OrganizationAvatar({
       style={[
         styles.avatar,
         {
-          borderRadius: size <= 52 ? Radius.lg : Radius.card,
+          borderRadius: size <= 52 ? Radius.control : Radius.panel,
           height: size,
           width: size,
         },
@@ -68,7 +68,7 @@ export default function OrganizationAvatar({
           maxFontSizeMultiplier={1.4}
           style={[
             styles.initials,
-            { fontSize: Math.max(Typography.small, Math.round(size * 0.3)) },
+            { fontSize: Math.max(Typography.caption, Math.round(size * 0.3)) },
           ]}
         >
           {getOrganizationInitials(name)}
@@ -81,20 +81,19 @@ export default function OrganizationAvatar({
 const styles = StyleSheet.create({
   avatar: {
     alignItems: "center",
-    backgroundColor: Colors.brandSoft,
-    borderColor: Colors.white,
-    borderWidth: 3,
+    backgroundColor: Colors.goldMuted,
+    borderColor: Colors.surfaceElevated,
+    borderWidth: 2,
     justifyContent: "center",
     overflow: "hidden",
-    padding: Spacing.none,
   },
   image: {
     height: "100%",
     width: "100%",
   },
   initials: {
-    color: Colors.brandDeep,
-    fontWeight: Typography.fontWeight.black,
-    letterSpacing: 0.4,
+    color: Colors.goldPressed,
+    fontWeight: Typography.fontWeight.semibold,
+    letterSpacing: Typography.letterSpacing.normal,
   },
 });

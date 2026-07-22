@@ -1,50 +1,63 @@
+const typeScale = {
+  pageTitle: 32,
+  sectionHeading: 22,
+  body: 16,
+  supporting: 14,
+  caption: 13,
+} as const;
+
+const lineHeightScale = {
+  pageTitle: 40,
+  heading: 28,
+  body: 24,
+  supporting: 20,
+  compact: 18,
+} as const;
+
+/**
+ * Five canonical RabAI Signature typography roles.
+ *
+ * Compatibility aliases intentionally resolve to this same scale, including
+ * the historical `small` role, so product text never falls below 13px.
+ */
 export const Typography = {
   fontFamily: {
     sans: undefined,
     mono: "monospace",
   },
 
-  h1: 32,
-  h2: 28,
-  h3: 24,
-  h4: 20,
-  display: 48,
-  logo: 42,
-  icon: 54,
-  hero: 36,
-  screenTitle: 34,
-  title: 32,
-  headline: 28,
-  cardTitleLarge: 22,
-  cardTitle: 21,
-  roleCard: 20,
-  total: 18,
-  button: 17,
-  body: 16,
-  bodySmall: 14,
-  label: 15,
-  caption: 14,
-  small: 12,
+  pageTitle: typeScale.pageTitle,
+  sectionHeading: typeScale.sectionHeading,
+  body: typeScale.body,
+  supporting: typeScale.supporting,
+  caption: typeScale.caption,
 
   lineHeight: {
-    tight: 18,
-    compact: 20,
-    body: 21,
-    default: 24,
-    relaxed: 26,
-    link: 30,
-    subtitle: 22,
-    display: 52,
-    subtitleLarge: 44,
+    pageTitle: lineHeightScale.pageTitle,
+    heading: lineHeightScale.heading,
+    body: lineHeightScale.body,
+    supporting: lineHeightScale.supporting,
+    compact: lineHeightScale.compact,
+
+    // Compatibility aliases.
+    tight: lineHeightScale.compact,
+    default: lineHeightScale.body,
+    relaxed: lineHeightScale.heading,
+    link: lineHeightScale.body,
+    subtitle: lineHeightScale.heading,
+    display: lineHeightScale.pageTitle,
+    subtitleLarge: lineHeightScale.pageTitle,
   },
 
   fontWeight: {
     regular: "400",
     medium: "500",
     semibold: "600",
-    bold: "700",
-    extraBold: "800",
-    black: "900",
+
+    // Compatibility aliases; the active system uses three weights.
+    bold: "600",
+    extraBold: "600",
+    black: "600",
   },
 
   letterSpacing: {
@@ -53,4 +66,25 @@ export const Typography = {
     label: 0.1,
     eyebrow: 0.7,
   },
+
+  // Compatibility aliases. New code should use the five roles above.
+  h1: typeScale.pageTitle,
+  h2: typeScale.pageTitle,
+  h3: typeScale.sectionHeading,
+  h4: typeScale.sectionHeading,
+  display: typeScale.pageTitle,
+  logo: typeScale.pageTitle,
+  icon: typeScale.pageTitle,
+  hero: typeScale.pageTitle,
+  screenTitle: typeScale.pageTitle,
+  title: typeScale.pageTitle,
+  headline: typeScale.sectionHeading,
+  cardTitleLarge: typeScale.sectionHeading,
+  cardTitle: typeScale.sectionHeading,
+  roleCard: typeScale.sectionHeading,
+  total: typeScale.sectionHeading,
+  button: typeScale.body,
+  bodySmall: typeScale.supporting,
+  label: typeScale.caption,
+  small: typeScale.caption,
 } as const;

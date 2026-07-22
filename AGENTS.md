@@ -67,6 +67,7 @@ Before writing any Expo or React Native code:
 - Use accessible colors and spacing.
 - For any page work, read `docs/rabai-design-system.md` and complete `docs/rabai-new-page-checklist.md`.
 - `docs/rabai-design-system.md` is the single source of truth for visual direction, tokens, shell, component composition and responsive UI patterns. Do not duplicate or override those visual rules here.
+- Production source must not contain Design Lab routes/imports, experimental theme tokens, or permanent floating overlays; validate page work with `npm.cmd run ui:audit -- --strict`.
 
 ---
 

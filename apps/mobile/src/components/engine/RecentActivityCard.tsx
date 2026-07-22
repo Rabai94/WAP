@@ -8,6 +8,7 @@ import {
   type CourseEnrollmentSnapshot,
 } from "@/components/courses/quick-view/courseQuickViewData";
 import { useCourseEnrollmentMap } from "@/components/courses/quick-view/useCourseEnrollmentMap";
+import { RabAIButton } from "@/components/ui";
 import {
   listCompanyApplications,
   listWorkerApplications,
@@ -17,8 +18,14 @@ import {
 import { useLanguage } from "@/i18n/LanguageProvider";
 import type { LanguageCode } from "@/i18n/translations";
 import { useAuth } from "@/providers/AuthProvider";
-import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Colors,
+  ControlHeight,
+  Radius,
+  Spacing,
+  Typography,
+} from "@/theme";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -47,6 +54,7 @@ type ActivityCopy = {
   error: string;
   loading: string;
   partialError: string;
+  retry: string;
   statuses: Record<string, string>;
   subtitle: string;
   title: string;
@@ -74,6 +82,7 @@ const copyByLanguage = {
     error: "Activitatea nu a putut fi încărcată momentan.",
     loading: "Se încarcă activitatea recentă...",
     partialError: "Unele surse de activitate nu au putut fi încărcate.",
+    retry: "Încearcă din nou",
     statuses: {
       accepted: "Acceptată",
       active: "Activă",
@@ -113,6 +122,7 @@ const copyByLanguage = {
     error: "Activity could not be loaded right now.",
     loading: "Loading recent activity...",
     partialError: "Some activity sources could not be loaded.",
+    retry: "Try again",
     statuses: {
       accepted: "Accepted",
       active: "Active",
@@ -152,6 +162,7 @@ const copyByLanguage = {
     error: "Die Aktivität konnte derzeit nicht geladen werden.",
     loading: "Aktuelle Aktivität wird geladen...",
     partialError: "Einige Aktivitätsquellen konnten nicht geladen werden.",
+    retry: "Erneut versuchen",
     statuses: {
       accepted: "Angenommen",
       active: "Aktiv",
@@ -204,63 +215,72 @@ export default function RecentActivityCard({
   const [items, setItems] = useState<RecentActivityItem[]>([]);
   const [failedSourceCount, setFailedSourceCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const activityRequestId = useRef(0);
 
-  useEffect(() => {
+  const loadActivity = useCallback(async () => {
     if (!userId) {
+      setItems([]);
+      setFailedSourceCount(0);
+      setLoading(false);
       return;
     }
 
     const activeUserId = userId;
-    let mounted = true;
+    const requestId = ++activityRequestId.current;
+    setLoading(true);
+    setFailedSourceCount(0);
 
-    async function loadActivity() {
-      try {
-        const results = await Promise.allSettled([
-          listWorkerApplications(),
-          listCompanyApplications(),
-          fetchCachedCourseEnrollments(activeUserId),
-          listProviderCourseEnrollments(),
-        ]);
+    try {
+      const results = await Promise.allSettled([
+        listWorkerApplications(),
+        listCompanyApplications(),
+        fetchCachedCourseEnrollments(activeUserId),
+        listProviderCourseEnrollments(),
+      ]);
 
-        if (!mounted) {
-          return;
-        }
+      if (activityRequestId.current !== requestId) {
+        return;
+      }
 
-        const [
-          workerApplications,
-          companyApplications,
-          userEnrollments,
-          providerEnrollments,
-        ] = results;
-        const normalizedItems = [
-          ...collectFulfilled(workerApplications, normalizeWorkerApplication),
-          ...collectFulfilled(companyApplications, normalizeCompanyApplication),
-          ...collectFulfilled(userEnrollments, normalizeUserEnrollment),
-          ...collectFulfilled(providerEnrollments, normalizeProviderEnrollment),
-        ].sort(compareActivityDescending);
+      const [
+        workerApplications,
+        companyApplications,
+        userEnrollments,
+        providerEnrollments,
+      ] = results;
+      const normalizedItems = [
+        ...collectFulfilled(workerApplications, normalizeWorkerApplication),
+        ...collectFulfilled(companyApplications, normalizeCompanyApplication),
+        ...collectFulfilled(userEnrollments, normalizeUserEnrollment),
+        ...collectFulfilled(providerEnrollments, normalizeProviderEnrollment),
+      ].sort(compareActivityDescending);
 
-        setItems(normalizedItems);
-        setFailedSourceCount(
-          results.filter((result) => result.status === "rejected").length
-        );
-      } catch {
-        if (mounted) {
-          setItems([]);
-          setFailedSourceCount(activitySourceCount);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
+      setItems(normalizedItems);
+      setFailedSourceCount(
+        results.filter((result) => result.status === "rejected").length
+      );
+    } catch {
+      if (activityRequestId.current === requestId) {
+        setItems([]);
+        setFailedSourceCount(activitySourceCount);
+      }
+    } finally {
+      if (activityRequestId.current === requestId) {
+        setLoading(false);
       }
     }
+  }, [userId]);
 
-    void loadActivity();
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void loadActivity();
+    }, 0);
 
     return () => {
-      mounted = false;
+      clearTimeout(timeoutId);
+      activityRequestId.current += 1;
     };
-  }, [userId]);
+  }, [loadActivity]);
 
   const visibleItems = useMemo(
     () => {
@@ -325,6 +345,12 @@ export default function RecentActivityCard({
       ) : allSourcesFailed ? (
         <View accessibilityLiveRegion="polite" style={styles.errorContainer}>
           <Text style={styles.errorText}>{copy.error}</Text>
+          <RabAIButton
+            onPress={() => void loadActivity()}
+            size="sm"
+            title={copy.retry}
+            variant="outline"
+          />
         </View>
       ) : (
         <>
@@ -334,6 +360,12 @@ export default function RecentActivityCard({
               style={styles.warningContainer}
             >
               <Text style={styles.warningText}>{copy.partialError}</Text>
+              <RabAIButton
+                onPress={() => void loadActivity()}
+                size="sm"
+                title={copy.retry}
+                variant="outline"
+              />
             </View>
           ) : null}
 
@@ -570,45 +602,38 @@ function formatActivityDate(
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.borderMuted,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    padding: Spacing.screen,
+    marginBottom: Spacing.section,
     width: "100%",
-    ...Shadows.card,
   },
   header: {
     alignItems: "flex-start",
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.inline,
   },
   headingWrap: {
     flex: 1,
     minWidth: 0,
   },
   title: {
-    color: Colors.text,
-    fontSize: Typography.cardTitle,
-    fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: 27,
+    color: Colors.textPrimary,
+    fontSize: Typography.sectionHeading,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.heading,
   },
   subtitle: {
     color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.xs,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
+    marginTop: Spacing.compact,
   },
   stateContainer: {
     alignItems: "center",
     backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.borderMuted,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
+    borderRadius: Radius.control,
     gap: Spacing.md,
     justifyContent: "center",
-    minHeight: 112,
+    minHeight: ControlHeight.large * 2,
     padding: Spacing.five,
   },
   stateText: {
@@ -624,10 +649,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   errorContainer: {
-    backgroundColor: "#FFF1F6",
-    borderColor: "rgba(225, 29, 72, 0.18)",
-    borderRadius: Radius.xl,
+    alignItems: "flex-start",
+    backgroundColor: Colors.dangerSurface,
+    borderColor: Colors.dangerBorder,
+    borderRadius: Radius.control,
     borderWidth: 1,
+    gap: Spacing.control,
     padding: Spacing.three,
   },
   errorText: {
@@ -637,42 +664,40 @@ const styles = StyleSheet.create({
     lineHeight: Typography.lineHeight.body,
   },
   warningContainer: {
+    alignItems: "flex-start",
     backgroundColor: Colors.warningSurface,
     borderColor: Colors.warningBorder,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.control,
     borderWidth: 1,
+    gap: Spacing.control,
     marginBottom: Spacing.md,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.xl,
   },
   warningText: {
     color: Colors.textBody,
-    fontSize: Typography.small,
-    lineHeight: 18,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
   },
   activityList: {
-    borderColor: Colors.borderMuted,
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    overflow: "hidden",
+    minWidth: 0,
   },
   activityRow: {
     alignItems: "flex-start",
-    backgroundColor: Colors.surface,
-    borderBottomColor: Colors.borderMuted,
+    borderBottomColor: Colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.xl,
     justifyContent: "space-between",
-    padding: Spacing.three,
+    paddingVertical: Spacing.component,
   },
   activityRowLast: {
     borderBottomWidth: 0,
   },
   activityBody: {
     flex: 1,
-    minWidth: 200,
+    minWidth: 0,
   },
   badgeRow: {
     alignItems: "center",
@@ -681,15 +706,15 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   typeBadge: {
-    backgroundColor: Colors.brandSoft,
+    backgroundColor: Colors.goldMuted,
     borderRadius: Radius.round,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.xs,
   },
   typeBadgeText: {
-    color: Colors.brandDeep,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
+    color: Colors.goldPressed,
+    fontSize: Typography.caption,
+    fontWeight: Typography.fontWeight.semibold,
   },
   statusBadge: {
     backgroundColor: Colors.surfaceMuted,
@@ -701,13 +726,13 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     color: Colors.textSecondary,
-    fontSize: Typography.small,
+    fontSize: Typography.caption,
     fontWeight: Typography.fontWeight.semibold,
   },
   activityTitle: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     lineHeight: Typography.lineHeight.body,
     marginTop: Spacing.md,
   },
@@ -720,8 +745,8 @@ const styles = StyleSheet.create({
   activityDate: {
     color: Colors.textMuted,
     flexShrink: 0,
-    fontSize: Typography.small,
-    lineHeight: 18,
+    fontSize: Typography.caption,
+    lineHeight: Typography.lineHeight.compact,
     paddingTop: Spacing.xs,
   },
 });

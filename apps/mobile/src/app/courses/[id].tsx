@@ -16,7 +16,19 @@ import {
   type CourseEnrollmentSnapshot,
 } from "@/components/courses/quick-view/courseQuickViewData";
 import { useCourseEnrollmentMap } from "@/components/courses/quick-view/useCourseEnrollmentMap";
-import { Button, Card, Header, Screen } from "@/components/ui";
+import PublicHeader from "@/components/navigation/PublicHeader";
+import {
+  DefinitionList,
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  Section,
+  StatusBadge,
+  type DefinitionListItem,
+  type RabAIBadgeTone,
+} from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -30,10 +42,10 @@ import {
   type UserCourseEnrollment,
 } from "@/services/courses/courseService";
 import { buildLoginPath } from "@/services/auth/authNavigation";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function CourseDetailsScreen() {
   const router = useRouter();
@@ -509,154 +521,142 @@ export default function CourseDetailsScreen() {
         : loadingEnrollmentContext
           ? "Se verifică…"
           : "Înscrie-te";
+  const detailItems: DefinitionListItem[] = course
+    ? [
+        { label: "Furnizor", value: course.provider_name },
+        { label: "Categorie", value: localizedCategory(course, language) },
+        { label: "Locație", value: formatLocation(course) },
+        { label: "Format", value: formatDeliveryMode(course.delivery_mode) },
+        { label: "Limbă", value: formatLanguage(course.language_code) },
+        { label: "Preț", value: formatPrice(course) },
+        { label: "Durată", value: formatDuration(course) },
+        { label: "Nivel", value: formatLevel(course.level) },
+        { label: "Start", value: formatDate(course.start_date, language) },
+        { label: "Final", value: formatDate(course.end_date, language) },
+        {
+          label: "Termen înscriere",
+          value: formatDate(course.enrollment_deadline, language),
+        },
+        { label: "Capacitate", value: formatCapacity(course) },
+        { label: "Locuri disponibile", value: formatAvailableSpots(course) },
+        {
+          label: "Certificat",
+          value: formatCertificate(course.certificate_available),
+        },
+      ]
+    : [];
+  const providerItems: DefinitionListItem[] = course
+    ? [
+        { label: "Website", value: course.provider_website ?? "" },
+        { label: "Email", value: course.provider_email ?? "" },
+        { label: "Telefon", value: course.provider_phone ?? "" },
+      ].filter((item) => String(item.value).trim().length > 0)
+    : [];
 
   return (
-    <Screen centered={false}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.replace(returnPath as any)}
-            style={styles.backButton}
-          >
-            <Text style={styles.backButtonText}>{returnLabel}</Text>
-          </Pressable>
-        </View>
-
+    <View style={styles.screen}>
+      <PageContainer maxWidth="content" scroll scrollEnabled={!confirmVisible && !statusDialogVisible && !withdrawalConfirmVisible}>
+        {!session ? <PublicHeader active="courses" /> : null}
         {loading ? (
           <>
-            <Header title="Se incarca cursul" subtitle="Verificam detaliile cursului." />
-            <Card>
-              <Text style={styles.mutedText}>Se incarca...</Text>
-            </Card>
+            <PageHeader
+              backLabel={returnLabel}
+              description="Verificăm disponibilitatea și informațiile publice."
+              onBack={() => router.replace(returnPath as never)}
+              title="Se încarcă cursul"
+            />
+            <LoadingState title="Se încarcă detaliile cursului..." />
           </>
         ) : error ? (
           <>
-            <Header title="Curs indisponibil" subtitle="Acest curs nu poate fi afisat momentan." />
-            <Card>
-              <Text style={styles.errorText}>{error}</Text>
-            </Card>
+            <PageHeader
+              backLabel={returnLabel}
+              description="Acest curs nu poate fi afișat momentan."
+              onBack={() => router.replace(returnPath as never)}
+              title="Curs indisponibil"
+            />
+            <ErrorState description={error} title="Cursul nu este disponibil" />
           </>
         ) : course ? (
           <>
-            <Header
+            <PageHeader
+              actions={
+                existingEnrollment ? (
+                  <RabAIButton
+                    onPress={requestStatusDialog}
+                    title="Vezi starea"
+                  />
+                ) : (
+                  <RabAIButton
+                    disabled={
+                      submitting ||
+                      loadingEnrollmentContext ||
+                      !enrollmentAvailability.available
+                    }
+                    loading={submitting || loadingEnrollmentContext}
+                    onPress={requestEnrollment}
+                    title={enrollmentButtonLabel}
+                  />
+                )
+              }
+              backLabel={returnLabel}
+              description={formatCourseSubtitle(course)}
+              onBack={() => router.replace(returnPath as never)}
               title={course.title}
-              subtitle={formatCourseSubtitle(course)}
             />
 
-            <Card title="Detalii curs">
-              <View style={styles.infoGrid}>
-                <InfoLine label="Provider" value={course.provider_name} />
-                <InfoLine label="Categorie" value={localizedCategory(course, language)} />
-                <InfoLine label="Locație" value={formatLocation(course)} />
-                <InfoLine label="Mod" value={formatDeliveryMode(course.delivery_mode)} />
-                <InfoLine label="Limbă" value={formatLanguage(course.language_code)} />
-                <InfoLine label="Preț" value={formatPrice(course)} />
-                <InfoLine label="Durată" value={formatDuration(course)} />
-                <InfoLine label="Nivel" value={formatLevel(course.level)} />
-                <InfoLine label="Start" value={formatDate(course.start_date, language)} />
-                <InfoLine label="Final" value={formatDate(course.end_date, language)} />
-                <InfoLine
-                  label="Deadline înscriere"
-                  value={formatDate(course.enrollment_deadline, language)}
-                />
-                <InfoLine label="Capacitate" value={formatCapacity(course)} />
-                <InfoLine
-                  label="Locuri disponibile"
-                  value={formatAvailableSpots(course)}
-                />
-                <InfoLine
-                  label="Certificat"
-                  value={formatCertificate(course.certificate_available)}
-                />
+            {enrollmentNotice ? (
+              <View accessibilityLiveRegion="polite" style={styles.successNotice}>
+                <Text style={styles.successText}>{enrollmentNotice}</Text>
               </View>
-            </Card>
+            ) : null}
+            {existingEnrollment && enrollmentStatusLabel ? (
+              <View accessibilityLiveRegion="polite" style={styles.enrollmentStatusRow}>
+                <Text style={styles.statusText}>Înscriere existentă</Text>
+                <StatusBadge
+                  label={enrollmentStatusLabel}
+                  status={existingEnrollment.status}
+                  tone={courseEnrollmentTone(existingEnrollment.status)}
+                />
+                {withdrawalEligible ? (
+                  <RabAIButton
+                    accessibilityHint="Deschide confirmarea; înscrierea nu este retrasă la primul click."
+                    disabled={!enrollmentStatusReady}
+                    onPress={() => requestWithdrawal(false)}
+                    size="sm"
+                    testID="course-details-request-withdrawal"
+                    title="Retrage înscrierea"
+                    variant="destructive"
+                  />
+                ) : null}
+              </View>
+            ) : null}
+
+            <Section title="Detalii curs">
+              <DefinitionList columns={2} items={detailItems} />
+            </Section>
 
             {hasText(course.description) ? (
-              <Card title="Descriere">
-                <Text style={styles.description}>{course.description.trim()}</Text>
-              </Card>
+              <Section title="Descriere">
+                <Text selectable style={styles.description}>{course.description.trim()}</Text>
+              </Section>
             ) : null}
 
             {hasProviderDetails(course) ? (
-              <Card title="Provider">
+              <Section title="Furnizor">
                 {hasText(course.provider_description) ? (
-                  <Text style={styles.description}>
+                  <Text selectable style={styles.description}>
                     {course.provider_description.trim()}
                   </Text>
                 ) : null}
-                <View style={styles.providerContactGrid}>
-                  <InfoLine label="Website" value={course.provider_website} />
-                  <InfoLine label="Email" value={course.provider_email} />
-                  <InfoLine label="Telefon" value={course.provider_phone} />
-                </View>
-              </Card>
-            ) : null}
-
-            {enrollmentNotice ? (
-              <Text accessibilityRole="alert" style={styles.successText}>
-                {enrollmentNotice}
-              </Text>
-            ) : null}
-            {existingEnrollment && enrollmentStatusLabel ? (
-              <View
-                accessibilityLiveRegion="polite"
-                style={styles.enrollmentStatusRow}
-              >
-                <Text style={styles.statusText}>Înscriere existentă</Text>
-                <View style={styles.enrollmentStatusBadge}>
-                  <Text style={styles.enrollmentStatusBadgeText}>
-                    {enrollmentStatusLabel}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-
-            {existingEnrollment ? (
-              <View style={styles.enrollmentActions}>
-                <View style={styles.enrollmentActionItem}>
-                  <Button title="Vezi starea" onPress={requestStatusDialog} />
-                </View>
-                {withdrawalEligible ? (
-                  <Pressable
-                    accessibilityHint="Deschide confirmarea; înscrierea nu este retrasă la primul click."
-                    accessibilityLabel={`Retrage înscrierea la cursul ${course.title}`}
-                    accessibilityRole="button"
-                    accessibilityState={{
-                      busy: loadingEnrollmentContext,
-                      disabled: !enrollmentStatusReady,
-                    }}
-                    disabled={!enrollmentStatusReady}
-                    onPress={() => requestWithdrawal(false)}
-                    style={({ pressed }) => [
-                      styles.withdrawButton,
-                      !enrollmentStatusReady && styles.withdrawButtonDisabled,
-                      enrollmentStatusReady &&
-                        pressed &&
-                        styles.withdrawButtonPressed,
-                    ]}
-                    testID="course-details-request-withdrawal"
-                  >
-                    <Text style={styles.withdrawButtonText}>
-                      Retrage înscrierea
-                    </Text>
-                  </Pressable>
+                {providerItems.length > 0 ? (
+                  <DefinitionList columns={2} items={providerItems} style={styles.providerContacts} />
                 ) : null}
-              </View>
-            ) : (
-              <Button
-                disabled={
-                  submitting ||
-                  loadingEnrollmentContext ||
-                  !enrollmentAvailability.available
-                }
-                title={enrollmentButtonLabel}
-                onPress={requestEnrollment}
-              />
-            )}
+              </Section>
+            ) : null}
           </>
         ) : null}
-      </ScrollView>
+      </PageContainer>
 
       {course && confirmVisible ? (
         <CourseEnrollmentConfirmDialog
@@ -740,21 +740,6 @@ export default function CourseDetailsScreen() {
           visible
         />
       ) : null}
-    </Screen>
-  );
-}
-
-function InfoLine({ label, value }: { label: string; value?: string | null }) {
-  const visibleValue = value?.trim();
-
-  if (!visibleValue) {
-    return null;
-  }
-
-  return (
-    <View style={styles.infoItem}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{visibleValue}</Text>
     </View>
   );
 }
@@ -763,6 +748,24 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
   );
+}
+
+function courseEnrollmentTone(
+  status: CourseEnrollmentSnapshot["status"]
+): RabAIBadgeTone {
+  if (status === "accepted") {
+    return "success";
+  }
+
+  if (status === "rejected") {
+    return "danger";
+  }
+
+  if (status === "submitted" || status === "viewed") {
+    return "information";
+  }
+
+  return "neutral";
 }
 
 function localizedCategory(course: CourseDetails, language: string) {
@@ -1045,133 +1048,46 @@ function readError(error: unknown, fallback: string) {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: Spacing.md,
-    paddingBottom: Spacing.five,
-  },
-  topBar: {
-    alignItems: "flex-start",
-    marginBottom: Spacing.md,
-  },
-  backButton: {
-    backgroundColor: Colors.white,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  backButtonText: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  infoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-  },
-  providerContactGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    marginTop: Spacing.lg,
-  },
-  infoItem: {
-    backgroundColor: "#F7F9FD",
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexBasis: 220,
-    flexGrow: 1,
-    padding: Spacing.lg,
-  },
-  infoLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.xs,
-  },
-  infoValue: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
+  screen: {
+    flex: 1,
+    minHeight: 0,
+    minWidth: 0,
   },
   description: {
-    color: Colors.textBody,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
-    lineHeight: 25,
+    lineHeight: Typography.lineHeight.body,
   },
-  errorText: {
-    color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
+  providerContacts: {
+    marginTop: Spacing.component,
+  },
+  successNotice: {
+    backgroundColor: Colors.successSurface,
+    borderLeftColor: Colors.success,
+    borderLeftWidth: 3,
+    marginBottom: Spacing.section,
+    padding: Spacing.component,
   },
   successText: {
     color: Colors.success,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
+    fontSize: Typography.supporting,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.supporting,
   },
   statusText: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textPrimary,
+    fontSize: Typography.supporting,
+    fontWeight: Typography.fontWeight.semibold,
   },
   enrollmentStatusRow: {
     alignItems: "center",
+    borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
-  },
-  enrollmentStatusBadge: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: "#C9D9FF",
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  enrollmentStatusBadgeText: {
-    color: Colors.brandDeep,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  enrollmentActions: {
-    alignItems: "stretch",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-  },
-  enrollmentActionItem: {
-    flexGrow: 1,
-    minWidth: 180,
-  },
-  withdrawButton: {
-    alignItems: "center",
-    backgroundColor: Colors.danger,
-    borderColor: Colors.danger,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexGrow: 1,
-    justifyContent: "center",
-    minHeight: 48,
-    minWidth: 180,
-    paddingHorizontal: Spacing.three,
-  },
-  withdrawButtonPressed: {
-    opacity: 0.84,
-  },
-  withdrawButtonDisabled: {
-    opacity: 0.55,
-  },
-  withdrawButtonText: {
-    color: Colors.white,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-    textAlign: "center",
-  },
-  mutedText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.body,
+    gap: Spacing.control,
+    justifyContent: "space-between",
+    marginBottom: Spacing.section,
+    paddingBottom: Spacing.component,
   },
 });

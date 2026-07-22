@@ -9,13 +9,16 @@ import PublicHeader from "@/components/navigation/PublicHeader";
 import {
   EmptyState,
   ErrorState,
+  FilterBar,
+  FilterSheet,
   LoadingState,
   PageContainer,
   PageHeader,
   RabAIButton,
-  RabAICard,
   RabAIInput,
+  Section,
 } from "@/components/ui";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -67,8 +70,20 @@ type SelectedLocationFilter = {
   label: string;
 };
 
+type CoursesFilterSnapshot = {
+  categoryId: string;
+  deliveryMode: string;
+  languageCode: string;
+  level: string;
+  location: string;
+  maximumPrice: string;
+  searchText: string;
+  selectedLocation: SelectedLocationFilter | null;
+};
+
 export default function CoursesScreen() {
   const router = useRouter();
+  const responsive = useResponsiveLayout();
   const params = useLocalSearchParams<{
     categoryId?: string | string[];
     deliveryMode?: string | string[];
@@ -89,25 +104,53 @@ export default function CoursesScreen() {
     () => buildCourseReturnPath("/courses", params),
     [params]
   );
-  const [searchText, setSearchText] = useState(readParam(params.search));
-  const [categoryId, setCategoryId] = useState(readParam(params.categoryId));
-  const [location, setLocation] = useState(readParam(params.location));
+  const routeFilterValues = useMemo(() => {
+    const locationId = readParam(params.locationId);
+
+    return {
+      categoryId: readParam(params.categoryId),
+      deliveryMode: readParam(params.deliveryMode),
+      languageCode: readParam(params.languageCode),
+      level: readParam(params.level),
+      location: locationId ? readParam(params.location) : "",
+      locationId,
+      maximumPrice: readParam(params.maximumPrice),
+      searchText: readParam(params.search),
+    };
+  },
+    [
+      params.categoryId,
+      params.deliveryMode,
+      params.languageCode,
+      params.level,
+      params.location,
+      params.locationId,
+      params.maximumPrice,
+      params.search,
+    ]);
+  const routeFilterSignature = useMemo(
+    () => JSON.stringify(routeFilterValues),
+    [routeFilterValues]
+  );
+  const [searchText, setSearchText] = useState(routeFilterValues.searchText);
+  const [categoryId, setCategoryId] = useState(routeFilterValues.categoryId);
+  const [location, setLocation] = useState(routeFilterValues.location);
   const [deliveryMode, setDeliveryMode] = useState(
-    readParam(params.deliveryMode)
+    routeFilterValues.deliveryMode
   );
   const [languageCode, setLanguageCode] = useState(
-    readParam(params.languageCode)
+    routeFilterValues.languageCode
   );
   const [maximumPrice, setMaximumPrice] = useState(
-    readParam(params.maximumPrice)
+    routeFilterValues.maximumPrice
   );
-  const [level, setLevel] = useState(readParam(params.level));
+  const [level, setLevel] = useState(routeFilterValues.level);
   const [selectedLocation, setSelectedLocation] =
     useState<SelectedLocationFilter | null>(
-      readParam(params.locationId)
+      routeFilterValues.locationId
         ? {
-            id: readParam(params.locationId),
-            label: readParam(params.location),
+            id: routeFilterValues.locationId,
+            label: routeFilterValues.location,
           }
         : null
     );
@@ -118,12 +161,19 @@ export default function CoursesScreen() {
   >([]);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationValidationError, setLocationValidationError] = useState<
+    string | null
+  >(null);
   const [locationOpen, setLocationOpen] = useState(false);
   const [locationActiveIndex, setLocationActiveIndex] = useState(-1);
   const locationRequestId = useRef(0);
   const [courses, setCourses] = useState<SearchCourseResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reloadAttempt, setReloadAttempt] = useState(0);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const filterSnapshotRef = useRef<CoursesFilterSnapshot | null>(null);
+  const syncedRouteFilterSignatureRef = useRef(routeFilterSignature);
   const {
     closeCourseQuickView,
     openCourseQuickView,
@@ -167,12 +217,46 @@ export default function CoursesScreen() {
   );
 
   useEffect(() => {
+    if (
+      filterSheetOpen ||
+      syncedRouteFilterSignatureRef.current === routeFilterSignature
+    ) {
+      return;
+    }
+
+    syncedRouteFilterSignatureRef.current = routeFilterSignature;
+    locationRequestId.current += 1;
+    setSearchText(routeFilterValues.searchText);
+    setCategoryId(routeFilterValues.categoryId);
+    setLocation(routeFilterValues.location);
+    setDeliveryMode(routeFilterValues.deliveryMode);
+    setLanguageCode(routeFilterValues.languageCode);
+    setMaximumPrice(routeFilterValues.maximumPrice);
+    setLevel(routeFilterValues.level);
+    setSelectedLocation(
+      routeFilterValues.locationId
+        ? {
+            id: routeFilterValues.locationId,
+            label: routeFilterValues.location,
+          }
+        : null
+    );
+    setLocationSuggestions([]);
+    setLocationError(null);
+    setLocationValidationError(null);
+    setLocationLoading(false);
+    setLocationOpen(false);
+    setLocationActiveIndex(-1);
+  }, [filterSheetOpen, routeFilterSignature, routeFilterValues]);
+
+  useEffect(() => {
     let mounted = true;
 
     fetchCourseCategories()
       .then((nextCategories) => {
         if (mounted) {
           setCategories(nextCategories);
+          setCategoriesError("");
         }
       })
       .catch((nextError) => {
@@ -185,7 +269,7 @@ export default function CoursesScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadAttempt]);
 
   useEffect(() => {
     let mounted = true;
@@ -216,7 +300,7 @@ export default function CoursesScreen() {
       mounted = false;
       clearTimeout(timeoutId);
     };
-  }, [searchInput]);
+  }, [reloadAttempt, searchInput]);
 
   useEffect(() => {
     const trimmedLocation = location.trim();
@@ -263,6 +347,7 @@ export default function CoursesScreen() {
 
   function handleLocationTextChange(text: string) {
     setLocation(text);
+    setLocationValidationError(null);
 
     if (selectedLocation && text !== selectedLocation.label) {
       setSelectedLocation(null);
@@ -285,6 +370,7 @@ export default function CoursesScreen() {
       label: option.suggestion.label,
     });
     setLocation(option.suggestion.label);
+    setLocationValidationError(null);
     setLocationOpen(false);
     setLocationActiveIndex(-1);
   }
@@ -292,16 +378,28 @@ export default function CoursesScreen() {
   function submitFilters(nextPage = 1) {
     const query = new URLSearchParams();
     const trimmedLocation = location.trim();
-    const locationMatchesSelection =
-      selectedLocation && trimmedLocation === selectedLocation.label;
+    const matchingLocation =
+      selectedLocation?.id && trimmedLocation === selectedLocation.label
+        ? selectedLocation
+        : null;
+
+    if (trimmedLocation && !matchingLocation) {
+      setLocationValidationError(
+        "Selecteaz\u0103 o loca\u021bie din lista de sugestii."
+      );
+      setLocationOpen(true);
+      return false;
+    }
+
+    setLocationValidationError(null);
 
     addQueryParam(query, "search", searchText.trim());
     addQueryParam(query, "categoryId", categoryId);
-    addQueryParam(query, "location", trimmedLocation);
+    addQueryParam(query, "location", matchingLocation?.label ?? "");
     addQueryParam(
       query,
       "locationId",
-      locationMatchesSelection ? selectedLocation.id : ""
+      matchingLocation?.id ?? ""
     );
     addQueryParam(query, "deliveryMode", deliveryMode);
     addQueryParam(query, "languageCode", languageCode);
@@ -313,7 +411,174 @@ export default function CoursesScreen() {
     router.replace(
       `/courses${queryString ? `?${queryString}` : ""}` as Href
     );
+    return true;
   }
+
+  function clearFilters() {
+    setSearchText("");
+    setCategoryId("");
+    setLocation("");
+    setDeliveryMode("");
+    setLanguageCode("");
+    setMaximumPrice("");
+    setLevel("");
+    setSelectedLocation(null);
+    setLocationSuggestions([]);
+    setLocationOpen(false);
+    setLocationValidationError(null);
+    router.replace("/courses" as Href);
+  }
+
+  function openFilterSheet() {
+    filterSnapshotRef.current = {
+      categoryId,
+      deliveryMode,
+      languageCode,
+      level,
+      location,
+      maximumPrice,
+      searchText,
+      selectedLocation,
+    };
+    setFilterSheetOpen(true);
+  }
+
+  function closeFilterSheet() {
+    const snapshot = filterSnapshotRef.current;
+
+    if (snapshot) {
+      locationRequestId.current += 1;
+      setSearchText(snapshot.searchText);
+      setCategoryId(snapshot.categoryId);
+      setLocation(snapshot.location);
+      setDeliveryMode(snapshot.deliveryMode);
+      setLanguageCode(snapshot.languageCode);
+      setMaximumPrice(snapshot.maximumPrice);
+      setLevel(snapshot.level);
+      setSelectedLocation(snapshot.selectedLocation);
+      setLocationSuggestions([]);
+      setLocationError(null);
+      setLocationValidationError(null);
+      setLocationLoading(false);
+      setLocationOpen(false);
+      setLocationActiveIndex(-1);
+    }
+
+    filterSnapshotRef.current = null;
+    setFilterSheetOpen(false);
+  }
+
+  function applyFilterSheet() {
+    if (!submitFilters(1)) {
+      return;
+    }
+
+    filterSnapshotRef.current = null;
+    setFilterSheetOpen(false);
+  }
+
+  function clearFilterSheet() {
+    filterSnapshotRef.current = null;
+    setFilterSheetOpen(false);
+    clearFilters();
+  }
+
+  const usesFilterSheet = responsive.isMobile || responsive.isTablet;
+  const activeLocationId =
+    selectedLocation?.id && location.trim() === selectedLocation.label
+      ? selectedLocation.id
+      : "";
+  const activeFilterCount = [
+    searchText.trim(),
+    categoryId,
+    activeLocationId,
+    deliveryMode,
+    languageCode,
+    maximumPrice.trim(),
+    level,
+  ].filter(Boolean).length;
+  const primaryFilterFields = (
+    <View
+      style={[
+        styles.filterGrid,
+        usesFilterSheet && styles.filterGridMobile,
+      ]}
+    >
+      <View style={styles.inputWrap}>
+        <RabAIInput
+          label="Căutare"
+          onChangeText={setSearchText}
+          placeholder="ex: germană, depozit, siguranță"
+          value={searchText}
+        />
+      </View>
+      <View style={[styles.inputWrap, styles.locationAutocompleteWrap]}>
+        <HeroAutocompleteField
+          activeIndex={locationActiveIndex}
+          emptyMessage="Nu am găsit rezultate"
+          errorMessage={locationValidationError ?? locationError}
+          fieldId="courses-filter-location"
+          isOpen={locationOpen && location.trim().length >= 2}
+          label="Locație"
+          loading={locationLoading}
+          onActiveIndexChange={setLocationActiveIndex}
+          onChangeText={handleLocationTextChange}
+          onFocus={() => {
+            if (location.trim().length >= 2) {
+              setLocationOpen(true);
+            }
+          }}
+          onRequestClose={() => setLocationOpen(false)}
+          onSelect={handleLocationSelect}
+          placeholder="ex: Augsburg"
+          queryText={location}
+          suggestions={locationOptions}
+          value={location}
+        />
+      </View>
+    </View>
+  );
+  const advancedFilterFields = (
+    <View style={styles.advancedFilters}>
+      <RabAIInput
+        keyboardType="numeric"
+        label="Preț maxim"
+        onChangeText={setMaximumPrice}
+        placeholder="ex: 300"
+        value={maximumPrice}
+      />
+      <FilterChips
+        label="Categorie"
+        onChange={setCategoryId}
+        options={[
+          { label: "Toate", value: "" },
+          ...categories.map((category) => ({
+            label: localizedCategory(category, language),
+            value: category.id,
+          })),
+        ]}
+        value={categoryId}
+      />
+      <FilterChips
+        label="Mod de livrare"
+        onChange={setDeliveryMode}
+        options={deliveryModeOptions}
+        value={deliveryMode}
+      />
+      <FilterChips
+        label="Limba"
+        onChange={setLanguageCode}
+        options={languageOptions}
+        value={languageCode}
+      />
+      <FilterChips
+        label="Nivel"
+        onChange={setLevel}
+        options={levelOptions}
+        value={level}
+      />
+    </View>
+  );
 
   return (
     <View style={styles.screen}>
@@ -327,128 +592,68 @@ export default function CoursesScreen() {
         {!authLoading && !isAuthenticated ? <PublicHeader active="courses" /> : null}
 
       <PageHeader
-        description="Cauta programe active, furnizori verificati si certificari utile pentru munca in Germania."
+        description="Caută programe active și formare relevantă pentru următorul pas profesional."
         eyebrow="Cursuri RabAI"
         style={styles.pageHeader}
-        title="Cursuri reale pentru urmatorul pas profesional."
-        titleSize="hero"
+        title="Cursuri pentru progres profesional"
       />
 
-      <RabAICard padding="lg" title="Filtreaza cursurile" variant="outlined">
-        {categoriesError ? (
-          <ErrorState
-            compact
-            description={categoriesError}
-            style={styles.inlineState}
-            title="Categoriile nu au putut fi încărcate"
-          />
-        ) : null}
-
-        <View style={styles.filterGrid}>
-            <View style={styles.inputWrap}>
-              <RabAIInput
-                label="Cautare"
-                onChangeText={setSearchText}
-                placeholder="ex: germana, depozit, siguranta"
-                value={searchText}
-              />
-            </View>
-
-            <View style={[styles.inputWrap, styles.locationAutocompleteWrap]}>
-              <HeroAutocompleteField
-                activeIndex={locationActiveIndex}
-                emptyMessage="Nu am gasit rezultate"
-                errorMessage={locationError}
-                fieldId="courses-filter-location"
-                isOpen={locationOpen && location.trim().length >= 2}
-                label="Locatie"
-                loading={locationLoading}
-                onActiveIndexChange={setLocationActiveIndex}
-                onChangeText={handleLocationTextChange}
-                onFocus={() => {
-                  if (location.trim().length >= 2) {
-                    setLocationOpen(true);
-                  }
-                }}
-                onRequestClose={() => {
-                  setLocationOpen(false);
-                }}
-                onSelect={handleLocationSelect}
-                placeholder="ex: Augsburg"
-                queryText={location}
-                suggestions={locationOptions}
-                value={location}
-              />
-            </View>
-
-            <View style={styles.inputWrap}>
-              <RabAIInput
-                keyboardType="numeric"
-                label="Pret maxim"
-                onChangeText={setMaximumPrice}
-                placeholder="ex: 300"
-                value={maximumPrice}
-              />
-            </View>
-        </View>
-
-          <FilterChips
-            label="Categorie"
-            onChange={setCategoryId}
-            options={[
-              { label: "Toate", value: "" },
-              ...categories.map((category) => ({
-                label: localizedCategory(category, language),
-                value: category.id,
-              })),
-            ]}
-            value={categoryId}
-          />
-          <FilterChips
-            label="Mod de livrare"
-            onChange={setDeliveryMode}
-            options={deliveryModeOptions}
-            value={deliveryMode}
-          />
-          <FilterChips
-            label="Limba"
-            onChange={setLanguageCode}
-            options={languageOptions}
-            value={languageCode}
-          />
-          <FilterChips
-            label="Nivel"
-            onChange={setLevel}
-            options={levelOptions}
-            value={level}
-          />
-
-        <RabAIButton
-          onPress={() => submitFilters(1)}
-          style={styles.searchButton}
-          title="Cauta cursuri"
+      {categoriesError ? (
+        <ErrorState
+          compact
+          description={categoriesError}
+          onRetry={() => setReloadAttempt((current) => current + 1)}
+          style={styles.inlineState}
+          title="Categoriile nu au putut fi încărcate"
         />
-      </RabAICard>
+      ) : null}
+
+      <FilterBar
+        actions={
+          !usesFilterSheet ? (
+            <RabAIButton
+              onPress={() => submitFilters(1)}
+              size="sm"
+              title="Caută cursuri"
+            />
+          ) : undefined
+        }
+        activeFilterCount={activeFilterCount}
+        compact
+        description="Caută după temă și locație; deschide opțiunile secundare numai când ai nevoie."
+        onClearFilters={clearFilters}
+        onOpenFilters={openFilterSheet}
+        openFiltersLabel={usesFilterSheet ? "Filtrează cursurile" : "Filtre avansate"}
+        title="Filtre cursuri"
+      >
+        {!usesFilterSheet ? primaryFilterFields : null}
+      </FilterBar>
 
       {loading ? (
         <LoadingState title="Se încarcă cursurile..." />
       ) : error ? (
         <ErrorState
           description={error}
+          onRetry={() => setReloadAttempt((current) => current + 1)}
           title="Cursurile nu au putut fi încărcate"
         />
       ) : courses.length === 0 ? (
         <EmptyState
-          description="Poti modifica filtrele sau reveni mai tarziu."
+          actionLabel={hasPreviousPage ? "Revino la prima pagină" : undefined}
+          description={
+            hasPreviousPage
+              ? "Pagina cerută nu mai conține rezultate. Revino la începutul listei."
+              : "Poți modifica filtrele sau reveni mai târziu."
+          }
+          onAction={hasPreviousPage ? () => submitFilters(1) : undefined}
           title="Momentan nu exista cursuri care corespund cautarii."
         />
       ) : (
-          <RabAICard padding="lg" variant="outlined">
-            <View style={styles.resultsHeader}>
-              <Text style={styles.resultsTitle}>Cursuri gasite</Text>
-              <Text style={styles.resultsCount}>{totalCount} rezultate</Text>
-            </View>
-
+          <Section
+            description={`${totalCount} ${totalCount === 1 ? "rezultat" : "rezultate"}`}
+            title="Cursuri găsite"
+          >
+            <View style={styles.resultsList}>
             {courses.map((course) => (
               <CourseSummaryCard
                 course={course}
@@ -465,6 +670,7 @@ export default function CoursesScreen() {
                 returnLabel="Înapoi la cursuri"
               />
             ))}
+            </View>
 
             <View style={styles.paginationRow}>
               <RabAIButton
@@ -483,9 +689,20 @@ export default function CoursesScreen() {
                 variant="outline"
               />
             </View>
-          </RabAICard>
+          </Section>
         )}
       </PageContainer>
+      <FilterSheet
+        applyLabel="Caută cursuri"
+        onApply={applyFilterSheet}
+        onClear={clearFilterSheet}
+        onClose={closeFilterSheet}
+        title="Filtre cursuri"
+        visible={filterSheetOpen}
+      >
+        {usesFilterSheet ? primaryFilterFields : null}
+        {advancedFilterFields}
+      </FilterSheet>
       <CourseQuickView
         onClose={closeCourseQuickView}
         selection={courseSelection}
@@ -598,6 +815,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: Spacing.component,
   },
+  filterGridMobile: {
+    flexDirection: "column",
+  },
+  advancedFilters: {
+    gap: Spacing.component,
+  },
   inputWrap: {
     flexBasis: 240,
     flexGrow: 1,
@@ -613,7 +836,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.control,
   },
   chipBlock: {
-    marginTop: Spacing.component,
+    gap: Spacing.control,
   },
   chipRow: {
     flexDirection: "row",
@@ -623,26 +846,9 @@ const styles = StyleSheet.create({
   filterChip: {
     maxWidth: 260,
   },
-  searchButton: {
-    alignSelf: "flex-start",
-    marginTop: Spacing.component,
-  },
-  resultsHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.control,
-    justifyContent: "space-between",
-    marginBottom: Spacing.component,
-  },
-  resultsTitle: {
-    color: Colors.textPrimary,
-    fontSize: Typography.h4,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  resultsCount: {
-    color: Colors.textSecondary,
-    fontSize: Typography.body,
+  resultsList: {
+    borderTopColor: Colors.border,
+    borderTopWidth: 1,
   },
   paginationRow: {
     alignItems: "center",

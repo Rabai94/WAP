@@ -72,7 +72,7 @@ export default function CourseQuickViewHeader({
   return (
     <View style={styles.header}>
       <View style={[styles.hero, { height: heroHeight }]}>
-        <View pointerEvents="none" style={styles.neutralCanvas}>
+        <View style={styles.neutralCanvas}>
           <View style={styles.neutralAccentLarge} />
           <View style={styles.neutralAccentSmall} />
         </View>
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   hero: {
-    backgroundColor: "#17213F",
+    backgroundColor: Colors.shellSurface,
     maxWidth: "100%",
     overflow: "hidden",
     position: "relative",
@@ -196,9 +196,10 @@ const styles = StyleSheet.create({
   neutralCanvas: {
     ...StyleSheet.absoluteFill,
     overflow: "hidden",
+    pointerEvents: "none",
   },
   neutralAccentLarge: {
-    backgroundColor: "rgba(91, 119, 184, 0.18)",
+    backgroundColor: Colors.surfaceInverseSubtle,
     borderRadius: Radius.round,
     height: 224,
     position: "absolute",
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
     width: 296,
   },
   neutralAccentSmall: {
-    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    backgroundColor: Colors.surfaceInverseMuted,
     borderRadius: Radius.round,
     bottom: -64,
     height: 152,
@@ -218,8 +219,8 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     alignItems: "center",
-    backgroundColor: "rgba(4, 10, 25, 0.62)",
-    borderColor: "rgba(255, 255, 255, 0.32)",
+    backgroundColor: Colors.overlayStrong,
+    borderColor: Colors.borderInverseStrong,
     borderRadius: Radius.round,
     borderWidth: 1,
     height: 44,
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   closeButtonHover: {
-    backgroundColor: "rgba(4, 10, 25, 0.82)",
+    backgroundColor: Colors.shellBackground,
   },
   closeButtonFocus: {
     borderColor: Colors.white,
@@ -243,7 +244,7 @@ const styles = StyleSheet.create({
   initialsBadge: {
     alignItems: "center",
     backgroundColor: Colors.surface,
-    borderColor: "rgba(255, 255, 255, 0.88)",
+    borderColor: Colors.textOnDark,
     borderWidth: 2,
     bottom: Spacing.three,
     justifyContent: "center",
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   providerName: {
-    color: "rgba(255, 255, 255, 0.92)",
+    color: Colors.textOnDark,
     flexShrink: 1,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,

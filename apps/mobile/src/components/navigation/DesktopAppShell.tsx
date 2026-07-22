@@ -1,12 +1,11 @@
 import AppTopBar from "@/components/navigation/AppTopBar";
-import CollapsibleSidebar from "@/components/navigation/CollapsibleSidebar";
-import { useAuth } from "@/providers/AuthProvider";
-import {
-  Breakpoints,
-  Colors,
-  InteractionStyles,
-  Layers,
-} from "@/theme";
+import CollapsibleSidebar, {
+  COLLAPSED_SIDEBAR_WIDTH,
+  EXPANDED_SIDEBAR_WIDTH,
+} from "@/components/navigation/CollapsibleSidebar";
+import { useLanguage } from "@/i18n/LanguageProvider";
+import type { LanguageCode } from "@/i18n/translations";
+import { Breakpoints, Colors, Layers } from "@/theme";
 import { usePathname } from "expo-router";
 import {
   type ReactNode,
@@ -32,22 +31,39 @@ type DesktopAppShellProps = {
   enabled: boolean;
 };
 
+const drawerCopy = {
+  ro: {
+    close: "Închide meniul principal",
+    label: "Meniu principal",
+  },
+  en: {
+    close: "Close main menu",
+    label: "Main menu",
+  },
+  de: {
+    close: "Hauptmenü schließen",
+    label: "Hauptmenü",
+  },
+} satisfies Record<LanguageCode, { close: string; label: string }>;
+
 export default function DesktopAppShell({
   children,
   enabled,
 }: DesktopAppShellProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { language } = useLanguage();
   const { height, width } = useWindowDimensions();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerFocused, setDrawerFocused] = useState(false);
+  const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
   const drawerPanelRef = useRef<View>(null);
   const returnFocusRef = useRef<{ focus?: () => void } | null>(null);
   const usesDrawer = width <= Breakpoints.shell;
   const availableContentWidth = usesDrawer
     ? width
-    : width - (collapsed ? 72 : 256);
+    : width -
+      (collapsed ? COLLAPSED_SIDEBAR_WIDTH : EXPANDED_SIDEBAR_WIDTH);
+  const copy = drawerCopy[language];
   const viewportWebStyle =
     Platform.OS === "web"
       ? height > 0
@@ -89,6 +105,26 @@ export default function DesktopAppShell({
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
+    AccessibilityInfo.isReduceMotionEnabled().then((enabledValue) => {
+      if (mounted) {
+        setReduceMotionEnabled(enabledValue);
+      }
+    });
+
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      setReduceMotionEnabled
+    );
+
+    return () => {
+      mounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     const timeoutId = setTimeout(closeDrawer, 0);
     return () => clearTimeout(timeoutId);
   }, [closeDrawer, enabled, pathname, usesDrawer]);
@@ -113,7 +149,6 @@ export default function DesktopAppShell({
       {enabled && !usesDrawer ? (
         <CollapsibleSidebar
           collapsed={collapsed}
-          isAdmin={user?.isAdmin === true}
           onCollapseToggle={() => setCollapsed((current) => !current)}
         />
       ) : null}
@@ -127,10 +162,8 @@ export default function DesktopAppShell({
           <AppTopBar
             availableWidth={availableContentWidth}
             onMenuPress={openDrawer}
-            showSearch={
-              pathname !== "/engine" && !pathname.startsWith("/engine/")
-            }
             showMenuButton={usesDrawer}
+            showUtilityActions={usesDrawer}
           />
         ) : null}
 
@@ -149,45 +182,31 @@ export default function DesktopAppShell({
 
       {enabled && usesDrawer && drawerOpen ? (
         <Modal
-          animationType="fade"
+          animationType={reduceMotionEnabled ? "none" : "fade"}
           onRequestClose={closeDrawer}
           transparent
           visible
         >
           <View accessibilityViewIsModal style={styles.drawerLayer}>
             <Pressable
-              accessibilityLabel="Închide meniul"
+              accessibilityLabel={copy.close}
               accessibilityRole="button"
               onPress={closeDrawer}
               style={styles.backdrop}
             />
             <View
-              accessibilityLabel="Meniu principal"
+              accessibilityLabel={copy.label}
               accessibilityViewIsModal
               focusable
               onAccessibilityEscape={closeDrawer}
-              onBlur={(event) => {
-                if (event.target === event.currentTarget) {
-                  setDrawerFocused(false);
-                }
-              }}
-              onFocus={(event) => {
-                if (event.target === event.currentTarget) {
-                  setDrawerFocused(true);
-                }
-              }}
               ref={drawerPanelRef}
               role="dialog"
-              style={[
-                styles.drawerPanel,
-                drawerFocused && InteractionStyles.focusRing,
-              ]}
+              style={styles.drawerPanel}
               tabIndex={-1}
             >
               <CollapsibleSidebar
                 collapsed={false}
                 drawer
-                isAdmin={user?.isAdmin === true}
                 onCollapseToggle={closeDrawer}
                 onNavigate={closeDrawer}
               />
@@ -206,7 +225,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   shellEnabled: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.canvas,
     flexDirection: "row",
     position: "relative",
   },
@@ -221,7 +240,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   routeViewportEnabled: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.canvas,
   },
   routeViewportClipped: {
     overflow: "hidden",
@@ -240,7 +259,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: Colors.overlay,
+    backgroundColor: Colors.overlayStrong,
   },
   drawerPanel: {
     height: "100%",

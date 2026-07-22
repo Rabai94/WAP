@@ -1,6 +1,6 @@
 import RequireAuth from "@/components/RequireAuth";
 import OrganizationAvatar from "@/components/organizations/OrganizationAvatar";
-import OrganizationProfileCompletion from "@/components/organizations/OrganizationProfileCompletion";
+import OwnerOrganizationDashboard from "@/components/organizations/OwnerOrganizationDashboard";
 import { getOrganizationCopy } from "@/components/organizations/organizationCopy";
 import {
   calculateOrganizationCompletion,
@@ -10,12 +10,14 @@ import {
 import {
   EmptyState,
   ErrorState,
+  IdentityHeader,
+  ListingRow,
   LoadingState,
   PageContainer,
   PageHeader,
   RabAIBadge,
   RabAIButton,
-  RabAICard,
+  Section,
   type RabAIBadgeTone,
 } from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
@@ -29,10 +31,10 @@ import {
   type CompanyStatus,
   type CompanyVerificationStatus,
 } from "@/services/company/companyService";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Spacing } from "@/theme";
 import { type Href, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { StyleSheet } from "react-native";
 
 export default function OrganizationsScreen() {
   return (
@@ -55,24 +57,14 @@ function OrganizationsContent() {
   const [error, setError] = useState("");
 
   const singleCompany = companies.length === 1 ? companies[0] : null;
-  const canPublishJobs =
-    singleCompany?.status === "active" &&
-    singleCompany.verification_status === "verified";
-  const activeJobCount = useMemo(
-    () => jobs.filter((job) => job.status === "published").length,
-    [jobs]
-  );
-  const completionLabels = useMemo(
-    () => ({
-      city: t("common.city"),
-      description: t("organizations.description"),
-      employee_count_range: t("organizations.employeeCount"),
-      industry: t("organizations.activityArea"),
-      name: t("organizations.displayName"),
-      website: t("organizations.website"),
-    }),
-    [t]
-  );
+  const completionLabels = {
+    city: t("common.city"),
+    description: t("organizations.description"),
+    employee_count_range: t("organizations.employeeCount"),
+    industry: t("organizations.industry"),
+    name: t("organizations.name"),
+    website: t("organizations.website"),
+  };
 
   const loadOrganizations = useCallback(async () => {
     if (!userId) {
@@ -95,6 +87,10 @@ function OrganizationsContent() {
 
       setCompanies(nextCompanies);
       setJobs(nextJobs);
+
+      if (nextCompanies.length === 1) {
+        router.replace(`/organizations/${nextCompanies[0].id}` as Href);
+      }
     } catch {
       setCompanies([]);
       setJobs([]);
@@ -102,7 +98,7 @@ function OrganizationsContent() {
     } finally {
       setLoading(false);
     }
-  }, [t, userId]);
+  }, [router, t, userId]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -141,246 +137,148 @@ function OrganizationsContent() {
 
       {!loading && !error && singleCompany ? (
         <>
-          <RabAICard padding="lg">
-            <View
-              style={[
-                styles.identityHeader,
-                responsive.isMobile && styles.identityHeaderMobile,
-              ]}
-            >
+          <IdentityHeader
+            avatar={
               <OrganizationAvatar
+                decorative
                 name={singleCompany.name}
-                size={responsive.isMobile ? 58 : 72}
+                size={56}
               />
-              <View style={styles.identityCopy}>
-                <Text style={styles.eyebrow}>{copy.ownedOrganization}</Text>
-                <View style={styles.nameRow}>
-                  <Text accessibilityRole="header" style={styles.companyName}>
-                    {singleCompany.name}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.definitionList}>
-              <DefinitionRow
-                label={t("organizations.activityArea")}
-                value={singleCompany.industry?.trim() || copy.notProvided}
-              />
-              <DefinitionRow
-                label={t("common.city")}
-                value={singleCompany.city?.trim() || copy.notProvided}
-              />
-              <DefinitionRow
-                label={t("organizations.activeJobs")}
-                value={String(activeJobCount)}
-              />
-            </View>
-
-            <View style={styles.badgeRow}>
-              <RabAIBadge
-                label={getCompanyStatusLabel(singleCompany.status, language)}
-                tone={companyStatusTone(singleCompany.status)}
-              />
-              <RabAIBadge
-                label={getCompanyVerificationLabel(
-                  singleCompany.verification_status,
-                  language
-                )}
-                tone={verificationStatusTone(
-                  singleCompany.verification_status
-                )}
-              />
-            </View>
-
-            <Text style={styles.bodyText}>
-              {singleCompany.description || t("organizations.noDescription")}
-            </Text>
-          </RabAICard>
-
-          <RabAICard title={t("organizations.quickActions")}>
-            <View style={styles.actionGrid}>
-              <RabAIButton
-                fullWidth={responsive.isMobile}
-                onPress={() =>
-                  router.push(`/organizations/${singleCompany.id}` as Href)
-                }
-                style={styles.actionButton}
-                title={t("organizations.details")}
-              />
-              <RabAIButton
-                disabled={!canPublishJobs}
-                fullWidth={responsive.isMobile}
-                onPress={() => router.push("/create-job" as Href)}
-                style={styles.actionButton}
-                title={t("organizations.publishJob")}
-                variant="outline"
-              />
-              <RabAIButton
-                fullWidth={responsive.isMobile}
-                onPress={() => router.push("/organizations/create" as Href)}
-                style={styles.actionButton}
-                title={t("organizations.edit")}
-                variant="outline"
-              />
-              <RabAIButton
-                fullWidth={responsive.isMobile}
-                onPress={() => router.push("/applications" as Href)}
-                style={styles.actionButton}
-                title={t("organizations.applications")}
-                variant="outline"
-              />
-            </View>
-            {!canPublishJobs ? (
-              <Text style={styles.hintText}>
-                {t("organizations.publishRequirement")}
-              </Text>
-            ) : null}
-          </RabAICard>
-
-          <RabAICard title={t("organizations.jobsTitle")}>
-            {jobs.length > 0 ? (
-              <View style={styles.jobList}>
-                {jobs.map((job) => (
-                  <View key={job.id} style={styles.jobRow}>
-                    <View style={styles.jobMain}>
-                      <Text style={styles.jobTitle}>{job.title}</Text>
-                      <Text style={styles.mutedText}>
-                        {formatJobStatus(job.status, t)}
-                      </Text>
-                    </View>
-                    <RabAIButton
-                      onPress={() =>
-                        router.push(`/create-job?jobId=${job.id}` as Href)
-                      }
-                      size="sm"
-                      title={t("organizations.editJob")}
-                      variant="outline"
-                    />
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <EmptyState compact title={t("organizations.noJobs")} />
-            )}
-          </RabAICard>
+            }
+            badges={
+              <>
+                <RabAIBadge
+                  label={getCompanyStatusLabel(singleCompany.status, language)}
+                  tone={companyStatusTone(singleCompany.status)}
+                />
+                <RabAIBadge
+                  label={getCompanyVerificationLabel(
+                    singleCompany.verification_status,
+                    language
+                  )}
+                  tone={verificationStatusTone(
+                    singleCompany.verification_status
+                  )}
+                />
+              </>
+            }
+            compact
+            eyebrow={copy.ownedOrganization}
+            subtitle={
+              singleCompany.industry?.trim() ||
+              singleCompany.city?.trim() ||
+              undefined
+            }
+            title={singleCompany.name}
+          />
+          <OwnerOrganizationDashboard
+            company={singleCompany}
+            completionLabels={completionLabels}
+            copy={copy}
+            formatJobStatus={(status) => formatJobStatus(status, t)}
+            formatStatus={(status) =>
+              getCompanyStatusLabel(status, language)
+            }
+            formatVerification={(status) =>
+              getCompanyVerificationLabel(status, language)
+            }
+            isMobile={responsive.isMobile}
+            jobLabels={{
+              activeJobs: t("organizations.activeJobs"),
+              editJob: t("organizations.editJob"),
+              jobsTitle: t("organizations.jobsTitle"),
+              noJobs: t("organizations.noJobs"),
+            }}
+            jobs={jobs}
+            onEdit={() => router.push("/organizations/create" as Href)}
+            onEditJob={(jobId) =>
+              router.push(`/create-job?jobId=${jobId}` as Href)
+            }
+            onOpenApplications={() => router.push("/applications" as Href)}
+            onPublishJob={() => router.push("/create-job" as Href)}
+            onViewPublicProfile={() =>
+              router.push(
+                `/organizations/${singleCompany.id}?view=public` as Href
+              )
+            }
+            statusLabel={t("common.status")}
+            verificationLabel={t("organizations.verification")}
+          />
         </>
       ) : null}
 
-      {!loading && !error && companies.length >= 2
-        ? companies.map((company, index) => {
+      {!loading && !error && companies.length >= 2 ? (
+        <Section>
+          {companies.map((company) => {
             const completion = calculateOrganizationCompletion(company);
 
             return (
-              <View
-                key={company.id}
-                style={[
-                  styles.organizationRow,
-                  index === companies.length - 1 && styles.organizationRowLast,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.identityHeader,
-                    responsive.isMobile && styles.identityHeaderMobile,
-                  ]}
-                >
-                  <OrganizationAvatar
-                    name={company.name}
-                    size={responsive.isMobile ? 58 : 72}
-                  />
-                  <View style={styles.identityCopy}>
-                    <Text style={styles.eyebrow}>{copy.ownedOrganization}</Text>
-                    <View style={styles.nameRow}>
-                      <Text accessibilityRole="header" style={styles.companyName}>
-                        {company.name}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.definitionList}>
-                  <DefinitionRow
-                    label={t("organizations.activityArea")}
-                    value={company.industry?.trim() || copy.notProvided}
-                  />
-                  <DefinitionRow
-                    label={t("common.city")}
-                    value={company.city?.trim() || copy.notProvided}
-                  />
-                </View>
-
-                <View style={styles.badgeRow}>
-                  <RabAIBadge
-                    label={getCompanyStatusLabel(company.status, language)}
-                    tone={companyStatusTone(company.status)}
-                  />
-                  <RabAIBadge
-                    label={getCompanyVerificationLabel(
-                      company.verification_status,
-                      language
-                    )}
-                    tone={verificationStatusTone(company.verification_status)}
-                  />
-                </View>
-
-                <OrganizationProfileCompletion
-                  checklistTitle={copy.completionChecklist}
-                  company={company}
-                  labels={completionLabels}
-                  showChecklist
-                  statusLabels={{
-                    complete: copy.complete,
-                    incomplete: copy.incomplete,
-                  }}
-                  summary={copy.completionSummary}
-                  title={copy.profileCompletion}
-                />
-
-                <View
-                  style={[
-                    styles.actionGrid,
-                    responsive.isMobile && styles.actionGridMobile,
-                  ]}
-                >
+              <ListingRow
+                accessibilityHint={copy.viewOrganization}
+                actions={
                   <RabAIButton
-                    fullWidth={responsive.isMobile}
-                    onPress={() =>
-                      router.push(`/organizations/${company.id}` as Href)
-                    }
-                    style={styles.actionButton}
-                    title={copy.viewOrganization}
-                  />
-                  <RabAIButton
-                    fullWidth={responsive.isMobile}
                     onPress={() =>
                       router.push("/organizations/create" as Href)
                     }
-                    style={styles.actionButton}
+                    size="sm"
                     title={
                       completion.percentage === 100
                         ? copy.editOrganization
                         : copy.completeProfile
                     }
-                    variant="secondary"
+                    variant="outline"
                   />
-                </View>
-              </View>
+                }
+                badges={
+                  <>
+                    <RabAIBadge
+                      label={getCompanyStatusLabel(company.status, language)}
+                      tone={companyStatusTone(company.status)}
+                    />
+                    <RabAIBadge
+                      label={getCompanyVerificationLabel(
+                        company.verification_status,
+                        language
+                      )}
+                      tone={verificationStatusTone(
+                        company.verification_status
+                      )}
+                    />
+                  </>
+                }
+                description={
+                  company.description?.trim() ||
+                  t("organizations.noDescription")
+                }
+                eyebrow={copy.ownedOrganization}
+                key={company.id}
+                leading={
+                  <OrganizationAvatar name={company.name} size={56} />
+                }
+                meta={[
+                  {
+                    label: t("organizations.activityArea"),
+                    value: company.industry?.trim() || copy.notProvided,
+                  },
+                  {
+                    label: t("common.city"),
+                    value: company.city?.trim() || copy.notProvided,
+                  },
+                  {
+                    label: copy.profileCompletion,
+                    value: `${completion.percentage}%`,
+                  },
+                ]}
+                onPress={() =>
+                  router.push(`/organizations/${company.id}` as Href)
+                }
+                title={company.name}
+              />
             );
-          })
-        : null}
+          })}
+        </Section>
+      ) : null}
     </PageContainer>
-  );
-}
-
-function DefinitionRow({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.definitionRow}>
-      <Text style={styles.definitionLabel}>{label}</Text>
-      <Text selectable style={styles.definitionValue}>
-        {value}
-      </Text>
-    </View>
   );
 }
 
@@ -417,134 +315,5 @@ function formatJobStatus(value: string, t: (key: string) => string) {
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.section,
-  },
-  identityHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: Spacing.component,
-  },
-  identityHeaderMobile: {
-    alignItems: "flex-start",
-  },
-  identityCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  eyebrow: {
-    color: Colors.primaryPressed,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-    letterSpacing: Typography.letterSpacing.eyebrow,
-    marginBottom: Spacing.control,
-    textTransform: "uppercase",
-  },
-  nameRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.control,
-  },
-  companyName: {
-    color: Colors.textPrimary,
-    flexShrink: 1,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
-    lineHeight: Typography.lineHeight.relaxed,
-  },
-  definitionList: {
-    borderTopColor: Colors.borderMuted,
-    borderTopWidth: 1,
-    marginTop: Spacing.component,
-  },
-  definitionRow: {
-    alignItems: "flex-start",
-    borderBottomColor: Colors.borderMuted,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.control,
-    justifyContent: "space-between",
-    paddingVertical: Spacing.control,
-  },
-  definitionLabel: {
-    color: Colors.textMuted,
-    flexBasis: 140,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  definitionValue: {
-    color: Colors.textBody,
-    flex: 1,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.semibold,
-    minWidth: 140,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.control,
-    marginTop: Spacing.component,
-  },
-  bodyText: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.component,
-  },
-  mutedText: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-  },
-  hintText: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.component,
-  },
-  actionGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.control,
-  },
-  actionGridMobile: {
-    flexDirection: "column",
-  },
-  actionButton: {
-    flexBasis: 180,
-    flexGrow: 1,
-    minWidth: 0,
-  },
-  jobList: {
-    gap: Spacing.control,
-  },
-  jobRow: {
-    alignItems: "center",
-    backgroundColor: Colors.surfaceMuted,
-    borderRadius: Radius.control,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.control,
-    justifyContent: "space-between",
-    padding: Spacing.inline,
-  },
-  jobMain: {
-    flexBasis: 160,
-    flexGrow: 1,
-    minWidth: 0,
-  },
-  jobTitle: {
-    color: Colors.textPrimary,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  organizationRow: {
-    borderBottomColor: Colors.border,
-    borderBottomWidth: 1,
-    gap: Spacing.component,
-    paddingBottom: Spacing.section,
-  },
-  organizationRowLast: {
-    borderBottomWidth: 0,
   },
 });

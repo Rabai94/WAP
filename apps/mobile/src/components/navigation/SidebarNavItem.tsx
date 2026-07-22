@@ -17,7 +17,6 @@ type SidebarNavItemProps = {
   icon: AppIconName;
   label: string;
   onPress?: () => void;
-  soonLabel?: string;
 };
 
 export default function SidebarNavItem({
@@ -27,20 +26,19 @@ export default function SidebarNavItem({
   icon,
   label,
   onPress,
-  soonLabel,
 }: SidebarNavItemProps) {
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const isDisabled = disabled || !onPress;
   const color = isDisabled
-    ? Colors.placeholder
+    ? Colors.textOnDark
     : active
-      ? Colors.brandDeep
-      : Colors.textSubtle;
+      ? Colors.goldPrimary
+      : Colors.textOnDark;
 
   return (
     <Pressable
-      accessibilityLabel={`${label}${soonLabel ? `. ${soonLabel}` : ""}`}
+      accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, selected: active }}
       disabled={isDisabled}
@@ -53,7 +51,6 @@ export default function SidebarNavItem({
         styles.item,
         collapsed && styles.itemCollapsed,
         active && styles.itemActive,
-        isDisabled && styles.itemDisabled,
         !isDisabled && InteractionStyles.pointer,
         hovered && !isDisabled && !active && styles.itemHovered,
         pressed && !isDisabled && styles.itemPressed,
@@ -67,18 +64,9 @@ export default function SidebarNavItem({
       </View>
 
       {!collapsed ? (
-        <>
-          <Text numberOfLines={1} style={[styles.label, { color }]}>
-            {label}
-          </Text>
-          {soonLabel ? (
-            <View style={styles.soonBadge}>
-              <Text numberOfLines={1} style={styles.soonText}>
-                {soonLabel}
-              </Text>
-            </View>
-          ) : null}
-        </>
+        <Text numberOfLines={1} style={[styles.label, { color }]}>
+          {label}
+        </Text>
       ) : null}
     </Pressable>
   );
@@ -87,13 +75,11 @@ export default function SidebarNavItem({
 const styles = StyleSheet.create({
   item: {
     alignItems: "center",
-    borderColor: "transparent",
-    borderRadius: Radius.lg,
-    borderWidth: 1,
+    borderRadius: Radius.control,
     flexDirection: "row",
-    gap: Spacing.xl,
+    gap: Spacing.inline,
     minHeight: ControlHeight.minimumTouch,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.inline,
     position: "relative",
     width: "100%",
   },
@@ -102,24 +88,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   itemActive: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: Colors.informationBorder,
-  },
-  itemDisabled: {
-    opacity: 0.72,
+    backgroundColor: Colors.shellElevated,
   },
   itemHovered: {
-    backgroundColor: Colors.surfaceInteractive,
+    backgroundColor: Colors.shellSurface,
   },
   itemPressed: {
-    backgroundColor: Colors.selection,
+    backgroundColor: Colors.shellElevated,
   },
   activeMarker: {
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.round,
-    height: 22,
-    left: -1,
+    backgroundColor: Colors.goldPrimary,
+    borderRadius: Radius.pill,
+    bottom: Spacing.control,
+    left: 0,
     position: "absolute",
+    top: Spacing.control,
     width: 3,
   },
   iconWrap: {
@@ -132,20 +115,6 @@ const styles = StyleSheet.create({
   label: {
     flex: 1,
     fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  soonBadge: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.borderMuted,
-    borderRadius: Radius.round,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-  },
-  soonText: {
-    color: Colors.textMuted,
-    fontSize: 9,
-    fontWeight: Typography.fontWeight.extraBold,
-    textTransform: "uppercase",
+    fontWeight: Typography.fontWeight.semibold,
   },
 });

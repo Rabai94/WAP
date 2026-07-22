@@ -1,10 +1,10 @@
 import { useLanguage } from "@/i18n/LanguageProvider";
 import {
+  Breakpoints,
   Colors,
   ControlHeight,
   InteractionStyles,
   Radius,
-  Shadows,
   Spacing,
   Typography,
 } from "@/theme";
@@ -14,6 +14,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
   type PressableProps,
   type StyleProp,
@@ -29,48 +30,52 @@ type PublicHeaderProps = {
 const publicNavItems: { key: PublicTab; route: string; labelKey: string }[] = [
   { key: "home", route: "/", labelKey: "common.home" },
   { key: "jobs", route: "/jobs", labelKey: "home.nav.jobs" },
-  { key: "tasks", route: "/tasks", labelKey: "home.nav.tasks" },
-  { key: "services", route: "/services", labelKey: "home.nav.services" },
   { key: "courses", route: "/courses", labelKey: "home.nav.courses" },
 ];
 
 export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
   const router = useRouter();
   const { t } = useLanguage();
+  const { width } = useWindowDimensions();
+  const isCompact = width <= Breakpoints.mobile;
 
   function navigate(route: string) {
     router.push(route as never);
   }
 
+  const navigation = (
+    <View style={[styles.navLinks, isCompact && styles.navLinksCompact]}>
+      {publicNavItems.map((item) => (
+        <NavLink
+          active={active === item.key}
+          compact={isCompact}
+          key={item.key}
+          label={t(item.labelKey)}
+          onPress={() => navigate(item.route)}
+        />
+      ))}
+    </View>
+  );
+
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, isCompact && styles.barCompact]}>
       <InteractivePressable
-        accessibilityLabel="RabAI — Acasă"
+        accessibilityLabel={`RabAI — ${t("common.home")}`}
         accessibilityRole="button"
         hoverStyle={styles.neutralHover}
         onPress={() => router.replace("/" as never)}
         pressedStyle={styles.neutralPressed}
         style={styles.brandWrap}
       >
-        <View style={styles.logoMark}>
-          <Text style={styles.logoText}>R</Text>
-        </View>
+        <View style={styles.brandAccent} />
         <Text style={styles.brandTitle}>RabAI</Text>
       </InteractivePressable>
 
-      <View style={styles.navLinks}>
-        {publicNavItems.map((item) => (
-          <NavLink
-            active={active === item.key}
-            key={item.key}
-            label={t(item.labelKey)}
-            onPress={() => navigate(item.route)}
-          />
-        ))}
-      </View>
+      {!isCompact ? navigation : null}
 
       <View style={styles.authActions}>
         <InteractivePressable
+          accessibilityLabel={t("common.login")}
           accessibilityRole="button"
           hoverStyle={styles.neutralHover}
           onPress={() => router.push("/login" as never)}
@@ -80,6 +85,7 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
           <Text style={styles.loginText}>{t("common.login")}</Text>
         </InteractivePressable>
         <InteractivePressable
+          accessibilityLabel={t("common.register")}
           accessibilityRole="button"
           hoverStyle={styles.primaryHover}
           onPress={() => router.push("/login?mode=signup" as never)}
@@ -89,27 +95,36 @@ export default function PublicHeader({ active = "home" }: PublicHeaderProps) {
           <Text style={styles.signupText}>{t("common.register")}</Text>
         </InteractivePressable>
       </View>
+
+      {isCompact ? navigation : null}
     </View>
   );
 }
 
 function NavLink({
   active,
+  compact,
   label,
   onPress,
 }: {
   active: boolean;
+  compact: boolean;
   label: string;
   onPress: () => void;
 }) {
   return (
     <InteractivePressable
+      accessibilityLabel={label}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       hoverStyle={styles.neutralHover}
       onPress={onPress}
       pressedStyle={styles.neutralPressed}
-      style={[styles.navLink, active && styles.navLinkActive]}
+      style={[
+        styles.navLink,
+        compact && styles.navLinkCompact,
+        active && styles.navLinkActive,
+      ]}
     >
       <Text
         numberOfLines={1}
@@ -175,106 +190,99 @@ function InteractivePressable({
 const styles = StyleSheet.create({
   bar: {
     alignItems: "center",
-    backgroundColor: Colors.white,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
+    borderBottomColor: Colors.border,
+    borderBottomWidth: 1,
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.md,
+    gap: Spacing.inline,
     justifyContent: "space-between",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    ...Shadows.card,
+    paddingBottom: Spacing.inline,
+  },
+  barCompact: {
+    alignItems: "stretch",
   },
   brandWrap: {
     alignItems: "center",
-    borderRadius: Radius.lg,
+    borderRadius: Radius.control,
     flexDirection: "row",
-    gap: Spacing.sm,
+    gap: Spacing.control,
     minHeight: ControlHeight.minimumTouch,
-    paddingHorizontal: Spacing.compact,
+    paddingHorizontal: Spacing.control,
   },
-  logoMark: {
-    alignItems: "center",
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.lg,
-    height: 40,
-    justifyContent: "center",
-    width: 40,
-  },
-  logoText: {
-    color: Colors.brandOn,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
+  brandAccent: {
+    alignSelf: "stretch",
+    backgroundColor: Colors.goldPrimary,
+    borderRadius: Radius.pill,
+    marginVertical: Spacing.control,
+    width: Spacing.compact,
   },
   brandTitle: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
+    color: Colors.textPrimary,
+    fontSize: Typography.h4,
+    fontWeight: Typography.fontWeight.bold,
+    letterSpacing: Typography.letterSpacing.tight,
   },
   navLinks: {
     alignItems: "center",
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: Spacing.compact,
+  },
+  navLinksCompact: {
+    width: "100%",
   },
   navLink: {
     alignItems: "center",
-    borderRadius: Radius.lg,
+    borderRadius: Radius.control,
     justifyContent: "center",
     minHeight: ControlHeight.minimumTouch,
-    minWidth: 86,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.inline,
+  },
+  navLinkCompact: {
+    flex: 1,
+    paddingHorizontal: Spacing.control,
   },
   navLinkActive: {
-    backgroundColor: Colors.brandSoft,
+    backgroundColor: Colors.goldMuted,
   },
   navLinkText: {
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
     fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
+    fontWeight: Typography.fontWeight.semibold,
     textAlign: "center",
   },
   navLinkTextActive: {
-    color: Colors.brandDeep,
+    color: Colors.goldPressed,
   },
   authActions: {
     alignItems: "center",
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.sm,
+    gap: Spacing.compact,
   },
   loginButton: {
     alignItems: "center",
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
+    borderRadius: Radius.control,
     justifyContent: "center",
     minHeight: ControlHeight.minimumTouch,
-    minWidth: 104,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.inline,
   },
   loginText: {
-    color: Colors.text,
+    color: Colors.textPrimary,
     fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
+    fontWeight: Typography.fontWeight.semibold,
     textAlign: "center",
   },
   signupButton: {
     alignItems: "center",
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.lg,
+    backgroundColor: Colors.goldPrimary,
+    borderRadius: Radius.control,
     justifyContent: "center",
     minHeight: ControlHeight.minimumTouch,
-    minWidth: 104,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.inline,
   },
   signupText: {
-    color: Colors.white,
+    color: Colors.onPrimary,
     fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
+    fontWeight: Typography.fontWeight.semibold,
     textAlign: "center",
   },
   neutralHover: {
@@ -284,9 +292,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.selection,
   },
   primaryHover: {
-    backgroundColor: Colors.primaryHover,
+    backgroundColor: Colors.goldHover,
   },
   primaryPressed: {
-    backgroundColor: Colors.primaryPressed,
+    backgroundColor: Colors.goldPressed,
   },
 });

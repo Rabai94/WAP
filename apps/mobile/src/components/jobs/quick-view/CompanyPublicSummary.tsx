@@ -79,8 +79,8 @@ const styles = StyleSheet.create({
   },
   verifiedBadge: {
     alignItems: "center",
-    backgroundColor: "#ECFDF5",
-    borderColor: "#BBF7D0",
+    backgroundColor: Colors.successSurface,
+    borderColor: Colors.successBorder,
     borderRadius: Radius.round,
     borderWidth: 1,
     flexDirection: "row",

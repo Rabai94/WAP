@@ -13,6 +13,7 @@ import {
   Colors,
   ControlHeight,
   InteractionStyles,
+  Opacity,
   Radius,
   Spacing,
   Typography,
@@ -269,10 +270,9 @@ const styles = StyleSheet.create({
   },
   triggerFocused: {
     borderColor: Colors.focusRing,
-    borderWidth: 2,
   },
   triggerHovered: {
-    borderColor: Colors.primary,
+    borderColor: Colors.borderStrong,
   },
   triggerPressed: {
     backgroundColor: Colors.surfaceMuted,
@@ -320,13 +320,13 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.control,
   },
   optionActive: {
-    backgroundColor: Colors.selection,
+    backgroundColor: Colors.goldMuted,
   },
   optionPressed: {
-    backgroundColor: Colors.primarySoft,
+    backgroundColor: Colors.surfaceMuted,
   },
   optionDisabled: {
-    opacity: 0.48,
+    opacity: Opacity.disabled,
   },
   optionCopy: {
     flex: 1,
@@ -339,12 +339,12 @@ const styles = StyleSheet.create({
   },
   optionDescription: {
     color: Colors.textMuted,
-    fontSize: Typography.small,
-    lineHeight: Typography.lineHeight.tight,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
     marginTop: Spacing.compact,
   },
   check: {
-    color: Colors.primaryPressed,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     fontWeight: Typography.fontWeight.bold,
   },

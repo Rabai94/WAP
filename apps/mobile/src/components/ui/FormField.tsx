@@ -97,15 +97,15 @@ const styles = StyleSheet.create({
   },
   helper: {
     color: Colors.textMuted,
-    fontSize: Typography.small,
-    lineHeight: Typography.lineHeight.tight,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
     marginTop: Spacing.control,
   },
   error: {
     color: Colors.danger,
-    fontSize: Typography.small,
+    fontSize: Typography.supporting,
     fontWeight: Typography.fontWeight.medium,
-    lineHeight: Typography.lineHeight.tight,
+    lineHeight: Typography.lineHeight.supporting,
     marginTop: Spacing.control,
   },
 });

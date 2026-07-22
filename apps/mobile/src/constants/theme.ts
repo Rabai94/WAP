@@ -1,7 +1,4 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+/** Compatibility bridge for the remaining Expo starter primitives. */
 
 import '@/global.css';
 
@@ -15,17 +12,17 @@ import {
 export const Colors = {
   light: {
     text: RabAIColors.textPrimary,
-    background: RabAIColors.background,
-    backgroundElement: RabAIColors.surfaceMuted,
-    backgroundSelected: RabAIColors.selection,
+    background: RabAIColors.canvas,
+    backgroundElement: RabAIColors.surface,
+    backgroundSelected: RabAIColors.goldMuted,
     textSecondary: RabAIColors.textSecondary,
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: RabAIColors.textOnDark,
+    background: RabAIColors.shellBackground,
+    backgroundElement: RabAIColors.shellSurface,
+    backgroundSelected: RabAIColors.shellElevated,
+    textSecondary: RabAIColors.textOnInverseSecondary,
   },
 } as const;
 

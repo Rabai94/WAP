@@ -1,4 +1,14 @@
-import { Button, Card, Header, Screen } from "@/components/ui";
+import PublicHeader from "@/components/navigation/PublicHeader";
+import {
+  DefinitionList,
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  Section,
+  type DefinitionListItem,
+} from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -12,10 +22,10 @@ import {
   fetchOwnWorkerProfile,
   type JobDetails,
 } from "@/services/worker/workerService";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function JobDetailsScreen() {
   const router = useRouter();
@@ -120,93 +130,94 @@ export default function JobDetailsScreen() {
     }
   }
 
+  const detailItems: DefinitionListItem[] = job
+    ? [
+        { label: "Companie", value: job.company_name },
+        { label: "Locație", value: job.location_label },
+        { label: "Salariu", value: formatSalary(job) },
+        { label: "Contract", value: formatEmploymentType(job.employment_type) },
+        { label: "Program", value: job.working_hours || "Nespecificat" },
+        { label: "Limbă", value: formatLanguage(job.language) },
+        { label: "Experiență", value: formatExperience(job.experience_level) },
+        { label: "Ocupație", value: job.occupation_name_ro },
+        { label: "Publicat", value: formatDate(job.published_at) },
+        {
+          label: "Expiră",
+          value: job.expires_at ? formatDate(job.expires_at) : "Nespecificat",
+        },
+      ]
+    : [];
+
   return (
-    <Screen centered={false}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.replace(returnPath as any)}
-            style={styles.backButton}
-          >
-            <Text style={styles.backButtonText}>{returnLabel}</Text>
-          </Pressable>
-        </View>
-
-        {loading ? (
-          <>
-            <Header title="Se incarca jobul" subtitle="Verificam detaliile jobului." />
-            <Card>
-              <Text style={styles.mutedText}>Se incarca...</Text>
-            </Card>
-          </>
-        ) : error ? (
-          <>
-            <Header title="Job indisponibil" subtitle="Acest job nu poate fi afisat momentan." />
-            <Card>
-              <Text style={styles.errorText}>{error}</Text>
-            </Card>
-          </>
-        ) : job ? (
-          <>
-            <Header
-              title={job.title}
-              subtitle={`${job.company_name} - ${job.location_label}`}
-            />
-
-            <Card title="Detalii job">
-              <View style={styles.infoGrid}>
-                <InfoLine label="Companie" value={job.company_name} />
-                <InfoLine label="Locatie" value={job.location_label} />
-                <InfoLine label="Salariu" value={formatSalary(job)} />
-                <InfoLine label="Contract" value={formatEmploymentType(job.employment_type)} />
-                <InfoLine label="Program" value={job.working_hours || "Nespecificat"} />
-                <InfoLine label="Limba" value={formatLanguage(job.language)} />
-                <InfoLine label="Experienta" value={formatExperience(job.experience_level)} />
-                <InfoLine label="Ocupatie" value={job.occupation_name_ro} />
-                <InfoLine label="Publicat" value={formatDate(job.published_at)} />
-                <InfoLine
-                  label="Expira"
-                  value={job.expires_at ? formatDate(job.expires_at) : "Nespecificat"}
+    <PageContainer maxWidth="content" scroll>
+      {!session ? <PublicHeader active="jobs" /> : null}
+      {loading ? (
+        <>
+          <PageHeader
+            description="Verificăm disponibilitatea și detaliile publice."
+            onBack={() => router.replace(returnPath as never)}
+            backLabel={returnLabel}
+            title="Se încarcă jobul"
+          />
+          <LoadingState title="Se încarcă detaliile jobului..." />
+        </>
+      ) : error ? (
+        <>
+          <PageHeader
+            description="Acest job nu poate fi afișat momentan."
+            onBack={() => router.replace(returnPath as never)}
+            backLabel={returnLabel}
+            title="Job indisponibil"
+          />
+          <ErrorState description={error} title="Jobul nu este disponibil" />
+        </>
+      ) : job ? (
+        <>
+          <PageHeader
+            actions={
+              session ? (
+                <RabAIButton
+                  loading={applying}
+                  loadingLabel="Se trimite..."
+                  onPress={handleApply}
+                  title="Aplică"
                 />
-              </View>
-            </Card>
+              ) : (
+                <RabAIButton
+                  onPress={handleApply}
+                  title="Autentifică-te pentru a aplica"
+                />
+              )
+            }
+            backLabel={returnLabel}
+            description={`${job.company_name} · ${job.location_label}`}
+            onBack={() => router.replace(returnPath as never)}
+            title={job.title}
+          />
 
-            <Card title="Descriere">
-              <Text style={styles.description}>{job.description}</Text>
-            </Card>
+          {applyError ? (
+            <View accessibilityLiveRegion="assertive" role="alert" style={styles.applyError}>
+              <Text style={styles.errorText}>{applyError}</Text>
+              {requiresProfileCompletion ? (
+                <RabAIButton
+                  onPress={() => router.push("/profile/edit" as never)}
+                  size="sm"
+                  title={t("jobs.apply.completeProfileAction")}
+                  variant="secondary"
+                />
+              ) : null}
+            </View>
+          ) : null}
 
-            {applyError ? <Text style={styles.errorText}>{applyError}</Text> : null}
-            {requiresProfileCompletion ? (
-              <Button
-                title={t("jobs.apply.completeProfileAction")}
-                variant="secondary"
-                onPress={() => router.push("/profile/edit" as any)}
-              />
-            ) : null}
-
-            {session ? (
-              <Button
-                disabled={applying}
-                title={applying ? "Se trimite..." : "Aplica"}
-                onPress={handleApply}
-              />
-            ) : (
-              <Button title="Autentifica-te pentru a aplica" onPress={handleApply} />
-            )}
-          </>
-        ) : null}
-      </ScrollView>
-    </Screen>
-  );
-}
-
-function InfoLine({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.infoItem}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
+          <Section title="Detalii job">
+            <DefinitionList columns={2} items={detailItems} />
+          </Section>
+          <Section title="Descriere">
+            <Text selectable style={styles.description}>{job.description}</Text>
+          </Section>
+        </>
+      ) : null}
+    </PageContainer>
   );
 }
 
@@ -325,64 +336,23 @@ function readError(error: unknown) {
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: Spacing.md,
-    paddingBottom: Spacing.five,
-  },
-  topBar: {
+  applyError: {
     alignItems: "flex-start",
-    marginBottom: Spacing.md,
-  },
-  backButton: {
-    backgroundColor: Colors.white,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  backButtonText: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  infoGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-  },
-  infoItem: {
-    backgroundColor: "#F7F9FD",
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    flexBasis: 220,
-    flexGrow: 1,
-    padding: Spacing.lg,
-  },
-  infoLabel: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.xs,
-  },
-  infoValue: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
+    backgroundColor: Colors.dangerSurface,
+    borderLeftColor: Colors.danger,
+    borderLeftWidth: 3,
+    gap: Spacing.control,
+    marginBottom: Spacing.section,
+    padding: Spacing.component,
   },
   description: {
-    color: Colors.textBody,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
-    lineHeight: 25,
+    lineHeight: Typography.lineHeight.body,
   },
   errorText: {
     color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  mutedText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.body,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
   },
 });

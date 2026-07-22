@@ -48,7 +48,7 @@ export function LoadingState({
 }: BaseStateProps) {
   return (
     <StateFrame compact={compact} style={style}>
-      <ActivityIndicator color={Colors.primary} size="small" />
+      <ActivityIndicator color={Colors.goldPressed} size="small" />
       <View accessibilityLiveRegion="polite" accessibilityState={{ busy: true }}>
         <Text style={styles.title}>{title}</Text>
         {description ? <Text style={styles.description}>{description}</Text> : null}
@@ -119,8 +119,8 @@ const styles = StyleSheet.create({
   frame: {
     alignItems: "flex-start",
     alignSelf: "stretch",
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
+    backgroundColor: Colors.surfaceMuted,
+    borderColor: "transparent",
     borderRadius: Radius.panel,
     borderWidth: 1,
     gap: Spacing.inline,
@@ -139,9 +139,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: Colors.textPrimary,
-    fontSize: Typography.h4,
-    fontWeight: Typography.fontWeight.bold,
-    lineHeight: Typography.lineHeight.default,
+    fontSize: Typography.sectionHeading,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.heading,
   },
   errorTitle: {
     color: Colors.danger,
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   description: {
     color: Colors.textSecondary,
     fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.default,
+    lineHeight: Typography.lineHeight.body,
     marginTop: Spacing.compact,
   },
   skeleton: {

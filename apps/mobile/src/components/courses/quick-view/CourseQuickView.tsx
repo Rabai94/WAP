@@ -1439,8 +1439,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   enrollmentStatusBadge: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: "#C9D9FF",
+    backgroundColor: Colors.informationSurface,
+    borderColor: Colors.informationBorder,
     borderRadius: Radius.round,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
@@ -1474,7 +1474,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: Colors.brand,
+    backgroundColor: Colors.goldPrimary,
     borderRadius: Radius.lg,
     flex: 1,
     justifyContent: "center",
@@ -1483,13 +1483,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   primaryButtonHover: {
-    backgroundColor: Colors.brandDeep,
+    backgroundColor: Colors.goldHover,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#AAB7D4",
+    backgroundColor: Colors.borderStrong,
   },
   primaryButtonText: {
-    color: Colors.white,
+    color: Colors.onPrimary,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
     textAlign: "center",
@@ -1507,8 +1507,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   dangerButtonHover: {
-    backgroundColor: "#BE123C",
-    borderColor: "#BE123C",
+    backgroundColor: Colors.danger,
+    borderColor: Colors.danger,
   },
   dangerButtonDisabled: {
     opacity: 0.55,
@@ -1584,19 +1584,19 @@ const styles = StyleSheet.create({
     padding: Spacing.five,
   },
   skeletonTitle: {
-    backgroundColor: "#E9EEF8",
+    backgroundColor: Colors.borderMuted,
     borderRadius: Radius.round,
     height: 18,
     width: "42%",
   },
   skeletonLine: {
-    backgroundColor: "#F0F3F9",
+    backgroundColor: Colors.surfaceMuted,
     borderRadius: Radius.round,
     height: 14,
     width: "100%",
   },
   skeletonLineShort: {
-    backgroundColor: "#F0F3F9",
+    backgroundColor: Colors.surfaceMuted,
     borderRadius: Radius.round,
     height: 14,
     width: "72%",

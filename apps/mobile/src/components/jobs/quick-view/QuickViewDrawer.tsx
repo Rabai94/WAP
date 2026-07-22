@@ -1,3 +1,4 @@
+import { useReducedMotion } from "@/components/ui/useReducedMotion";
 import {
   Colors,
   InteractionStyles,
@@ -54,6 +55,7 @@ export default function QuickViewDrawer({
 }: QuickViewDrawerProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const drawerRef = useRef<View>(null);
   const returnFocusRef = useRef<{ focus?: () => void } | null>(null);
   const [drawerFocused, setDrawerFocused] = useState(false);
@@ -107,7 +109,7 @@ export default function QuickViewDrawer({
 
   return (
     <Modal
-      animationType="slide"
+      animationType={reducedMotion ? "none" : "slide"}
       onRequestClose={onRequestClose}
       presentationStyle="overFullScreen"
       transparent

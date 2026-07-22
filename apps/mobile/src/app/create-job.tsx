@@ -2,7 +2,18 @@ import HeroAutocompleteField, {
   type HeroAutocompleteOption,
 } from "@/components/home/HeroAutocompleteField";
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Input, Screen } from "@/components/ui";
+import {
+  Button,
+  Card,
+  DefinitionList,
+  ErrorState,
+  Input,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  Section,
+  StatusBadge,
+} from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import type { LanguageCode } from "@/i18n/translations";
 import { useAuth } from "@/providers/AuthProvider";
@@ -22,16 +33,17 @@ import {
   searchLocationSuggestions,
   type LocationSuggestion,
 } from "@/services/search/heroAutocomplete";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import {
+  Colors,
+  ControlHeight,
+  Layers,
+  Radius,
+  Spacing,
+  Typography,
+} from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 type LocationOption = HeroAutocompleteOption & {
   suggestion: LocationSuggestion;
@@ -96,6 +108,7 @@ function CreateJobContent() {
   const isEditMode = Boolean(editingJobId);
   const { language, t } = useLanguage();
   const { user } = useAuth();
+  const userId = user?.id;
   const [company, setCompany] = useState<CompanySummary | null>(null);
   const [categories, setCategories] = useState<JobCategory[]>([]);
   const [occupations, setOccupations] = useState<JobOccupation[]>([]);
@@ -122,9 +135,11 @@ function CreateJobContent() {
   const [jobLanguage, setJobLanguage] = useState("de");
   const [expiresAt, setExpiresAt] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
+  const [initialLoadError, setInitialLoadError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingInitialData, setLoadingInitialData] = useState(true);
+  const initialDataRequestId = useRef(0);
   const locationRequestId = useRef(0);
 
   const locationOptions = useMemo<LocationOption[]>(
@@ -179,51 +194,54 @@ function CreateJobContent() {
     []
   );
 
-  useEffect(() => {
-    let mounted = true;
+  const loadInitialData = useCallback(async () => {
+    if (!userId) {
+      return;
+    }
 
-    async function loadInitialData() {
-      if (!user?.id) {
+    const requestId = ++initialDataRequestId.current;
+    setLoadingInitialData(true);
+    setInitialLoadError("");
+    setLoadError("");
+
+    try {
+      const [nextCompany, nextCategories, editableJob] = await Promise.all([
+        fetchCurrentUserCompany(userId),
+        fetchJobCategories(),
+        editingJobId ? fetchOwnJobForEdit(editingJobId) : Promise.resolve(null),
+      ]);
+
+      if (initialDataRequestId.current !== requestId) {
         return;
       }
 
-      setLoadingInitialData(true);
-      setLoadError("");
+      setCompany(nextCompany);
+      setCategories(nextCategories);
 
-      try {
-        const [nextCompany, nextCategories, editableJob] = await Promise.all([
-          fetchCurrentUserCompany(user.id),
-          fetchJobCategories(),
-          editingJobId ? fetchOwnJobForEdit(editingJobId) : Promise.resolve(null),
-        ]);
-
-        if (!mounted) {
-          return;
-        }
-
-        setCompany(nextCompany);
-        setCategories(nextCategories);
-
-        if (editableJob) {
-          hydrateJob(editableJob);
-        }
-      } catch (error) {
-        if (mounted) {
-          setLoadError(readError(error));
-        }
-      } finally {
-        if (mounted) {
-          setLoadingInitialData(false);
-        }
+      if (editableJob) {
+        hydrateJob(editableJob);
+      }
+    } catch (error) {
+      if (initialDataRequestId.current === requestId) {
+        setInitialLoadError(readError(error));
+      }
+    } finally {
+      if (initialDataRequestId.current === requestId) {
+        setLoadingInitialData(false);
       }
     }
+  }, [editingJobId, hydrateJob, userId]);
 
-    void loadInitialData();
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void loadInitialData();
+    }, 0);
 
     return () => {
-      mounted = false;
+      clearTimeout(timeoutId);
+      initialDataRequestId.current += 1;
     };
-  }, [editingJobId, hydrateJob, user?.id]);
+  }, [loadInitialData]);
 
   useEffect(() => {
     let mounted = true;
@@ -403,15 +421,23 @@ function CreateJobContent() {
   const formDisabled = loadingInitialData || !company || submitting;
 
   return (
-    <Screen centered={false}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <Header
+    <PageContainer
+      contentStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      maxWidth="form"
+      scroll
+    >
+        <PageHeader
+          backLabel={t("common.back")}
+          onBack={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/organizations" as never);
+            }
+          }}
           title={isEditMode ? "Editeaza jobul" : t("createJob.title")}
-          subtitle={
+          description={
             isEditMode
               ? "Actualizeaza detaliile jobului companiei tale."
               : t("createJob.subtitle")
@@ -419,32 +445,48 @@ function CreateJobContent() {
         />
 
         {loadingInitialData ? (
-          <Card>
-            <Text style={styles.mutedText}>Se incarca datele reale...</Text>
-          </Card>
-        ) : null}
+          <LoadingState title="Se încarcă datele reale..." />
+        ) : initialLoadError ? (
+          <ErrorState
+            description={initialLoadError}
+            onRetry={() => void loadInitialData()}
+            title="Datele jobului nu au putut fi încărcate"
+          />
+        ) : !company ? (
+          <ErrorState
+            description="Nu există o companie activă și verificată asociată contului. Publicarea rămâne blocată până la completarea organizației."
+            title="Publicarea nu este disponibilă"
+          />
+        ) : (
+          <>
+            <Section title="Companie">
+              <DefinitionList
+                columns={2}
+                items={[
+                  { label: "Nume", value: company.name },
+                  {
+                    label: "Status",
+                    value: <StatusBadge status={company.status} />,
+                  },
+                  {
+                    label: "Verificare",
+                    value: <StatusBadge status={company.verification_status} />,
+                  },
+                ]}
+              />
+            </Section>
 
-        {company ? (
-          <Card title="Companie">
-            <Text style={styles.companyName}>{company.name}</Text>
-            <Text style={styles.mutedText}>Status: {company.status}</Text>
-            <Text style={styles.mutedText}>
-              Verificare: {company.verification_status}
-            </Text>
-          </Card>
-        ) : !loadingInitialData ? (
-          <Card variant="warning">
-            <Text style={styles.warningText}>
-              Nu exista o companie activa si verificata asociata contului tau.
-              Publicarea este blocata pana cand profilul firmei este creat si
-              verificat.
-            </Text>
-          </Card>
-        ) : null}
+            {loadError ? (
+              <Text
+                accessibilityLiveRegion="assertive"
+                role="alert"
+                style={styles.formError}
+              >
+                {loadError}
+              </Text>
+            ) : null}
 
-        {loadError ? <Text style={styles.formError}>{loadError}</Text> : null}
-
-        <Card title="Detalii job">
+            <Card title="Detalii job">
           <Input
             editable={!formDisabled}
             label="Titlul jobului"
@@ -596,34 +638,22 @@ function CreateJobContent() {
           <FieldError message={errors.expiresAt} />
         </Card>
 
-        <Button
-          disabled={formDisabled}
-          onPress={handlePublish}
-          title={
-            submitting
-              ? isEditMode
-                ? "Se salveaza..."
-                : "Se publica..."
-              : isEditMode
-                ? "Salveaza modificarile"
-                : t("createJob.publish")
-          }
-        />
-
-        <Button
-          title={t("common.back")}
-          variant="ghost"
-          style={styles.backButton}
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace("/organizations" as any);
-            }
-          }}
-        />
-      </ScrollView>
-    </Screen>
+            <Button
+              disabled={formDisabled}
+              onPress={handlePublish}
+              title={
+                submitting
+                  ? isEditMode
+                    ? "Se salveaza..."
+                    : "Se publica..."
+                  : isEditMode
+                    ? "Salveaza modificarile"
+                    : t("createJob.publish")
+              }
+            />
+          </>
+        )}
+    </PageContainer>
   );
 }
 
@@ -645,7 +675,11 @@ function OptionSection({
   return (
     <View style={styles.optionSection}>
       <Text style={styles.optionLabel}>{label}</Text>
-      <View style={styles.optionGrid}>
+      <View
+        accessibilityLabel={label}
+        accessibilityRole="radiogroup"
+        style={styles.optionGrid}
+      >
         {options.length === 0 ? (
           <Text style={styles.mutedText}>Nu exista optiuni disponibile.</Text>
         ) : (
@@ -654,8 +688,9 @@ function OptionSection({
 
             return (
               <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled, selected: active }}
+                accessibilityLabel={option.label}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active, disabled }}
                 disabled={disabled}
                 key={option.value}
                 onPress={() => {
@@ -865,7 +900,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.small,
     fontWeight: Typography.fontWeight.bold,
     marginBottom: Spacing.md,
-    marginTop: -Spacing.md,
+    marginTop: Spacing.none,
   },
   optionSection: {
     marginBottom: Spacing.lg,
@@ -886,12 +921,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: Radius.round,
     borderWidth: 1,
+    justifyContent: "center",
+    minHeight: ControlHeight.minimumTouch,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
   optionButtonActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
+    backgroundColor: Colors.goldMuted,
+    borderColor: Colors.goldPrimary,
   },
   optionButtonDisabled: {
     opacity: 0.56,
@@ -902,13 +939,14 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.bold,
   },
   optionTextActive: {
-    color: "#145CFF",
+    color: Colors.goldPressed,
   },
   locationField: {
     marginBottom: Spacing.xxl,
-    zIndex: 20,
+    zIndex: Layers.dropdown,
   },
   bigInput: {
+    // Multi-line job descriptions need a stable editing area.
     height: 112,
     textAlignVertical: "top",
   },
@@ -920,8 +958,5 @@ const styles = StyleSheet.create({
   column: {
     flexBasis: 220,
     flexGrow: 1,
-  },
-  backButton: {
-    marginTop: Spacing.xl,
   },
 });

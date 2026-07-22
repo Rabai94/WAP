@@ -1,66 +1,76 @@
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Screen } from "@/components/ui";
-import { Colors, Spacing, Typography } from "@/theme";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text } from "react-native";
+import {
+  DefinitionList,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  Section,
+  StatusBadge,
+  type DefinitionListItem,
+} from "@/components/ui";
+import { useLanguage } from "@/i18n/LanguageProvider";
+import type { LanguageCode } from "@/i18n/translations";
 import { buildJobDetailsPath } from "@/services/jobs/jobNavigation";
+import { Spacing } from "@/theme";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { StyleSheet, View } from "react-native";
+
+const confirmationCopy: Record<
+  LanguageCode,
+  { reference: string; sent: string }
+> = {
+  de: { reference: "Bewerbungs-ID", sent: "Gesendet" },
+  en: { reference: "Application ID", sent: "Submitted" },
+  ro: { reference: "ID aplicare", sent: "Trimisă" },
+};
 
 export default function ApplicationSentScreen() {
   const router = useRouter();
+  const { language, t } = useLanguage();
+  const copy = confirmationCopy[language];
   const params = useLocalSearchParams<{
     applicationId?: string | string[];
     jobId?: string | string[];
   }>();
   const applicationId = readParam(params.applicationId);
   const jobId = readParam(params.jobId);
+  const nextSteps: DefinitionListItem[] = [
+    { label: "1", value: t("applicationSent.item1") },
+    { label: "2", value: t("applicationSent.item2") },
+    { label: "3", value: t("applicationSent.item3") },
+  ];
+
+  if (applicationId) {
+    nextSteps.push({ label: copy.reference, value: applicationId });
+  }
 
   return (
     <RequireAuth>
-      <Screen centered={false}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Header
-            icon="OK"
-            title="Aplicatia a fost trimisa"
-            subtitle="Organizatia va vedea aplicatia in lista de aplicatii."
-            hero
+      <PageContainer contentStyle={styles.content} maxWidth="form" scroll>
+        <PageHeader
+          actions={<StatusBadge label={copy.sent} status="submitted" />}
+          description={t("applicationSent.subtitle")}
+          title={t("applicationSent.title")}
+        />
+        <Section title={t("applicationSent.cardTitle")}>
+          <DefinitionList items={nextSteps} />
+        </Section>
+        <View style={styles.actions}>
+          <RabAIButton
+            onPress={() => router.replace("/profile")}
+            title={t("common.profile")}
           />
-
-          <Card title="Ce urmeaza">
-            <Text style={styles.item}>
-              Aplicatia este inregistrata cu statusul trimisa.
-            </Text>
-            <Text style={styles.item}>
-              Poti urmari oportunitatile din profilul tau RabAI.
-            </Text>
-            {applicationId ? (
-              <Text style={styles.reference}>ID aplicatie: {applicationId}</Text>
-            ) : null}
-          </Card>
-
-          <Button
-            title="Vezi profilul"
-            onPress={() => {
-              router.replace("/profile" as any);
-            }}
-          />
-
           {jobId ? (
-            <Button
-              title="Inapoi la job"
+            <RabAIButton
+              onPress={() =>
+                router.replace(buildJobDetailsPath(jobId, "/profile") as never)
+              }
+              title={t("common.backToJob")}
               variant="secondary"
-              style={styles.secondaryButton}
-              onPress={() => {
-                router.replace(
-                  buildJobDetailsPath(jobId, "/profile") as any
-                );
-              }}
             />
           ) : null}
-        </ScrollView>
-      </Screen>
+        </View>
+      </PageContainer>
     </RequireAuth>
   );
 }
@@ -70,22 +80,13 @@ function readParam(value?: string | string[]) {
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
+  content: {
+    gap: Spacing.section,
   },
-  item: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
-    marginBottom: Spacing.md,
-  },
-  reference: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginTop: Spacing.md,
-  },
-  secondaryButton: {
-    marginTop: Spacing.md,
+  actions: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.control,
   },
 });

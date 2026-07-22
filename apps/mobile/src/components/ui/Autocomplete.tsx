@@ -227,7 +227,7 @@ export default function RabAIAutocomplete<
                     style={styles.statusRow}
                   >
                     {loading ? (
-                      <ActivityIndicator color={Colors.primary} size="small" />
+                      <ActivityIndicator color={Colors.goldPressed} size="small" />
                     ) : null}
                     <Text
                       style={[
@@ -347,7 +347,6 @@ const styles = StyleSheet.create({
   },
   inputFrameFocused: {
     borderColor: Colors.focusRing,
-    borderWidth: 2,
     ...InteractionStyles.focusRing,
   },
   inputFrameError: {
@@ -397,8 +396,8 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
   },
   errorText: {
     color: Colors.danger,
@@ -412,10 +411,10 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.control,
   },
   optionActive: {
-    backgroundColor: Colors.selection,
+    backgroundColor: Colors.goldMuted,
   },
   optionPressed: {
-    backgroundColor: Colors.primarySoft,
+    backgroundColor: Colors.surfaceMuted,
   },
   optionTitle: {
     color: Colors.textPrimary,
@@ -425,12 +424,12 @@ const styles = StyleSheet.create({
   },
   optionSubtitle: {
     color: Colors.textMuted,
-    fontSize: Typography.small,
-    lineHeight: Typography.lineHeight.tight,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
     marginTop: Spacing.compact,
   },
   highlight: {
-    color: Colors.primaryPressed,
+    color: Colors.textPrimary,
     fontWeight: Typography.fontWeight.bold,
   },
 });

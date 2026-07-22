@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   companyName: {
-    color: Colors.onPrimary,
+    color: Colors.textOnDark,
     flexShrink: 1,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.bold,

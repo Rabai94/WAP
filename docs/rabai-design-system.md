@@ -36,6 +36,20 @@ Nu sunt permise glow-uri aurii, gradiente aurii ostentative, estetică de casino
 
 Codul de produs consumă numai tokeni semantici din `@/theme`. Numele publice descriu rolul, nu valoarea brută: `background`, `surface`, `surfaceMuted`, `surfaceElevated`, `border`, `borderStrong`, `textPrimary`, `textSecondary`, `textMuted`, `primary`, `primaryHover`, `primaryPressed`, `danger`, `success`, `warning`, `information` și `focusRing`.
 
+Paleta implementată pentru RabAI Signature este:
+
+| Rol semantic | Valoare | Utilizare |
+| --- | --- | --- |
+| `shellBackground` | `#101214` | fundalul shell-ului desktop |
+| `shellSurface` / `shellElevated` | `#171A1D` / `#202428` | navigație și niveluri reale pe shell |
+| `canvas` | `#F4F0E7` | canvas principal warm ivory |
+| `surface` / `surfaceMuted` | `#FAF7F0` / `#EDE7DB` | suprafețe de lucru și grupări discrete |
+| `textPrimary` / `textSecondary` / `textMuted` | `#191A1C` / `#494744` / `#6B665E` | ierarhia textului pe canvas |
+| `border` / `borderStrong` | `#D8D1C4` / `#8C8377` | separatori și contururi funcționale |
+| `goldPrimary` / `goldHover` / `goldPressed` | `#A98538` / `#D0AF63` / `#A47E2E` | CTA primar și stările sale |
+| `goldMuted` / `focusRing` | `#E9DDBF` / `#9C7727` | selecție discretă și focus vizibil |
+| `success` / `warning` / `danger` / `information` | `#287052` / `#8A570B` / `#9F2D32` / `#245F86` | stări funcționale distincte de gold |
+
 Migrarea paletei existente la RabAI Signature se face în tema globală, nu prin culori locale în pagini. Nu hardcoda hex, rgba, radius sau shadows în UI de produs. O valoare numerică locală este permisă doar pentru o constrângere unică de conținut și trebuie justificată printr-un comentariu scurt.
 
 Folosește și familiile existente de tokeni pentru spacing, radius, typography, icon sizes, control heights, page widths, gutters, breakpoints, elevation, motion, opacity și layers.
@@ -127,16 +141,9 @@ RabAI Companion este un produs separat. Site-ul nu afișează o bulă draggable 
 
 Nu folosi robotul albastru ca identitate RabAI. Verifică asseturile reale înainte de a inventa un placeholder, ilustrație sau mascotă.
 
-## Design Lab
+## Eliminarea Design Lab
 
-`/design-lab` este o excepție controlată pentru explorare, nu o extensie a produsului real:
-
-- poate folosi tokeni experimentali locali, ținuți în folderul lab;
-- tokenii lab nu sunt importați în produsul real;
-- rutele lab sunt excluse din shell-ul real;
-- datele lab sunt marcate explicit „Preview local” și nu pretind statistici sau date RabAI;
-- un concept aprobat migrează întâi în tokenii globali și primitivele UI înainte de producție;
-- lab-ul nu schimbă rute reale, autentificare, servicii sau logică business.
+RabAI Signature este sistemul de producție, nu un preview. Ruta `/design-lab`, variantele `engine-a`, `engine-b`, `engine-c`, preview-urile Signature, tokenii experimentali și importurile lor nu sunt permise în sursa sau exportul aplicației. Explorările viitoare se țin în afara arborelui de producție; un concept aprobat intră numai prin tokenii globali, primitivele comune, review-ul checklistului și auditul strict.
 
 ## Tipuri de pagină
 
@@ -155,7 +162,7 @@ Fiecare tip păstrează `PageContainer`, un header clar, maximum un primary CTA 
 
 ## Layout, responsive și accesibilitate
 
-Verifică minimum 320, 768, 1024, 1366 și 1920 px. La 320 px există o singură coloană, fără overflow orizontal sau controale inaccesibile; la desktop conținutul respectă page widths și nu se întinde excesiv. Folosește breakpoints și hook-ul responsive din temă, nu praguri locale duplicate.
+Verifică minimum 320, 768, 1024, 1025, 1366 și 1920 px. Perechea 1024/1025 validează explicit tranziția drawer–sidebar fără salt paradoxal. La 320 px există o singură coloană, fără overflow orizontal sau controale inaccesibile; la desktop conținutul respectă page widths și nu se întinde excesiv. Folosește breakpoints și hook-ul responsive din temă, nu praguri locale duplicate.
 
 Toate controalele au `accessibilityRole`, `accessibilityLabel` și `accessibilityState` potrivite, focus vizibil și target de minimum 44 × 44 px. Statusurile nu depind exclusiv de culoare; loading/error sunt anunțate semantic; dialogurile gestionează focusul și Escape; motion respectă `prefers-reduced-motion`.
 
@@ -169,6 +176,7 @@ Din root rulează:
 
 ```powershell
 npm.cmd run ui:audit
+npm.cmd run ui:audit -- --strict
 git diff --check
 git status --short
 git diff --stat
@@ -180,6 +188,7 @@ Din `apps/mobile` rulează:
 npm.cmd run lint
 npm.cmd run typecheck
 npx.cmd --no-install expo install --check
+npx.cmd expo export --platform all --output-dir .expo\rabai-signature-final
 ```
 
-`ui:audit` este advisory implicit. Folosește `--strict` pentru pagini țintite atunci când avertismentele trebuie să oprească validarea. Excepția pentru text mic trebuie documentată pe aceeași linie sau linia precedentă cu `rabai-ui-audit: allow-small-text — motiv`.
+`ui:audit` verifică implicit toate rutele de producție și referințele interzise din sursă. Modul advisory ajută în timpul implementării; predarea folosește obligatoriu `--strict`. Excepția pentru text mic trebuie documentată pe aceeași linie sau linia precedentă cu `rabai-ui-audit: allow-small-text — motiv`.

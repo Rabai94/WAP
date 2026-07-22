@@ -1,5 +1,12 @@
+import { useReducedMotion } from "@/components/ui/useReducedMotion";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/theme";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -45,6 +52,17 @@ type FocusTarget = {
   focus: () => void;
 };
 
+type GlobalKeyboardTarget = {
+  addEventListener?: (
+    type: "keydown",
+    listener: (event: { key?: string }) => void
+  ) => void;
+  removeEventListener?: (
+    type: "keydown",
+    listener: (event: { key?: string }) => void
+  ) => void;
+};
+
 const pointerWebStyle =
   Platform.OS === "web"
     ? ({ cursor: "pointer" } as unknown as ViewStyle)
@@ -80,9 +98,11 @@ function CourseEnrollmentConfirmDialogPanel({
 }: CourseEnrollmentConfirmDialogProps) {
   const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const [message, setMessage] = useState("");
   const cancelButtonRef = useRef<View | null>(null);
   const confirmLockRef = useRef(false);
+  const returnFocusRef = useRef<FocusTarget | null>(null);
   const isNarrow = width < 380;
   const horizontalPadding = Spacing.three;
   const topPadding = Math.max(insets.top, Spacing.three);
@@ -102,6 +122,13 @@ function CourseEnrollmentConfirmDialogPanel({
     !loadingEnrollmentContext &&
     !submitting;
 
+  const requestCancel = useCallback(() => {
+    if (!submitting) {
+      setMessage("");
+      onCancel();
+    }
+  }, [onCancel, submitting]);
+
   useEffect(() => {
     if (!submitting) {
       confirmLockRef.current = false;
@@ -109,23 +136,42 @@ function CourseEnrollmentConfirmDialogPanel({
   }, [submitting]);
 
   useEffect(() => {
-    if (Platform.OS !== "web") {
+    if (!visible || Platform.OS !== "web") {
       return;
     }
+
+    returnFocusRef.current = globalThis.document
+      ?.activeElement as FocusTarget | null;
 
     const focusTimer = setTimeout(() => {
       focusIfAvailable(cancelButtonRef.current);
     }, 0);
 
-    return () => clearTimeout(focusTimer);
-  }, []);
+    return () => {
+      clearTimeout(focusTimer);
+      const target = returnFocusRef.current;
+      returnFocusRef.current = null;
+      setTimeout(() => focusIfAvailable(target), 0);
+    };
+  }, [visible]);
 
-  function requestCancel() {
-    if (!submitting) {
-      setMessage("");
-      onCancel();
+  useEffect(() => {
+    if (!visible || Platform.OS !== "web") {
+      return;
     }
-  }
+
+    const keyboardTarget = globalThis as unknown as GlobalKeyboardTarget;
+    const handleKeyDown = (event: { key?: string }) => {
+      if (event.key === "Escape") {
+        requestCancel();
+      }
+    };
+
+    keyboardTarget.addEventListener?.("keydown", handleKeyDown);
+    return () => {
+      keyboardTarget.removeEventListener?.("keydown", handleKeyDown);
+    };
+  }, [requestCancel, visible]);
 
   function requestConfirm() {
     if (!canSubmit || confirmLockRef.current) {
@@ -144,7 +190,7 @@ function CourseEnrollmentConfirmDialogPanel({
 
   return (
     <Modal
-      animationType="fade"
+      animationType={reducedMotion ? "none" : "fade"}
       onRequestClose={requestCancel}
       presentationStyle="overFullScreen"
       transparent
@@ -173,6 +219,7 @@ function CourseEnrollmentConfirmDialogPanel({
         <View
           accessibilityLabel={`Confirmă înscrierea la cursul ${courseTitle}`}
           accessibilityViewIsModal
+          onAccessibilityEscape={requestCancel}
           role="dialog"
           style={[
             styles.dialog,
@@ -421,7 +468,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(6, 14, 34, 0.68)",
+    backgroundColor: Colors.overlayStrong,
   },
   dialog: {
     backgroundColor: Colors.surface,
@@ -492,12 +539,12 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   noticeDanger: {
-    backgroundColor: "#FFF1F2",
-    borderColor: "#FECDD3",
+    backgroundColor: Colors.dangerSurface,
+    borderColor: Colors.dangerBorder,
   },
   noticeInfo: {
-    backgroundColor: Colors.brandSoft,
-    borderColor: "#C9D9FF",
+    backgroundColor: Colors.informationSurface,
+    borderColor: Colors.informationBorder,
   },
   noticeTitle: {
     color: Colors.text,
@@ -607,8 +654,8 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: Colors.brand,
-    borderColor: Colors.brand,
+    backgroundColor: Colors.goldPrimary,
+    borderColor: Colors.goldPrimary,
     borderRadius: Radius.lg,
     borderWidth: 1,
     flex: 1.35,
@@ -618,18 +665,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   primaryButtonHover: {
-    backgroundColor: Colors.brandDeep,
-    borderColor: Colors.brandDeep,
+    backgroundColor: Colors.goldHover,
+    borderColor: Colors.goldHover,
   },
   primaryButtonFocus: {
     borderColor: Colors.text,
   },
   primaryButtonDisabled: {
-    backgroundColor: "#AAB7D4",
-    borderColor: "#AAB7D4",
+    backgroundColor: Colors.borderStrong,
+    borderColor: Colors.borderStrong,
   },
   primaryButtonText: {
-    color: Colors.white,
+    color: Colors.onPrimary,
     flexShrink: 1,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,

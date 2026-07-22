@@ -1,4 +1,5 @@
 import RequireAuth from "@/components/RequireAuth";
+import OrganizationAvatar from "@/components/organizations/OrganizationAvatar";
 import { getOrganizationCopy } from "@/components/organizations/organizationCopy";
 import {
   getCompanyStatusLabel,
@@ -6,14 +7,16 @@ import {
 } from "@/components/organizations/organizationProfile";
 import {
   ErrorState,
+  IdentityHeader,
   LoadingState,
   PageContainer,
   PageHeader,
-  RabAIBadge as Badge,
   RabAIButton as Button,
-  RabAICard as Card,
   RabAIInput as Input,
+  Section,
+  StatusBadge,
 } from "@/components/ui";
+import { Collapsible } from "@/components/ui/collapsible";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
@@ -244,81 +247,59 @@ function OrganizationCreateContent() {
       maxWidth="form"
       scroll
     >
-      <PageHeader description={copy.formSubtitle} title={headerTitle} />
+      <PageHeader
+        backLabel={copy.back}
+        description={copy.safeSavedFieldsText}
+        eyebrow={t("organizations.type.company")}
+        onBack={submitting ? undefined : handleCancel}
+        title={headerTitle}
+      />
 
       {hydrationState === "loading" ? (
-        <>
-          <LoadingState title={copy.formLoading} />
-          <Button
-            accessibilityHint={copy.back}
-            fullWidth={responsive.isMobile}
-            onPress={handleCancel}
-            title={copy.cancel}
-            variant="secondary"
-          />
-        </>
+        <LoadingState title={copy.formLoading} />
       ) : null}
 
       {hydrationState === "error" ? (
-        <>
-          <ErrorState
-            description={`${loadError} ${copy.loadFailedSaveDisabled}`}
-            onRetry={() => void loadCompany()}
-            retryLabel={copy.retry}
-            title={t("organizations.loadError")}
-          />
-          <Button
-            accessibilityHint={copy.back}
-            fullWidth={responsive.isMobile}
-            onPress={handleCancel}
-            title={copy.cancel}
-            variant="secondary"
-          />
-        </>
+        <ErrorState
+          description={`${loadError} ${copy.loadFailedSaveDisabled}`}
+          onRetry={() => void loadCompany()}
+          retryLabel={copy.retry}
+          title={t("organizations.loadError")}
+        />
       ) : null}
 
       {hydrationState === "ready" ? (
         <>
-          <Card title={t("organizations.type")}>
-            <View style={styles.typeBadgeRow}>
-              <Badge
-                label={`${t("organizations.type.company")} · ${copy.safeSavedFields}`}
-                tone="primary"
-              />
-              <Badge
-                label={`${t("organizations.type.academy")} · ${copy.comingSoon}`}
-              />
-              <Badge
-                label={`${t("organizations.type.institution")} · ${copy.comingSoon}`}
-              />
-            </View>
-            <Text style={styles.hintText}>{copy.organizationTypeUnavailable}</Text>
-          </Card>
-
           {company ? (
-            <Card title={t("organizations.currentStatus")}>
-              <Text style={styles.bodyText}>
-                {t("organizations.currentStatusText")
-                  .replace(
-                    "{status}",
-                    getCompanyStatusLabel(company.status, language)
-                  )
-                  .replace(
-                    "{verification}",
-                    getCompanyVerificationLabel(
+            <IdentityHeader
+              avatar={
+                <OrganizationAvatar name={company.name} size={56} />
+              }
+              badges={
+                <>
+                  <StatusBadge
+                    label={getCompanyStatusLabel(company.status, language)}
+                    status={company.status}
+                  />
+                  <StatusBadge
+                    label={getCompanyVerificationLabel(
                       company.verification_status,
                       language
-                    )
-                  )}
-              </Text>
-            </Card>
+                    )}
+                    status={company.verification_status}
+                  />
+                </>
+              }
+              compact
+              eyebrow={copy.ownedOrganization}
+              title={company.name}
+            />
           ) : null}
 
-          <Card title={copy.safeSavedFields} variant="filled">
-            <Text style={styles.bodyText}>{copy.safeSavedFieldsText}</Text>
-          </Card>
-
-          <Card title={t("organizations.organizationData")}>
+          <Section
+            contentStyle={styles.formFields}
+            title={t("organizations.organizationData")}
+          >
             <Input
               accessibilityLabel={t("organizations.displayName")}
               editable={!submitting}
@@ -328,15 +309,6 @@ function OrganizationCreateContent() {
               placeholder={t("organizations.displayNamePlaceholder")}
               required
               value={name}
-            />
-
-            <Input
-              accessibilityLabel={t("organizations.legalName")}
-              editable={!submitting}
-              label={t("organizations.legalName")}
-              onChangeText={(value) => updateValue(setLegalName, value)}
-              placeholder={t("organizations.legalNamePlaceholder")}
-              value={legalName}
             />
 
             <View style={styles.twoColumn}>
@@ -380,27 +352,6 @@ function OrganizationCreateContent() {
               value={industry}
             />
 
-            <View style={styles.twoColumn}>
-              <View style={styles.column}>
-                <Input
-                  editable={!submitting}
-                  label={t("organizations.postalCode")}
-                  onChangeText={(value) => updateValue(setPostalCode, value)}
-                  placeholder={t("organizations.postalCodePlaceholder")}
-                  value={postalCode}
-                />
-              </View>
-              <View style={styles.column}>
-                <Input
-                  editable={!submitting}
-                  label={t("organizations.address")}
-                  onChangeText={(value) => updateValue(setAddress, value)}
-                  placeholder={t("organizations.addressPlaceholder")}
-                  value={address}
-                />
-              </View>
-            </View>
-
             <Input
               autoCapitalize="none"
               editable={!submitting}
@@ -414,72 +365,89 @@ function OrganizationCreateContent() {
               value={website}
             />
 
-            <Text style={styles.optionLabel}>
-              {t("organizations.employeeCount")}
-            </Text>
-            <View
-              accessibilityLabel={t("organizations.employeeCount")}
-              accessibilityRole="radiogroup"
-              style={styles.optionGrid}
+            <Collapsible
+              title={`${t("organizations.optionalPlaceholder")}: ${copy.safeSavedFields}`}
             >
-              {employeeCountOptions.map((option) => {
-                const selected = employeeCountRange === option;
+              <View style={styles.optionalFields}>
+                <Input
+                  accessibilityLabel={t("organizations.legalName")}
+                  editable={!submitting}
+                  label={t("organizations.legalName")}
+                  onChangeText={(value) => updateValue(setLegalName, value)}
+                  placeholder={t("organizations.legalNamePlaceholder")}
+                  value={legalName}
+                />
 
-                return (
-                  <Button
-                    accessibilityHint={t("organizations.employeeCount")}
-                    accessibilityLabel={option}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selected }}
-                    disabled={submitting}
-                    key={option}
-                    onPress={() =>
-                      updateValue(
-                        setEmployeeCountRange,
-                        selected ? "" : option
-                      )
-                    }
-                    size="sm"
-                    style={styles.optionButton}
-                    title={option}
-                    variant={selected ? "secondary" : "outline"}
-                  />
-                );
-              })}
-            </View>
-
-            <Input
-              accessibilityLabel={t("organizations.description")}
-              editable={!submitting}
-              label={t("organizations.description")}
-              multiline
-              onChangeText={(value) => updateValue(setDescription, value)}
-              placeholder={t("organizations.descriptionPlaceholder")}
-              style={styles.largeInput}
-              value={description}
-            />
-          </Card>
-
-          <Card title={copy.comingSoonTitle} variant="filled">
-            <Text style={styles.bodyText}>{copy.comingSoonFields}</Text>
-            <View style={styles.plannedList}>
-              {[
-                t("organizations.contactEmail"),
-                t("organizations.contactPhone"),
-                t("organizations.registrationNumber"),
-                t("organizations.vatId"),
-                t("organizations.companyCapabilities"),
-              ].map((label) => (
-                <View key={label} style={styles.plannedRow}>
-                  <Text style={styles.plannedLabel}>{label}</Text>
-                  <Badge
-                    label={`${copy.comingSoon} · ${copy.notSaved}`}
-                    tone="warning"
-                  />
+                <View style={styles.twoColumn}>
+                  <View style={styles.column}>
+                    <Input
+                      editable={!submitting}
+                      label={t("organizations.postalCode")}
+                      onChangeText={(value) => updateValue(setPostalCode, value)}
+                      placeholder={t("organizations.postalCodePlaceholder")}
+                      value={postalCode}
+                    />
+                  </View>
+                  <View style={styles.column}>
+                    <Input
+                      editable={!submitting}
+                      label={t("organizations.address")}
+                      onChangeText={(value) => updateValue(setAddress, value)}
+                      placeholder={t("organizations.addressPlaceholder")}
+                      value={address}
+                    />
+                  </View>
                 </View>
-              ))}
-            </View>
-          </Card>
+
+                <View>
+                  <Text style={styles.optionLabel}>
+                    {t("organizations.employeeCount")}
+                  </Text>
+                  <View
+                    accessibilityLabel={t("organizations.employeeCount")}
+                    accessibilityRole="radiogroup"
+                    style={styles.optionGrid}
+                  >
+                    {employeeCountOptions.map((option) => {
+                      const selected = employeeCountRange === option;
+
+                      return (
+                        <Button
+                          accessibilityHint={t("organizations.employeeCount")}
+                          accessibilityLabel={option}
+                          accessibilityRole="radio"
+                          accessibilityState={{ checked: selected }}
+                          disabled={submitting}
+                          key={option}
+                          onPress={() =>
+                            updateValue(
+                              setEmployeeCountRange,
+                              selected ? "" : option
+                            )
+                          }
+                          size="sm"
+                          style={styles.optionButton}
+                          title={option}
+                          variant={selected ? "secondary" : "outline"}
+                        />
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <Input
+                  accessibilityLabel={t("organizations.description")}
+                  editable={!submitting}
+                  label={t("organizations.description")}
+                  multiline
+                  onChangeText={(value) => updateValue(setDescription, value)}
+                  placeholder={t("organizations.descriptionPlaceholder")}
+                  style={styles.largeInput}
+                  value={description}
+                />
+              </View>
+            </Collapsible>
+          </Section>
 
           {submitError ? (
             <ErrorState
@@ -598,21 +566,8 @@ const styles = StyleSheet.create({
   content: {
     gap: Spacing.section,
   },
-  bodyText: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.body,
-  },
-  hintText: {
-    color: Colors.textMuted,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.component,
-  },
-  typeBadgeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.control,
+  formFields: {
+    gap: Spacing.component,
   },
   twoColumn: {
     flexDirection: "row",
@@ -624,12 +579,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     minWidth: 0,
   },
+  optionalFields: {
+    gap: Spacing.component,
+  },
   optionLabel: {
     color: Colors.textPrimary,
-    fontSize: Typography.label,
-    fontWeight: Typography.fontWeight.extraBold,
+    fontSize: Typography.supporting,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.supporting,
     marginBottom: Spacing.control,
-    marginTop: Spacing.component,
   },
   optionGrid: {
     flexDirection: "row",
@@ -645,32 +603,14 @@ const styles = StyleSheet.create({
     minHeight: 120,
     textAlignVertical: "top",
   },
-  plannedList: {
-    gap: Spacing.control,
-    marginTop: Spacing.component,
-  },
-  plannedRow: {
-    alignItems: "center",
-    borderTopColor: Colors.borderMuted,
-    borderTopWidth: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.control,
-    justifyContent: "space-between",
-    minHeight: 48,
-    paddingTop: Spacing.control,
-  },
-  plannedLabel: {
-    color: Colors.textBody,
-    flexGrow: 1,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.bold,
-  },
   actions: {
     alignItems: "center",
+    borderTopColor: Colors.border,
+    borderTopWidth: 1,
     flexDirection: "row",
     gap: Spacing.control,
     justifyContent: "flex-end",
+    paddingTop: Spacing.component,
   },
   actionsMobile: {
     alignItems: "stretch",

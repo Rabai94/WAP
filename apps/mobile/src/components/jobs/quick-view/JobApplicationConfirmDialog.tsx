@@ -7,7 +7,8 @@ import {
   Spacing,
   Typography,
 } from "@/theme";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useReducedMotion } from "@/components/ui/useReducedMotion";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -50,6 +51,17 @@ type JobApplicationConfirmDialogProps = {
   visible: boolean;
 };
 
+type GlobalKeyboardTarget = {
+  addEventListener?: (
+    type: "keydown",
+    listener: (event: { key?: string }) => void
+  ) => void;
+  removeEventListener?: (
+    type: "keydown",
+    listener: (event: { key?: string }) => void
+  ) => void;
+};
+
 export default function JobApplicationConfirmDialog({
   alreadyApplied,
   applicationContextError,
@@ -73,6 +85,7 @@ export default function JobApplicationConfirmDialog({
 }: JobApplicationConfirmDialogProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const reducedMotion = useReducedMotion();
   const [message, setMessage] = useState("");
   const [dialogFocused, setDialogFocused] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
@@ -90,6 +103,7 @@ export default function JobApplicationConfirmDialog({
     !jobUnavailable &&
     !loadingApplicationContext &&
     !submitting;
+  const requestCancel = useCallback(() => onCancel(), [onCancel]);
 
   useEffect(() => {
     if (!visible) {
@@ -112,10 +126,28 @@ export default function JobApplicationConfirmDialog({
     };
   }, [visible]);
 
+  useEffect(() => {
+    if (!visible || Platform.OS !== "web") {
+      return;
+    }
+
+    const keyboardTarget = globalThis as unknown as GlobalKeyboardTarget;
+    const handleKeyDown = (event: { key?: string }) => {
+      if (event.key === "Escape") {
+        requestCancel();
+      }
+    };
+
+    keyboardTarget.addEventListener?.("keydown", handleKeyDown);
+    return () => {
+      keyboardTarget.removeEventListener?.("keydown", handleKeyDown);
+    };
+  }, [requestCancel, visible]);
+
   return (
     <Modal
-      animationType="fade"
-      onRequestClose={onCancel}
+      animationType={reducedMotion ? "none" : "fade"}
+      onRequestClose={requestCancel}
       presentationStyle="overFullScreen"
       transparent
       visible={visible}
@@ -127,14 +159,14 @@ export default function JobApplicationConfirmDialog({
         <Pressable
           accessibilityLabel="Închide confirmarea aplicării"
           accessibilityRole="button"
-          onPress={onCancel}
+          onPress={requestCancel}
           style={[styles.backdrop, InteractionStyles.pointer]}
         />
         <View
           accessibilityLabel={`Confirmă aplicarea la ${jobTitle}`}
           accessibilityViewIsModal
           focusable
-          onAccessibilityEscape={onCancel}
+          onAccessibilityEscape={requestCancel}
           onBlur={(event) => {
             if (event.target === event.currentTarget) {
               setDialogFocused(false);
@@ -613,7 +645,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: Colors.brand,
+    backgroundColor: Colors.goldPrimary,
     borderRadius: Radius.lg,
     flex: 1.35,
     justifyContent: "center",
@@ -621,13 +653,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   primaryButtonHover: {
-    backgroundColor: Colors.brandDeep,
+    backgroundColor: Colors.goldHover,
   },
   primaryButtonDisabled: {
     backgroundColor: Colors.surfaceDisabled,
   },
   primaryButtonText: {
-    color: Colors.white,
+    color: Colors.onPrimary,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
     textAlign: "center",

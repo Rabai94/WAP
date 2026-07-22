@@ -1,12 +1,16 @@
 import RequireAuth from "@/components/RequireAuth";
 import {
   EmptyState,
+  DefinitionList,
   ErrorState,
+  IdentityHeader,
   LoadingState,
   PageContainer,
   PageHeader,
+  RabAIBadge,
   RabAIButton,
-  RabAICard,
+  Section,
+  type DefinitionListItem,
 } from "@/components/ui";
 import type { PersonalInterest } from "@/domain/account";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -46,41 +50,6 @@ function UnifiedProfileContent() {
     user?.language,
     t
   );
-  const vaultItems = useMemo(
-    () => [
-      {
-        label: t("profileUnified.vault.id"),
-        status: t("profileUnified.status.toUpload"),
-      },
-      {
-        label: t("profileUnified.vault.iban"),
-        status: t("profileUnified.status.toComplete"),
-      },
-      {
-        label: t("profileUnified.vault.drivingLicense"),
-        status: t("profileUnified.status.optional"),
-      },
-      {
-        label: t("profileUnified.vault.workPermit"),
-        status: profile
-          ? formatWorkAuthorization(profile.work_authorization_status, t)
-          : t("profileUnified.status.toComplete"),
-      },
-      {
-        label: t("profileUnified.vault.forkliftCertificate"),
-        status: t("profileUnified.status.optional"),
-      },
-      {
-        label: t("profileUnified.vault.certificates"),
-        status: t("profileUnified.status.toUpload"),
-      },
-      {
-        label: t("profileUnified.vault.contracts"),
-        status: t("profileUnified.status.comingSoon"),
-      },
-    ],
-    [profile, t]
-  );
 
   const loadProfile = useCallback(async () => {
     if (!userId) {
@@ -113,9 +82,89 @@ function UnifiedProfileContent() {
     return () => clearTimeout(timeoutId);
   }, [loadProfile]);
 
+  const identityItems: DefinitionListItem[] = [
+    {
+      label: t("profileUnified.firstName"),
+      value: profile?.first_name ?? nameParts.firstName ?? missingValue,
+    },
+    {
+      label: t("profileUnified.lastName"),
+      value: profile?.last_name ?? nameParts.lastName ?? missingValue,
+    },
+    {
+      label: t("common.location"),
+      value: formatWorkerLocation(profile) ?? user?.location ?? missingValue,
+    },
+    {
+      label: t("profileUnified.nationality"),
+      value: user?.nationality ?? missingValue,
+    },
+    {
+      label: t("profileUnified.languages"),
+      value: languages || missingValue,
+    },
+    {
+      label: t("profileUnified.accountType"),
+      value: t("accountType.personal.title"),
+    },
+  ];
+  const professionalItems: DefinitionListItem[] = [
+    {
+      label: t("profileUnified.occupation"),
+      value: profile?.occupation
+        ? localizedName(profile.occupation, language)
+        : missingValue,
+    },
+    {
+      label: t("profileUnified.workExperience"),
+      value: profile
+        ? t("profileUnified.years").replace(
+            "{count}",
+            String(profile.experience_years)
+          )
+        : user?.experience ?? missingValue,
+    },
+    {
+      label: t("profileUnified.education"),
+      value: user?.education ?? missingValue,
+    },
+    {
+      label: t("profileUnified.skills"),
+      value: user?.skills ?? missingValue,
+    },
+    {
+      label: t("profileUnified.qualifications"),
+      value: user?.qualifications ?? missingValue,
+    },
+    {
+      label: t("profileUnified.availability"),
+      value: profile
+        ? formatAvailability(profile.availability_status, t)
+        : user?.availability ?? missingValue,
+    },
+    {
+      label: t("profileUnified.jobPreferences"),
+      value:
+        user?.preferredWorkType ??
+        (profile?.occupation
+          ? localizedName(profile.occupation, language)
+          : missingValue),
+    },
+    {
+      label: t("profileUnified.servicePreferences"),
+      value: user?.servicePreferences ?? missingValue,
+    },
+  ];
+
   return (
     <PageContainer contentStyle={styles.content} maxWidth="content" scroll>
       <PageHeader
+        actions={
+          <RabAIButton
+            onPress={() => router.push("/profile/edit" as never)}
+            title={t("profileUnified.action.editProfile")}
+          />
+        }
         description={t("profileUnified.subtitle")}
         title={t("profileUnified.title")}
       />
@@ -131,63 +180,50 @@ function UnifiedProfileContent() {
         />
       ) : (
         <>
-        <RabAICard title={t("profileUnified.summaryTitle")}>
-          <View style={styles.summaryHeader}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitials(profileName)}</Text>
-            </View>
-            <View style={styles.summaryCopy}>
-              <Text style={styles.profileName}>{profileName}</Text>
-              <Text style={styles.profileMeta}>{user?.email ?? missingValue}</Text>
-              <Text style={styles.profileMeta}>
-                {profile?.phone ?? user?.phone ?? missingValue}
-              </Text>
-            </View>
-            <View style={styles.statusPill}>
-              <Text style={styles.statusPillText}>
-                {t("accountType.personal.title")}
-              </Text>
-            </View>
-          </View>
+          <IdentityHeader
+            avatar={
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{getInitials(profileName)}</Text>
+              </View>
+            }
+            badges={
+              <RabAIBadge
+                label={t("accountType.personal.title")}
+                tone="neutral"
+              />
+            }
+            compact
+            eyebrow={t("profileUnified.summaryTitle")}
+            meta={
+              <View style={styles.identityMeta}>
+                <Text style={styles.profileMeta}>{user?.email ?? missingValue}</Text>
+                <Text style={styles.profileMeta}>
+                  {profile?.phone ?? user?.phone ?? missingValue}
+                </Text>
+              </View>
+            }
+            subtitle={
+              profile?.occupation
+                ? localizedName(profile.occupation, language)
+                : formatWorkerLocation(profile) ?? user?.location ?? undefined
+            }
+            title={profileName}
+          />
 
-          <View style={styles.infoGrid}>
-            <InfoItem
-              label={t("profileUnified.firstName")}
-              value={profile?.first_name ?? nameParts.firstName ?? missingValue}
-            />
-            <InfoItem
-              label={t("profileUnified.lastName")}
-              value={profile?.last_name ?? nameParts.lastName ?? missingValue}
-            />
-            <InfoItem
-              label={t("common.location")}
-              value={formatWorkerLocation(profile) ?? user?.location ?? missingValue}
-            />
-            <InfoItem
-              label={t("profileUnified.nationality")}
-              value={user?.nationality ?? missingValue}
-            />
-            <InfoItem
-              label={t("profileUnified.languages")}
-              value={languages || missingValue}
-            />
-            <InfoItem
-              label={t("profileUnified.accountType")}
-              value={t("accountType.personal.title")}
-            />
-            <InfoItem
-              label={t("profileUnified.verificationLevel")}
-              value={`${t("verification.level0.short")} - ${missingValue}`}
-            />
-          </View>
-        </RabAICard>
+          <Section title={t("profileUnified.summaryTitle")}>
+            <DefinitionList columns={2} items={identityItems} />
+          </Section>
 
-        <RabAICard title={t("profileUnified.currentInterestsTitle")}>
+          <Section title={t("profileUnified.currentInterestsTitle")}>
           {interests.length > 0 ? (
             <>
               <View style={styles.chipRow}>
                 {interests.map((interest) => (
-                  <Chip key={interest} label={interestLabel(interest, t)} />
+                  <RabAIBadge
+                    key={interest}
+                    label={interestLabel(interest, t)}
+                    tone="neutral"
+                  />
                 ))}
               </View>
               <RabAIButton
@@ -206,136 +242,45 @@ function UnifiedProfileContent() {
               title={t("profileUnified.noInterests")}
             />
           )}
-        </RabAICard>
+          </Section>
 
-        <RabAICard title={t("profileUnified.aboutTitle")}>
+          <Section title={t("profileUnified.aboutTitle")}>
           {profile?.professional_summary ? (
-            <Text style={styles.summaryText}>{profile.professional_summary}</Text>
+              <Text selectable style={styles.summaryText}>{profile.professional_summary}</Text>
           ) : (
             <EmptyState compact title={t("profileUnified.summaryMissing")} />
           )}
-        </RabAICard>
+          </Section>
 
-        <RabAICard title={t("profileUnified.professionalTitle")}>
-          <View style={styles.infoGrid}>
-            <InfoItem
-              label={t("profileUnified.occupation")}
-              value={
-                profile?.occupation
-                  ? localizedName(profile.occupation, language)
-                  : missingValue
-              }
-            />
-            <InfoItem
-              label={t("profileUnified.workExperience")}
-              value={
-                profile
-                  ? t("profileUnified.years").replace(
-                      "{count}",
-                      String(profile.experience_years)
-                    )
-                  : user?.experience ?? missingValue
-              }
-            />
-            <InfoItem
-              label={t("profileUnified.education")}
-              value={user?.education ?? missingValue}
-            />
-            <InfoItem
-              label={t("profileUnified.skills")}
-              value={user?.skills ?? missingValue}
-            />
-            <InfoItem
-              label={t("profileUnified.qualifications")}
-              value={user?.qualifications ?? missingValue}
-            />
-            <InfoItem
-              label={t("profileUnified.availability")}
-              value={
-                profile
-                  ? formatAvailability(profile.availability_status, t)
-                  : user?.availability ?? missingValue
-              }
-            />
-            <InfoItem
-              label={t("profileUnified.jobPreferences")}
-              value={
-                user?.preferredWorkType ??
-                (profile?.occupation
-                  ? localizedName(profile.occupation, language)
-                  : missingValue)
-              }
-            />
-            <InfoItem
-              label={t("profileUnified.servicePreferences")}
-              value={user?.servicePreferences ?? missingValue}
-            />
-          </View>
-        </RabAICard>
+          <Section title={t("profileUnified.professionalTitle")}>
+            <DefinitionList columns={2} items={professionalItems} />
+          </Section>
 
-        <RabAICard title={t("profileUnified.verificationTitle")}>
-          <View style={styles.infoGrid}>
-            <InfoItem label={t("verification.level0.short")} value={t("verification.status.notStarted")} />
-            <InfoItem label={t("verification.level1.short")} value={t("verification.status.notStarted")} />
-            <InfoItem label={t("verification.level2.short")} value={t("verification.status.notStarted")} />
-            <InfoItem label={t("verification.level3.title")} value={t("verification.status.notStarted")} />
-            <InfoItem label={t("verification.level4.title")} value={t("verification.status.notStarted")} />
-          </View>
-          <Text style={styles.mutedText}>{t("profileUnified.verificationNote")}</Text>
-          <RabAIButton
-            onPress={() => router.push("/profile/verification" as any)}
-            size="sm"
-            style={styles.cardButton}
-            title={t("profileUnified.openVerification")}
-            variant="secondary"
-          />
-        </RabAICard>
+          <Section title={t("profileUnified.verificationTitle")}>
+            <Text style={styles.mutedText}>{t("profileUnified.verificationNote")}</Text>
+            <RabAIButton
+              onPress={() => router.push("/profile/verification" as never)}
+              size="sm"
+              style={styles.cardButton}
+              title={t("profileUnified.openVerification")}
+              variant="secondary"
+            />
+          </Section>
 
-        <RabAICard title={t("profileUnified.digitalVaultTitle")}>
-          <Text style={styles.mutedText}>{t("profileUnified.digitalVaultText")}</Text>
-          <View style={styles.vaultGrid}>
-            {vaultItems.map((item) => (
-              <View key={item.label} style={styles.vaultItem}>
-                <Text style={styles.vaultLabel}>{item.label}</Text>
-                <Text style={styles.vaultStatus}>{item.status}</Text>
-              </View>
-            ))}
-          </View>
-        </RabAICard>
-
-        <RabAICard title={t("profileUnified.quickActions")}>
+          <Section title={t("profileUnified.quickActions")}>
           <View style={styles.actionGrid}>
-            <ActionButton label={t("profileUnified.action.viewJobs")} onPress={() => router.push("/jobs" as any)} />
-            <ActionButton label={t("profileUnified.action.viewTasks")} onPress={() => router.push("/tasks" as any)} />
-            <ActionButton disabled label={t("profileUnified.action.offerServices")} onPress={() => router.push("/services/create" as any)} />
-            <ActionButton label={t("profileUnified.action.editProfile")} onPress={() => router.push("/profile/edit" as any)} />
-            <ActionButton label={t("profileUnified.action.verification")} onPress={() => router.push("/profile/verification" as any)} />
+            <ProfileAction label={t("profileUnified.action.viewJobs")} onPress={() => router.push("/jobs" as any)} />
+            <ProfileAction label={t("profileUnified.action.viewTasks")} onPress={() => router.push("/tasks" as any)} />
+            <ProfileAction label={t("profileUnified.action.verification")} onPress={() => router.push("/profile/verification" as any)} />
           </View>
-        </RabAICard>
+          </Section>
         </>
       )}
     </PageContainer>
   );
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.infoItem}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Chip({ label }: { label: string }) {
-  return (
-    <View style={styles.chip}>
-      <Text style={styles.chipText}>{label}</Text>
-    </View>
-  );
-}
-
-function ActionButton({
+function ProfileAction({
   disabled = false,
   label,
   onPress,
@@ -393,10 +338,6 @@ function formatWorkerLocation(profile: WorkerProfile | null) {
 
 function formatAvailability(value: string, t: (key: string) => string) {
   return t(`profileUnified.availability.${value}`);
-}
-
-function formatWorkAuthorization(value: string, t: (key: string) => string) {
-  return t(`profileUnified.workAuthorization.${value}`);
 }
 
 function splitName(fullName?: string) {
@@ -472,132 +413,49 @@ const styles = StyleSheet.create({
   content: {
     gap: Spacing.section,
   },
-  summaryHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.component,
-    marginBottom: Spacing.component,
-  },
   avatar: {
     alignItems: "center",
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.goldMuted,
+    borderColor: Colors.borderStrong,
     borderRadius: Radius.pill,
+    borderWidth: 1,
     height: 64,
     justifyContent: "center",
     width: 64,
   },
   avatarText: {
-    color: Colors.onPrimary,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
-  },
-  summaryCopy: {
-    flex: 1,
-    flexBasis: 160,
-    minWidth: 0,
-  },
-  profileName: {
     color: Colors.textPrimary,
-    fontSize: Typography.h3,
-    fontWeight: Typography.fontWeight.black,
+    fontSize: Typography.sectionHeading,
+    fontWeight: Typography.fontWeight.semibold,
   },
-  profileMeta: {
-    color: Colors.textSecondary,
-    fontSize: Typography.body,
-    marginTop: Spacing.compact,
-  },
-  statusPill: {
-    backgroundColor: Colors.successSurface,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.inline,
-    paddingVertical: Spacing.control,
-  },
-  statusPillText: {
-    color: Colors.success,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  infoGrid: {
+  identityMeta: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.control,
+    gap: Spacing.inline,
   },
-  infoItem: {
-    backgroundColor: Colors.surfaceMuted,
-    borderRadius: Radius.control,
-    flexBasis: 200,
-    flexGrow: 1,
-    minWidth: 0,
-    padding: Spacing.inline,
-  },
-  infoLabel: {
+  profileMeta: {
     color: Colors.textMuted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
-    marginBottom: Spacing.compact,
-  },
-  infoValue: {
-    color: Colors.textPrimary,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
   },
   summaryText: {
-    color: Colors.textBody,
+    color: Colors.textPrimary,
     fontSize: Typography.body,
     lineHeight: Typography.lineHeight.body,
   },
   mutedText: {
     color: Colors.textMuted,
-    fontSize: Typography.body,
-    lineHeight: Typography.lineHeight.body,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
   },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.control,
   },
-  chip: {
-    backgroundColor: Colors.primarySoft,
-    borderColor: Colors.informationBorder,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.inline,
-    paddingVertical: Spacing.control,
-  },
-  chipText: {
-    color: Colors.primaryPressed,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
   cardButton: {
     alignSelf: "flex-start",
     marginTop: Spacing.component,
-  },
-  vaultGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.control,
-    marginTop: Spacing.component,
-  },
-  vaultItem: {
-    backgroundColor: Colors.surfaceMuted,
-    borderRadius: Radius.control,
-    flexBasis: 200,
-    flexGrow: 1,
-    minWidth: 0,
-    padding: Spacing.inline,
-  },
-  vaultLabel: {
-    color: Colors.textPrimary,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-    marginBottom: Spacing.compact,
-  },
-  vaultStatus: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.bold,
   },
   actionGrid: {
     flexDirection: "row",

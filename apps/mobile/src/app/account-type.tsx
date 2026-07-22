@@ -1,8 +1,14 @@
 import { useRouter } from "expo-router";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Button, Card, Header, Screen } from "@/components/ui";
+import { StyleSheet, Text, View } from "react-native";
+import PublicHeader from "@/components/navigation/PublicHeader";
+import {
+  ErrorState,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  RabAICard,
+} from "@/components/ui";
 import type { OnboardingIntent } from "@/domain/account";
-import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useAuth } from "@/providers/AuthProvider";
 import { Colors, Spacing, Typography } from "@/theme";
@@ -10,7 +16,6 @@ import { useState } from "react";
 
 export default function AccountTypeScreen() {
   const router = useRouter();
-  const responsive = useResponsiveLayout();
   const { t } = useLanguage();
   const { session, updateOnboardingIntent } = useAuth();
   const [error, setError] = useState("");
@@ -44,55 +49,41 @@ export default function AccountTypeScreen() {
   }
 
   return (
-    <Screen
-      centered={false}
-      style={{
-        paddingHorizontal: responsive.horizontalPadding,
-        paddingVertical: responsive.isMobile ? Spacing.three : Spacing.screen,
-      }}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            gap: responsive.isMobile ? Spacing.sm : Spacing.md,
-            maxWidth: responsive.isWide ? 1120 : responsive.contentMaxWidth,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <Header
+    <PageContainer contentStyle={styles.content} maxWidth="content" scroll>
+        {!session ? <PublicHeader /> : null}
+        <PageHeader
+          backLabel={t("common.back")}
+          description={t("accountType.subtitle")}
+          onBack={() => router.replace((session ? "/engine" : "/") as never)}
           title={t("accountType.title")}
-          subtitle={t("accountType.subtitle")}
         />
 
         {!session ? (
-          <Card title={t("accountType.authRequiredTitle")}>
+          <RabAICard title={t("accountType.authRequiredTitle")} variant="filled">
             <Text style={styles.text}>{t("accountType.authRequiredText")}</Text>
             <View style={styles.authActions}>
-              <Button
+              <RabAIButton
                 title={t("accountType.createAccount")}
                 onPress={() => router.push("/login?mode=signup" as any)}
               />
-              <Button
+              <RabAIButton
                 title={t("accountType.login")}
                 variant="secondary"
                 onPress={() => router.push("/login" as any)}
               />
             </View>
-          </Card>
+          </RabAICard>
         ) : (
           <View style={styles.grid}>
-            <Card
+            <RabAICard
               title={t("accountType.personal.title")}
-              style={[
-                styles.card,
-                { flexBasis: responsive.isMobile ? "100%" : 300 },
-              ]}
+              style={styles.card}
+              variant="filled"
             >
               <Text style={styles.text}>{t("onboardingIntent.personal.text")}</Text>
-              <Button
-                disabled={Boolean(submittingIntent)}
+              <RabAIButton
+                loading={submittingIntent === "personal"}
+                disabled={Boolean(submittingIntent && submittingIntent !== "personal")}
                 title={
                   submittingIntent === "personal"
                     ? t("accountType.saving")
@@ -100,20 +91,19 @@ export default function AccountTypeScreen() {
                 }
                 onPress={() => void chooseOnboardingIntent("personal")}
               />
-            </Card>
+            </RabAICard>
 
-            <Card
+            <RabAICard
               title={t("accountType.organization.title")}
-              style={[
-                styles.card,
-                { flexBasis: responsive.isMobile ? "100%" : 300 },
-              ]}
+              style={styles.card}
+              variant="filled"
             >
               <Text style={styles.text}>
                 {t("onboardingIntent.createOrganization.text")}
               </Text>
-              <Button
-                disabled={Boolean(submittingIntent)}
+              <RabAIButton
+                loading={submittingIntent === "create_organization"}
+                disabled={Boolean(submittingIntent && submittingIntent !== "create_organization")}
                 title={
                   submittingIntent === "create_organization"
                     ? t("accountType.saving")
@@ -123,30 +113,20 @@ export default function AccountTypeScreen() {
                   void chooseOnboardingIntent("create_organization")
                 }
               />
-            </Card>
+            </RabAICard>
           </View>
         )}
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <Button
-          title={t("common.back")}
-          variant="ghost"
-          onPress={() => {
-            router.replace((session ? "/engine" : "/") as any);
-          }}
-        />
-      </ScrollView>
-    </Screen>
+        {error ? (
+          <ErrorState description={error} title={t("accountType.saveError")} />
+        ) : null}
+    </PageContainer>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    alignSelf: "center",
-    gap: Spacing.md,
-    paddingBottom: Spacing.five,
-    width: "100%",
+    gap: Spacing.section,
   },
   grid: {
     flexDirection: "row",
@@ -158,17 +138,15 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   authActions: {
-    gap: Spacing.md,
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.control,
   },
   text: {
     color: Colors.textBody,
     fontSize: Typography.body,
     lineHeight: Typography.lineHeight.body,
-    marginBottom: Spacing.three,
-  },
-  errorText: {
-    color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
+    marginBottom: Spacing.component,
   },
 });

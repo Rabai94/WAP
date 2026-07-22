@@ -1,4 +1,5 @@
 import { Platform, type TextStyle, type ViewStyle } from "react-native";
+import { Colors } from "./colors";
 
 function platformShadow({
   androidElevation,
@@ -33,48 +34,54 @@ function platformShadow({
   );
 }
 
+const noShadow = {} satisfies ViewStyle;
+
+const subtleShadow = platformShadow({
+  androidElevation: 1,
+  boxShadow: "0 1px 3px rgba(16, 18, 20, 0.08)",
+  color: Colors.shellBackground,
+  offsetY: 1,
+  opacity: 0.08,
+  radius: 3,
+});
+
+const elevatedShadow = platformShadow({
+  androidElevation: 3,
+  boxShadow: "0 10px 28px rgba(16, 18, 20, 0.12)",
+  color: Colors.shellBackground,
+  offsetY: 8,
+  opacity: 0.12,
+  radius: 20,
+});
+
+const floatingShadow = platformShadow({
+  androidElevation: 6,
+  boxShadow: "0 18px 44px rgba(16, 18, 20, 0.18)",
+  color: Colors.shellBackground,
+  offsetY: 16,
+  opacity: 0.18,
+  radius: 28,
+});
+
 export const Shadows = {
-  none: {} satisfies ViewStyle,
-  card: platformShadow({
-    androidElevation: 1,
-    boxShadow: "0 8px 24px rgba(21, 48, 88, 0.07)",
-    color: "#153058",
-    offsetY: 8,
-    opacity: 0.07,
-    radius: 16,
-  }),
-  elevated: platformShadow({
-    androidElevation: 3,
-    boxShadow: "0 14px 32px rgba(21, 48, 88, 0.11)",
-    color: "#153058",
-    offsetY: 12,
-    opacity: 0.11,
-    radius: 22,
-  }),
-  floating: platformShadow({
-    androidElevation: 6,
-    boxShadow: "0 18px 42px rgba(8, 17, 42, 0.16)",
-    color: "#08112A",
-    offsetY: 16,
-    opacity: 0.16,
-    radius: 28,
-  }),
-  button: platformShadow({
-    androidElevation: 1,
-    boxShadow: "0 5px 14px rgba(20, 92, 255, 0.16)",
-    color: "#145CFF",
-    offsetY: 5,
-    opacity: 0.14,
-    radius: 10,
-  }),
+  none: noShadow,
+  subtle: subtleShadow,
+  elevated: elevatedShadow,
+  floating: floatingShadow,
+
+  // Compatibility aliases. Buttons intentionally have no glow or elevation.
+  card: subtleShadow,
+  button: noShadow,
 } as const;
 
 export const TextShadows = {
   onImage:
     Platform.OS === "web"
-      ? ({ textShadow: "0 1px 4px rgba(0, 0, 0, 0.38)" } as unknown as TextStyle)
+      ? ({
+          textShadow: "0 1px 4px rgba(16, 18, 20, 0.52)",
+        } as unknown as TextStyle)
       : ({
-          textShadowColor: "rgba(0, 0, 0, 0.38)",
+          textShadowColor: "rgba(16, 18, 20, 0.52)",
           textShadowOffset: { height: 1, width: 0 },
           textShadowRadius: 4,
         } satisfies TextStyle),

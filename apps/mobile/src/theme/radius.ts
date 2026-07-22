@@ -1,15 +1,15 @@
 export const Radius = {
-  control: 10,
-  panel: 14,
-  dialog: 20,
+  control: 9,
+  panel: 12,
+  dialog: 16,
   pill: 999,
 
   // Compatibility aliases.
   sm: 6,
-  md: 10,
-  lg: 12,
-  card: 16,
-  xl: 18,
-  xxl: 24,
+  md: 8,
+  lg: 10,
+  card: 12,
+  xl: 14,
+  xxl: 16,
   round: 999,
 } as const;

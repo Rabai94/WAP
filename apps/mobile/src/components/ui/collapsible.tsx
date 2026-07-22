@@ -1,66 +1,96 @@
-import { SymbolView } from 'expo-symbols';
-import { PropsWithChildren, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { SymbolView } from "expo-symbols";
+import { type PropsWithChildren, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Colors,
+  ControlHeight,
+  IconSize,
+  InteractionStyles,
+  Opacity,
+  Radius,
+  Spacing,
+  Typography,
+} from "@/theme";
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { Radius } from '@/theme';
-
-export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
+export function Collapsible({
+  children,
+  title,
+}: PropsWithChildren & { title: string }) {
+  const [focused, setFocused] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const theme = useTheme();
 
   return (
-    <ThemedView>
+    <View style={styles.container}>
       <Pressable
-        style={({ pressed }) => [styles.heading, pressed && styles.pressedHeading]}
-        onPress={() => setIsOpen((value) => !value)}>
-        <ThemedView type="backgroundElement" style={styles.button}>
+        accessibilityLabel={title}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
+        onBlur={() => setFocused(false)}
+        onFocus={() => setFocused(true)}
+        onPress={() => setIsOpen((value) => !value)}
+        style={({ pressed }) => [
+          styles.heading,
+          pressed && styles.pressedHeading,
+          focused && InteractionStyles.focusRing,
+          InteractionStyles.pointer,
+        ]}
+      >
+        <View accessibilityElementsHidden style={styles.iconFrame}>
           <SymbolView
-            name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-            size={14}
-            weight="bold"
-            tintColor={theme.text}
-            style={{ transform: [{ rotate: isOpen ? '-90deg' : '90deg' }] }}
+            name={{
+              android: "chevron_right",
+              ios: "chevron.right",
+              web: "chevron_right",
+            }}
+            size={IconSize.sm}
+            style={{ transform: [{ rotate: isOpen ? "90deg" : "0deg" }] }}
+            tintColor={Colors.textSecondary}
+            weight="semibold"
           />
-        </ThemedView>
-
-        <ThemedText type="small">{title}</ThemedText>
+        </View>
+        <Text style={styles.title}>{title}</Text>
       </Pressable>
-      {isOpen && (
-        <Animated.View entering={FadeIn.duration(200)}>
-          <ThemedView type="backgroundElement" style={styles.content}>
-            {children}
-          </ThemedView>
-        </Animated.View>
-      )}
-    </ThemedView>
+      {isOpen ? <View style={styles.content}>{children}</View> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    alignSelf: "stretch",
+    minWidth: 0,
+  },
   heading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
+    alignItems: "center",
+    borderRadius: Radius.control,
+    flexDirection: "row",
+    gap: Spacing.control,
+    minHeight: ControlHeight.minimumTouch,
+    paddingHorizontal: Spacing.control,
   },
   pressedHeading: {
-    opacity: 0.7,
+    backgroundColor: Colors.goldMuted,
+    opacity: Opacity.pressed,
   },
-  button: {
-    width: Spacing.four,
-    height: Spacing.four,
-    borderRadius: Radius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
+  iconFrame: {
+    alignItems: "center",
+    height: ControlHeight.minimumTouch,
+    justifyContent: "center",
+    width: ControlHeight.minimumTouch,
+  },
+  title: {
+    color: Colors.textPrimary,
+    flex: 1,
+    fontSize: Typography.body,
+    fontWeight: Typography.fontWeight.semibold,
+    lineHeight: Typography.lineHeight.body,
   },
   content: {
-    marginTop: Spacing.three,
-    borderRadius: Spacing.three,
-    marginLeft: Spacing.four,
-    padding: Spacing.four,
+    borderLeftColor: Colors.borderStrong,
+    borderLeftWidth: 1,
+    marginLeft: ControlHeight.minimumTouch / 2,
+    marginTop: Spacing.control,
+    paddingBottom: Spacing.inline,
+    paddingLeft: Spacing.component,
   },
 });

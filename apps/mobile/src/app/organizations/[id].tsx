@@ -1,26 +1,33 @@
-import OrganizationActionButton from "@/components/organizations/OrganizationActionButton";
 import OrganizationHero from "@/components/organizations/OrganizationHero";
 import OwnerOrganizationDashboard from "@/components/organizations/OwnerOrganizationDashboard";
 import PublicOrganizationProfile from "@/components/organizations/PublicOrganizationProfile";
 import { getOrganizationCopy } from "@/components/organizations/organizationCopy";
-import { Screen } from "@/components/ui";
+import PublicHeader from "@/components/navigation/PublicHeader";
+import {
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+} from "@/components/ui";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import type { LanguageCode } from "@/i18n/translations";
 import { useAuth } from "@/providers/AuthProvider";
 import {
-  fetchOwnCompany,
+  fetchOwnCompanies,
+  fetchOwnCompanyJobs,
   fetchPublicCompanyById,
   toPublicCompanyProfile,
+  type CompanyDashboardJob,
   type CompanyProfile,
   type CompanyStatus,
   type CompanyVerificationStatus,
   type PublicCompanyProfile,
 } from "@/services/company/companyService";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Colors, Spacing, Typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 type ProfileError =
   | { kind: "invalid" }
@@ -42,6 +49,7 @@ export default function OrganizationDetailsScreen() {
   const [publicCompany, setPublicCompany] =
     useState<PublicCompanyProfile | null>(null);
   const [ownedCompany, setOwnedCompany] = useState<CompanyProfile | null>(null);
+  const [jobs, setJobs] = useState<CompanyDashboardJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ProfileError | null>(null);
   const [reloadAttempt, setReloadAttempt] = useState(0);
@@ -58,6 +66,7 @@ export default function OrganizationDetailsScreen() {
       setError(null);
       setOwnedCompany(null);
       setPublicCompany(null);
+      setJobs([]);
 
       if (!isUuid(organizationId)) {
         setError({ kind: "invalid" });
@@ -66,14 +75,20 @@ export default function OrganizationDetailsScreen() {
       }
 
       try {
-        const ownCompany = user?.id
-          ? await fetchOwnCompany(user.id)
-          : null;
+        const ownCompanies = user?.id
+          ? await fetchOwnCompanies(user.id)
+          : [];
         const matchingOwnedCompany =
-          ownCompany?.id === organizationId ? ownCompany : null;
-        const nextPublicCompany = matchingOwnedCompany
-          ? toPublicCompanyProfile(matchingOwnedCompany)
-          : await fetchPublicCompanyById(organizationId);
+          ownCompanies.find((company) => company.id === organizationId) ?? null;
+        let nextPublicCompany: PublicCompanyProfile | null;
+        let nextJobs: CompanyDashboardJob[] = [];
+
+        if (matchingOwnedCompany) {
+          nextPublicCompany = toPublicCompanyProfile(matchingOwnedCompany);
+          nextJobs = await fetchOwnCompanyJobs(matchingOwnedCompany.id);
+        } else {
+          nextPublicCompany = await fetchPublicCompanyById(organizationId);
+        }
 
         if (!mounted) {
           return;
@@ -86,6 +101,7 @@ export default function OrganizationDetailsScreen() {
 
         setOwnedCompany(matchingOwnedCompany);
         setPublicCompany(nextPublicCompany);
+        setJobs(nextJobs);
       } catch {
         if (mounted) {
           setError({ kind: "load" });
@@ -129,63 +145,38 @@ export default function OrganizationDetailsScreen() {
   }
 
   return (
-    <Screen
-      centered={false}
-      style={{
-        paddingHorizontal: responsive.horizontalPadding,
-        paddingVertical: responsive.isMobile ? Spacing.three : Spacing.screen,
-      }}
-    >
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          {
-            gap: responsive.isMobile ? Spacing.three : Spacing.screen,
-            maxWidth: Math.min(responsive.contentMaxWidth, 1120),
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.utilityRow}>
-          <OrganizationActionButton
-            accessibilityHint={
-              isPublicPreview ? copy.exitPublicPreview : copy.back
-            }
-            fullWidth={responsive.isMobile}
-            label={isPublicPreview ? copy.exitPublicPreview : copy.back}
-            onPress={isPublicPreview ? handleExitPreview : handleBack}
-            variant="ghost"
-          />
-        </View>
+    <PageContainer contentStyle={styles.content} maxWidth="content" scroll>
+        {!user && !authLoading ? <PublicHeader /> : null}
+        <PageHeader
+          backLabel={isPublicPreview ? copy.exitPublicPreview : copy.back}
+          description={
+            isPublicPreview ? copy.publicPreviewNote : copy.publicProfileSubtitle
+          }
+          onBack={isPublicPreview ? handleExitPreview : handleBack}
+          title={isPublicPreview ? copy.publicPreview : copy.publicProfile}
+        />
 
         {loading || authLoading ? (
-          <View
-            accessibilityLiveRegion="polite"
-            accessible
-            style={styles.stateCard}
-          >
-            <Text style={styles.stateText}>{copy.loadingProfile}</Text>
-          </View>
+          <LoadingState title={copy.loadingProfile} />
         ) : null}
 
         {!loading && error ? (
-          <View accessibilityRole="alert" style={styles.errorCard}>
-            <Text style={styles.errorTitle}>
-              {error.kind === "invalid"
+          <ErrorState
+            description={
+              error.kind === "invalid"
                 ? copy.invalidOrganization
                 : error.kind === "not-found"
                   ? copy.publicNotFound
-                  : t("organizations.loadError")}
-            </Text>
-            {error.kind === "load" ? (
-              <OrganizationActionButton
-                fullWidth={responsive.isMobile}
-                label={copy.retry}
-                onPress={() => setReloadAttempt((current) => current + 1)}
-                variant="secondary"
-              />
-            ) : null}
-          </View>
+                  : t("organizations.loadError")
+            }
+            onRetry={
+              error.kind === "load"
+                ? () => setReloadAttempt((current) => current + 1)
+                : undefined
+            }
+            retryLabel={copy.retry}
+            title={t("organizations.loadError")}
+          />
         ) : null}
 
         {!loading && publicCompany ? (
@@ -224,6 +215,9 @@ export default function OrganizationDetailsScreen() {
                 company={ownedCompany}
                 completionLabels={completionLabels}
                 copy={copy}
+                formatJobStatus={(status) =>
+                  t(`organizations.jobStatus.${status}`)
+                }
                 formatStatus={(status) =>
                   formatCompanyStatus(status, language, t)
                 }
@@ -231,7 +225,17 @@ export default function OrganizationDetailsScreen() {
                   formatVerificationStatus(status, language, t)
                 }
                 isMobile={responsive.isMobile}
+                jobLabels={{
+                  activeJobs: t("organizations.activeJobs"),
+                  editJob: t("organizations.editJob"),
+                  jobsTitle: t("organizations.jobsTitle"),
+                  noJobs: t("organizations.noJobs"),
+                }}
+                jobs={jobs}
                 onEdit={() => router.push("/organizations/create" as never)}
+                onEditJob={(jobId) =>
+                  router.push(`/create-job?jobId=${jobId}` as never)
+                }
                 onOpenApplications={() => router.push("/applications" as never)}
                 onPublishJob={() => router.push("/create-job" as never)}
                 onViewPublicProfile={() =>
@@ -245,8 +249,7 @@ export default function OrganizationDetailsScreen() {
             ) : null}
           </>
         ) : null}
-      </ScrollView>
-    </Screen>
+    </PageContainer>
   );
 }
 
@@ -305,59 +308,23 @@ function readParam(value?: string | string[]) {
 
 const styles = StyleSheet.create({
   content: {
-    alignSelf: "center",
-    paddingBottom: Spacing.eight,
-    width: "100%",
-  },
-  utilityRow: {
-    alignItems: "flex-start",
-  },
-  stateCard: {
-    alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    minHeight: 160,
-    justifyContent: "center",
-    padding: Spacing.screen,
-  },
-  stateText: {
-    color: Colors.textMuted,
-    fontSize: Typography.body,
-    textAlign: "center",
-  },
-  errorCard: {
-    alignItems: "flex-start",
-    backgroundColor: "#FFF1F2",
-    borderColor: "#FECDD3",
-    borderRadius: Radius.xxl,
-    borderWidth: 1,
-    gap: Spacing.three,
-    padding: Spacing.screen,
-  },
-  errorTitle: {
-    color: "#BE123C",
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.extraBold,
-    lineHeight: Typography.lineHeight.default,
+    gap: Spacing.section,
   },
   previewBanner: {
-    backgroundColor: Colors.accentSoft,
-    borderColor: "rgba(110, 29, 255, 0.24)",
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    padding: Spacing.three,
+    backgroundColor: Colors.goldMuted,
+    borderLeftColor: Colors.goldPrimary,
+    borderLeftWidth: 3,
+    padding: Spacing.component,
   },
   previewTitle: {
-    color: Colors.accent,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
+    color: Colors.textPrimary,
+    fontSize: Typography.supporting,
+    fontWeight: Typography.fontWeight.semibold,
   },
   previewText: {
-    color: Colors.textBody,
-    fontSize: Typography.bodySmall,
-    lineHeight: Typography.lineHeight.body,
-    marginTop: Spacing.xs,
+    color: Colors.textSecondary,
+    fontSize: Typography.supporting,
+    lineHeight: Typography.lineHeight.supporting,
+    marginTop: Spacing.compact,
   },
 });

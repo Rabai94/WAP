@@ -1087,7 +1087,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: Colors.brand,
+    backgroundColor: Colors.goldPrimary,
     borderRadius: Radius.lg,
     flex: 1,
     justifyContent: "center",
@@ -1096,13 +1096,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
   },
   primaryButtonHover: {
-    backgroundColor: Colors.brandDeep,
+    backgroundColor: Colors.goldHover,
   },
   primaryButtonDisabled: {
     backgroundColor: Colors.surfaceDisabled,
   },
   primaryButtonText: {
-    color: Colors.white,
+    color: Colors.onPrimary,
     fontSize: Typography.bodySmall,
     fontWeight: Typography.fontWeight.extraBold,
     textAlign: "center",
@@ -1162,19 +1162,19 @@ const styles = StyleSheet.create({
     padding: Spacing.five,
   },
   skeletonTitle: {
-    backgroundColor: "#E9EEF8",
+    backgroundColor: Colors.borderMuted,
     borderRadius: Radius.round,
     height: 18,
     width: "42%",
   },
   skeletonLine: {
-    backgroundColor: "#F0F3F9",
+    backgroundColor: Colors.surfaceMuted,
     borderRadius: Radius.round,
     height: 14,
     width: "100%",
   },
   skeletonLineShort: {
-    backgroundColor: "#F0F3F9",
+    backgroundColor: Colors.surfaceMuted,
     borderRadius: Radius.round,
     height: 14,
     width: "72%",

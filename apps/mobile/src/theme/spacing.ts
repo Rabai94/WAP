@@ -1,5 +1,5 @@
 export const Spacing = {
-  // Semantic spacing scale for new UI.
+  // Canonical RabAI Signature rhythm for new UI.
   micro: 2,
   compact: 4,
   control: 8,
@@ -12,7 +12,7 @@ export const Spacing = {
   layout: 48,
   display: 64,
 
-  // Compatibility aliases used by existing screens.
+  // Compatibility aliases used by existing screens during rollout.
   none: 0,
   xxs: 2,
   xs: 4,

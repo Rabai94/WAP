@@ -1,21 +1,144 @@
 import RequireAuth from "@/components/RequireAuth";
-import { Button, Card, Header, Screen } from "@/components/ui";
+import {
+  EmptyState,
+  ErrorState,
+  ListingRow,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  RabAIButton,
+  Section,
+  StatusBadge,
+  type RabAIBadgeTone,
+  type ListingRowMetaItem,
+} from "@/components/ui";
+import { useLanguage } from "@/i18n/LanguageProvider";
+import type { LanguageCode } from "@/i18n/translations";
 import {
   listCompanyApplications,
   updateApplicationStatus,
   type CompanyApplication,
 } from "@/services/worker/workerService";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
+import { Spacing } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
-const statusActions = [
-  { label: "Vazut", value: "viewed" },
-  { label: "Selectat", value: "shortlisted" },
-  { label: "Acceptat", value: "accepted" },
-  { label: "Respins", value: "rejected" },
-];
+type ApplicationStatusAction =
+  | "viewed"
+  | "shortlisted"
+  | "accepted"
+  | "rejected";
+
+type ApplicationsCopy = {
+  applied: string;
+  back: string;
+  emptyDescription: string;
+  emptyTitle: string;
+  experience: string;
+  filteredSubtitle: string;
+  filteredTitle: string;
+  loadError: string;
+  loading: string;
+  retry: string;
+  updateError: string;
+};
+
+const copyByLanguage: Record<LanguageCode, ApplicationsCopy> = {
+  de: {
+    applied: "Beworben",
+    back: "Zurück zu Organisationen",
+    emptyDescription:
+      "Bewerbungen auf Jobs deiner Organisation werden hier angezeigt.",
+    emptyTitle: "Noch keine Bewerbungen",
+    experience: "Erfahrung",
+    filteredSubtitle: "Es werden nur Bewerbungen für den gewählten Job angezeigt.",
+    filteredTitle: "Bewerbungen für den Job",
+    loadError: "Die Bewerbungen konnten nicht geladen werden.",
+    loading: "Bewerbungen werden geladen",
+    retry: "Erneut versuchen",
+    updateError: "Der Bewerbungsstatus konnte nicht aktualisiert werden.",
+  },
+  en: {
+    applied: "Applied",
+    back: "Back to organizations",
+    emptyDescription:
+      "Applications submitted to your organization’s jobs will appear here.",
+    emptyTitle: "No applications yet",
+    experience: "Experience",
+    filteredSubtitle: "Only applications for the selected job are shown.",
+    filteredTitle: "Applications for this job",
+    loadError: "Applications could not be loaded.",
+    loading: "Loading applications",
+    retry: "Try again",
+    updateError: "The application status could not be updated.",
+  },
+  ro: {
+    applied: "Aplicat",
+    back: "Înapoi la organizații",
+    emptyDescription:
+      "Aplicările trimise la joburile organizației tale vor apărea aici.",
+    emptyTitle: "Momentan nu există aplicări",
+    experience: "Experiență",
+    filteredSubtitle: "Sunt afișate doar aplicările pentru jobul selectat.",
+    filteredTitle: "Aplicări pentru job",
+    loadError: "Aplicările nu au putut fi încărcate.",
+    loading: "Se încarcă aplicările",
+    retry: "Încearcă din nou",
+    updateError: "Statusul aplicării nu a putut fi actualizat.",
+  },
+};
+
+const statusActions: Record<
+  LanguageCode,
+  readonly { label: string; value: ApplicationStatusAction }[]
+> = {
+  de: [
+    { label: "Gesehen", value: "viewed" },
+    { label: "Vorausgewählt", value: "shortlisted" },
+    { label: "Akzeptiert", value: "accepted" },
+    { label: "Abgelehnt", value: "rejected" },
+  ],
+  en: [
+    { label: "Viewed", value: "viewed" },
+    { label: "Shortlisted", value: "shortlisted" },
+    { label: "Accepted", value: "accepted" },
+    { label: "Rejected", value: "rejected" },
+  ],
+  ro: [
+    { label: "Văzută", value: "viewed" },
+    { label: "Selectată", value: "shortlisted" },
+    { label: "Acceptată", value: "accepted" },
+    { label: "Respinsă", value: "rejected" },
+  ],
+};
+
+const statusLabels: Record<LanguageCode, Record<string, string>> = {
+  de: {
+    accepted: "Akzeptiert",
+    rejected: "Abgelehnt",
+    shortlisted: "Vorausgewählt",
+    submitted: "Gesendet",
+    viewed: "Gesehen",
+    withdrawn: "Zurückgezogen",
+  },
+  en: {
+    accepted: "Accepted",
+    rejected: "Rejected",
+    shortlisted: "Shortlisted",
+    submitted: "Submitted",
+    viewed: "Viewed",
+    withdrawn: "Withdrawn",
+  },
+  ro: {
+    accepted: "Acceptată",
+    rejected: "Respinsă",
+    shortlisted: "Selectată",
+    submitted: "Trimisă",
+    viewed: "Văzută",
+    withdrawn: "Retrasă",
+  },
+};
 
 export default function ApplicationsScreen() {
   return (
@@ -27,11 +150,14 @@ export default function ApplicationsScreen() {
 
 function ApplicationsContent() {
   const router = useRouter();
+  const { language, t } = useLanguage();
+  const copy = copyByLanguage[language];
   const params = useLocalSearchParams<{ jobId?: string | string[] }>();
   const requestedJobId = readParam(params.jobId);
   const [applications, setApplications] = useState<CompanyApplication[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [updateError, setUpdateError] = useState("");
   const [updatingApplicationId, setUpdatingApplicationId] = useState("");
 
   const groupedApplications = useMemo(() => {
@@ -57,325 +183,263 @@ function ApplicationsContent() {
 
   const loadApplications = useCallback(async () => {
     setLoading(true);
-    setError("");
+    setLoadError("");
 
     try {
       setApplications(await listCompanyApplications());
     } catch (nextError) {
-      setError(readError(nextError));
+      setLoadError(readError(nextError, copy.loadError));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [copy.loadError]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       void loadApplications();
     }, 0);
 
-    return () => {
-      clearTimeout(timeoutId);
-    };
+    return () => clearTimeout(timeoutId);
   }, [loadApplications]);
 
-  async function handleStatusUpdate(applicationId: string, status: string) {
+  async function handleStatusUpdate(
+    applicationId: string,
+    status: ApplicationStatusAction
+  ) {
     setUpdatingApplicationId(applicationId);
-    setError("");
+    setUpdateError("");
 
     try {
       await updateApplicationStatus(applicationId, status);
-      await loadApplications();
+      setApplications((current) =>
+        current.map((application) =>
+          application.application_id === applicationId
+            ? { ...application, status }
+            : application
+        )
+      );
     } catch (nextError) {
-      setError(readError(nextError));
+      setUpdateError(readError(nextError, copy.updateError));
     } finally {
       setUpdatingApplicationId("");
     }
   }
 
   return (
-    <Screen centered={false}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.replace("/organizations" as any)}
-            style={styles.homeButton}
-          >
-            <Text style={styles.homeButtonText}>Organizații</Text>
-          </Pressable>
-        </View>
+    <PageContainer contentStyle={styles.content} maxWidth="content" scroll>
+      <PageHeader
+        backLabel={copy.back}
+        description={
+          requestedJobId ? copy.filteredSubtitle : t("applications.subtitle")
+        }
+        onBack={() => router.replace("/organizations")}
+        title={requestedJobId ? copy.filteredTitle : t("applications.title")}
+      />
 
-        <Header
-          title={requestedJobId ? "Aplicatii pentru job" : "Aplicatii primite"}
-          subtitle={
-            requestedJobId
-              ? "Sunt afisate aplicatiile pentru jobul selectat."
-              : "Candidatii sunt afisati doar pentru joburile organizatiei tale."
+      {loading ? <LoadingState title={copy.loading} /> : null}
+      {!loading && loadError ? (
+        <ErrorState
+          description={loadError}
+          onRetry={() => void loadApplications()}
+          retryLabel={copy.retry}
+          title={copy.loadError}
+        />
+      ) : null}
+      {updateError ? (
+        <ErrorState
+          compact
+          description={
+            updateError === copy.updateError ? undefined : updateError
           }
+          title={copy.updateError}
         />
-
-        {loading ? (
-          <Card>
-            <Text style={styles.mutedText}>Se incarca aplicatiile...</Text>
-          </Card>
-        ) : null}
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        {!loading && groupedApplications.length === 0 ? (
-          <Card title="Momentan nu exista aplicatii">
-            <Text style={styles.emptyText}>
-              Aplicatiile trimise la joburile tale vor aparea aici.
-            </Text>
-          </Card>
-        ) : null}
-
-        {groupedApplications.map((group) => (
-          <Card key={group.jobId} title={group.jobTitle}>
-            <View style={styles.applicationList}>
-              {group.applications.map((application) => (
-                <View key={application.application_id} style={styles.applicationCard}>
-                  <View style={styles.applicationHeader}>
-                    <View style={styles.applicationTitleWrap}>
-                      <Text style={styles.workerName}>
-                        {application.worker_name}
-                      </Text>
-                      <Text style={styles.workerMeta}>
-                        {application.occupation_name_ro} -{" "}
-                        {application.experience_years} ani experienta
-                      </Text>
-                      <Text style={styles.workerMeta}>
-                        {application.worker_location_label}
-                      </Text>
-                    </View>
-                    <View style={styles.statusPill}>
-                      <Text style={styles.statusPillText}>
-                        {formatApplicationStatus(application.status)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {application.message ? (
-                    <Text style={styles.messageText}>{application.message}</Text>
-                  ) : null}
-
-                  <Text style={styles.applicationDate}>
-                    Aplicat la {formatDate(application.created_at)}
-                  </Text>
-
-                  <View style={styles.actionRow}>
-                    {statusActions.map((action) => {
-                      const disabled =
-                        updatingApplicationId === application.application_id ||
-                        application.status === "withdrawn";
-
-                      return (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityState={{
-                            disabled,
-                            selected: application.status === action.value,
-                          }}
-                          disabled={disabled}
-                          key={action.value}
-                          onPress={() =>
-                            handleStatusUpdate(
-                              application.application_id,
-                              action.value
-                            )
-                          }
-                          style={[
-                            styles.actionButton,
-                            application.status === action.value &&
-                              styles.actionButtonActive,
-                            disabled && styles.disabledAction,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.actionButtonText,
-                              application.status === action.value &&
-                                styles.actionButtonTextActive,
-                            ]}
-                          >
-                            {action.label}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              ))}
-            </View>
-          </Card>
-        ))}
-
-        <Button
-          title="Inapoi la organizatii"
-          variant="ghost"
-          onPress={() => router.replace("/organizations" as any)}
+      ) : null}
+      {!loading && !loadError && groupedApplications.length === 0 ? (
+        <EmptyState
+          description={copy.emptyDescription}
+          title={copy.emptyTitle}
         />
-      </ScrollView>
-    </Screen>
+      ) : null}
+
+      {!loading && !loadError
+        ? groupedApplications.map((group) => (
+            <Section key={group.jobId} title={group.jobTitle}>
+              <View style={styles.applicationList}>
+                {group.applications.map((application) => {
+                  const updating =
+                    updatingApplicationId === application.application_id;
+                  const withdrawn = application.status === "withdrawn";
+                  const meta = buildApplicationMeta(
+                    application,
+                    copy,
+                    language,
+                    t("common.location")
+                  );
+
+                  return (
+                    <ListingRow
+                      accessibilityLabel={`${application.worker_name}, ${formatApplicationStatus(
+                        application.status,
+                        language
+                      )}`}
+                      actions={
+                        <View style={styles.actionRow}>
+                          {statusActions[language].map((action) => {
+                            const selected =
+                              application.status === action.value;
+                            const disabled = updating || withdrawn;
+
+                            return (
+                              <RabAIButton
+                                accessibilityState={{
+                                  busy: updating,
+                                  disabled,
+                                  selected,
+                                }}
+                                disabled={disabled}
+                                key={action.value}
+                                onPress={() =>
+                                  void handleStatusUpdate(
+                                    application.application_id,
+                                    action.value
+                                  )
+                                }
+                                size="sm"
+                                title={action.label}
+                                variant={selected ? "secondary" : "ghost"}
+                              />
+                            );
+                          })}
+                        </View>
+                      }
+                      badges={
+                        <StatusBadge
+                          label={formatApplicationStatus(
+                            application.status,
+                            language
+                          )}
+                          status={application.status}
+                          tone={applicationStatusTone(application.status)}
+                        />
+                      }
+                      description={application.message ?? undefined}
+                      key={application.application_id}
+                      meta={meta}
+                      subtitle={formatOccupation(application, language)}
+                      title={application.worker_name}
+                    />
+                  );
+                })}
+              </View>
+            </Section>
+          ))
+        : null}
+    </PageContainer>
   );
+}
+
+function buildApplicationMeta(
+  application: CompanyApplication,
+  copy: ApplicationsCopy,
+  language: LanguageCode,
+  locationLabel: string
+): ListingRowMetaItem[] {
+  return [
+    {
+      label: copy.experience,
+      value: formatExperience(application.experience_years, language),
+    },
+    {
+      label: locationLabel,
+      value: application.worker_location_label || application.worker_city,
+    },
+    {
+      label: copy.applied,
+      value: formatDate(application.created_at, language),
+    },
+  ];
+}
+
+function formatOccupation(
+  application: CompanyApplication,
+  language: LanguageCode
+) {
+  if (language === "de") {
+    return application.occupation_name_de;
+  }
+
+  if (language === "en") {
+    return application.occupation_name_en;
+  }
+
+  return application.occupation_name_ro;
 }
 
 function readParam(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function formatApplicationStatus(value: string) {
-  if (value === "viewed") {
-    return "vazuta";
-  }
+function readError(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
-  if (value === "shortlisted") {
-    return "selectata";
-  }
+function formatApplicationStatus(value: string, language: LanguageCode) {
+  return statusLabels[language][value] ?? statusLabels[language].submitted;
+}
 
+function applicationStatusTone(value: string): RabAIBadgeTone {
   if (value === "accepted") {
-    return "acceptata";
+    return "success";
   }
 
   if (value === "rejected") {
-    return "respinsa";
+    return "danger";
+  }
+
+  if (value === "shortlisted") {
+    return "warning";
   }
 
   if (value === "withdrawn") {
-    return "retrasa";
+    return "neutral";
   }
 
-  return "trimisa";
+  return "information";
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ro-RO", {
+function formatExperience(value: number, language: LanguageCode) {
+  if (language === "de") {
+    return `${value} ${value === 1 ? "Jahr" : "Jahre"}`;
+  }
+
+  if (language === "en") {
+    return `${value} ${value === 1 ? "year" : "years"}`;
+  }
+
+  return `${value} ${value === 1 ? "an" : "ani"}`;
+}
+
+function formatDate(value: string, language: LanguageCode) {
+  const locale = language === "de" ? "de-DE" : language === "en" ? "en-GB" : "ro-RO";
+
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
   }).format(new Date(value));
 }
 
-function readError(error: unknown) {
-  return error instanceof Error
-    ? error.message
-    : "Nu am putut incarca aplicatiile.";
-}
-
 const styles = StyleSheet.create({
   content: {
-    gap: Spacing.md,
-    paddingBottom: Spacing.five,
-  },
-  topBar: {
-    alignItems: "flex-start",
-    marginBottom: Spacing.md,
-  },
-  homeButton: {
-    backgroundColor: "#145CFF",
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  homeButtonText: {
-    color: Colors.white,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
+    gap: Spacing.section,
   },
   applicationList: {
-    gap: Spacing.md,
-  },
-  applicationCard: {
-    backgroundColor: "#F7F9FD",
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    padding: Spacing.lg,
-  },
-  applicationHeader: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    justifyContent: "space-between",
-  },
-  applicationTitleWrap: {
-    flexBasis: 260,
-    flexGrow: 1,
-  },
-  workerName: {
-    color: Colors.text,
-    fontSize: Typography.cardTitle,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  workerMeta: {
-    color: Colors.textSecondary,
-    fontSize: Typography.bodySmall,
-    marginTop: Spacing.xs,
-  },
-  statusPill: {
-    backgroundColor: "#EAF1FF",
-    borderRadius: Radius.round,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  statusPillText: {
-    color: "#145CFF",
-    fontSize: Typography.small,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  messageText: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
-    lineHeight: 24,
-    marginTop: Spacing.md,
-  },
-  applicationDate: {
-    color: Colors.textMuted,
-    fontSize: Typography.small,
-    marginTop: Spacing.md,
+    minWidth: 0,
   },
   actionRow: {
+    alignItems: "center",
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: Spacing.sm,
-    marginTop: Spacing.lg,
-  },
-  actionButton: {
-    backgroundColor: Colors.white,
-    borderColor: Colors.border,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  actionButtonActive: {
-    backgroundColor: "#EAF1FF",
-    borderColor: "#145CFF",
-  },
-  actionButtonText: {
-    color: Colors.textBody,
-    fontSize: Typography.bodySmall,
-    fontWeight: Typography.fontWeight.extraBold,
-  },
-  actionButtonTextActive: {
-    color: "#145CFF",
-  },
-  disabledAction: {
-    opacity: 0.5,
-  },
-  emptyText: {
-    color: Colors.textBody,
-    fontSize: Typography.body,
-    lineHeight: 24,
-  },
-  errorText: {
-    color: Colors.danger,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  mutedText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.body,
+    gap: Spacing.control,
   },
 });

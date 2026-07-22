@@ -130,14 +130,14 @@ function resolveGutter(width: number) {
 
 const styles = StyleSheet.create({
   outer: {
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.canvas,
     flex: 1,
     minHeight: 0,
     minWidth: 0,
     overflow: "hidden",
   },
   plain: {
-    backgroundColor: Colors.backgroundPlain,
+    backgroundColor: Colors.surface,
   },
   content: {
     alignSelf: "center",

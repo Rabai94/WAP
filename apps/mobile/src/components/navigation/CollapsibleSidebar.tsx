@@ -1,7 +1,6 @@
 import AppIcon from "@/components/navigation/AppIcon";
 import SidebarNavItem from "@/components/navigation/SidebarNavItem";
 import {
-  getAdminNavigation,
   getMainNavigation,
   getSidebarUtilityCopy,
   isSidebarRouteActive,
@@ -34,13 +33,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// Stable shell constraints; content breakpoints remain token-driven.
 export const COLLAPSED_SIDEBAR_WIDTH = 72;
-export const EXPANDED_SIDEBAR_WIDTH = 256;
+export const EXPANDED_SIDEBAR_WIDTH = 240;
 
 type CollapsibleSidebarProps = {
   collapsed: boolean;
   drawer?: boolean;
-  isAdmin: boolean;
   onCollapseToggle: () => void;
   onNavigate?: () => void;
 };
@@ -88,7 +87,6 @@ const copyByLanguage = {
 export default function CollapsibleSidebar({
   collapsed,
   drawer = false,
-  isAdmin,
   onCollapseToggle,
   onNavigate,
 }: CollapsibleSidebarProps) {
@@ -98,17 +96,12 @@ export default function CollapsibleSidebar({
   const { width } = useWindowDimensions();
   const { language, setLanguage } = useLanguage();
   const { isSigningOut, signOut } = useAuth();
-  const copy = getSidebarUtilityCopy(language);
+  const utilityCopy = getSidebarUtilityCopy(language);
   const shellCopy = copyByLanguage[language];
   const isCollapsed = drawer ? false : collapsed;
   const mainItems = getMainNavigation(language);
-  const adminItems = getAdminNavigation(language);
 
-  function navigate(route?: string) {
-    if (!route) {
-      return;
-    }
-
+  function navigate(route: string) {
     onNavigate?.();
     router.push(route as never);
   }
@@ -129,12 +122,12 @@ export default function CollapsibleSidebar({
       style={[
         styles.sidebar,
         {
-          paddingBottom: Math.max(insets.bottom, Spacing.three),
-          paddingTop: Math.max(insets.top, Spacing.three),
+          paddingBottom: Math.max(insets.bottom, Spacing.component),
+          paddingTop: Math.max(insets.top, Spacing.component),
           width: drawer
             ? Math.min(
-                EXPANDED_SIDEBAR_WIDTH + Spacing.three,
-                Math.max(width - Spacing.eight, 0)
+                EXPANDED_SIDEBAR_WIDTH,
+                Math.max(width - Spacing.page, 0)
               )
             : isCollapsed
               ? COLLAPSED_SIDEBAR_WIDTH
@@ -147,22 +140,27 @@ export default function CollapsibleSidebar({
         <InteractivePressable
           accessibilityLabel={shellCopy.brandHome}
           accessibilityRole="button"
-          hoverStyle={styles.controlHover}
+          hoverStyle={styles.inverseControlHover}
           onPress={() => navigate("/engine")}
-          pressedStyle={styles.controlPressed}
-          style={[styles.brandButton, isCollapsed && styles.brandButtonCollapsed]}
+          pressedStyle={styles.inverseControlPressed}
+          style={[
+            styles.brandButton,
+            isCollapsed && styles.brandButtonCollapsed,
+          ]}
         >
-          <View style={styles.logoMark}>
-            <Text style={styles.logoMarkText}>R</Text>
-          </View>
-          {!isCollapsed ? (
-            <View style={styles.brandCopy}>
-              <Text style={styles.brandName}>{BRAND_NAME}</Text>
-              <Text numberOfLines={1} style={styles.brandSubtitle}>
-                {shellCopy.workspaceSubtitle}
-              </Text>
-            </View>
-          ) : null}
+          {isCollapsed ? (
+            <AppIcon color={Colors.goldPrimary} name="home" size={22} />
+          ) : (
+            <>
+              <View style={styles.brandAccent} />
+              <View style={styles.brandCopy}>
+                <Text style={styles.brandName}>{BRAND_NAME}</Text>
+                <Text numberOfLines={1} style={styles.brandSubtitle}>
+                  {shellCopy.workspaceSubtitle}
+                </Text>
+              </View>
+            </>
+          )}
         </InteractivePressable>
 
         <InteractivePressable
@@ -174,14 +172,20 @@ export default function CollapsibleSidebar({
                 : shellCopy.collapseSidebar
           }
           accessibilityRole="button"
-          hoverStyle={styles.controlHover}
+          hoverStyle={styles.inverseControlHover}
           onPress={drawer ? onNavigate ?? onCollapseToggle : onCollapseToggle}
-          pressedStyle={styles.controlPressed}
+          pressedStyle={styles.inverseControlPressed}
           style={styles.collapseButton}
         >
           <AppIcon
-            color={Colors.textSubtle}
-            name={drawer ? "close" : isCollapsed ? "chevron-right" : "chevron-left"}
+            color={Colors.textOnDark}
+            name={
+              drawer
+                ? "close"
+                : isCollapsed
+                  ? "chevron-right"
+                  : "chevron-left"
+            }
             size={18}
           />
         </InteractivePressable>
@@ -197,45 +201,21 @@ export default function CollapsibleSidebar({
             <SidebarNavItem
               active={isSidebarRouteActive(pathname, item)}
               collapsed={isCollapsed}
-              disabled={item.disabled}
               icon={item.icon}
               key={item.key}
               label={item.label}
               onPress={() => navigate(item.route)}
-              soonLabel={item.soon ? copy.soon : undefined}
             />
           ))}
         </View>
-
-        {isAdmin ? (
-          <View style={styles.adminSection}>
-            {!isCollapsed ? (
-              <View style={styles.sectionTitleRow}>
-                <AppIcon color={Colors.brandDeep} name="admin" size={16} />
-                <Text style={styles.sectionTitle}>{copy.adminSection}</Text>
-              </View>
-            ) : (
-              <View style={styles.collapsedDivider} />
-            )}
-            <View accessibilityRole="menu" style={styles.navigationGroup}>
-              {adminItems.map((item) => (
-                <SidebarNavItem
-                  collapsed={isCollapsed}
-                  disabled
-                  icon={item.icon}
-                  key={item.key}
-                  label={item.label}
-                  soonLabel={copy.soon}
-                />
-              ))}
-            </View>
-          </View>
-        ) : null}
       </ScrollView>
 
       <View style={styles.sidebarFooter}>
         {!isCollapsed ? (
-          <View accessibilityLabel={shellCopy.language} style={styles.languageSelector}>
+          <View
+            accessibilityLabel={shellCopy.language}
+            style={styles.languageSelector}
+          >
             {languages.map((item) => {
               const selected = language === item.code;
 
@@ -244,16 +224,21 @@ export default function CollapsibleSidebar({
                   accessibilityLabel={item.label}
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
-                  hoverStyle={styles.controlHover}
+                  hoverStyle={styles.inverseControlHover}
                   key={item.code}
                   onPress={() => setLanguage(item.code)}
-                  pressedStyle={styles.controlPressed}
+                  pressedStyle={styles.inverseControlPressed}
                   style={[
                     styles.languageButton,
                     selected && styles.languageButtonActive,
                   ]}
                 >
-                  <Text style={[styles.languageText, selected && styles.languageTextActive]}>
+                  <Text
+                    style={[
+                      styles.languageText,
+                      selected && styles.languageTextActive,
+                    ]}
+                  >
                     {item.code.toUpperCase()}
                   </Text>
                 </InteractivePressable>
@@ -264,17 +249,19 @@ export default function CollapsibleSidebar({
 
         <View style={styles.footerDivider} />
         <SidebarNavItem
-          active={pathname === "/settings" || pathname.startsWith("/settings/")}
+          active={
+            pathname === "/settings" || pathname.startsWith("/settings/")
+          }
           collapsed={isCollapsed}
           icon="settings"
-          label={copy.settings}
+          label={utilityCopy.settings}
           onPress={() => navigate("/settings")}
         />
         <SidebarNavItem
           collapsed={isCollapsed}
           disabled={isSigningOut}
           icon="logout"
-          label={copy.logout}
+          label={utilityCopy.logout}
           onPress={() => {
             void handleLogout();
           }}
@@ -337,76 +324,69 @@ function InteractivePressable({
 
 const styles = StyleSheet.create({
   sidebar: {
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.borderNeutral,
+    backgroundColor: Colors.shellBackground,
+    borderColor: Colors.borderStrong,
     borderRightWidth: 1,
     flexShrink: 0,
     height: "100%",
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.control,
   },
   sidebarDrawer: {
-    borderRadius: 0,
-    borderRightWidth: 1,
-    ...Shadows.card,
+    ...Shadows.elevated,
   },
   brandRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: Spacing.md,
+    gap: Spacing.control,
     justifyContent: "space-between",
-    minHeight: 52,
-    paddingHorizontal: Spacing.xs,
+    minHeight: ControlHeight.large,
   },
   brandRowCollapsed: {
     flexDirection: "column",
-    gap: Spacing.sm,
-    paddingHorizontal: 0,
+    gap: Spacing.control,
   },
   brandButton: {
     alignItems: "center",
+    borderRadius: Radius.control,
     flex: 1,
     flexDirection: "row",
-    gap: Spacing.xl,
+    gap: Spacing.inline,
     minHeight: ControlHeight.minimumTouch,
     minWidth: 0,
+    paddingHorizontal: Spacing.control,
   },
   brandButtonCollapsed: {
     flex: 0,
     justifyContent: "center",
+    paddingHorizontal: 0,
+    width: ControlHeight.minimumTouch,
   },
-  logoMark: {
-    alignItems: "center",
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.lg,
-    height: 38,
-    justifyContent: "center",
-    width: 38,
-    ...Shadows.button,
-  },
-  logoMarkText: {
-    color: Colors.brandOn,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
+  brandAccent: {
+    alignSelf: "stretch",
+    backgroundColor: Colors.goldPrimary,
+    borderRadius: Radius.pill,
+    marginVertical: Spacing.control,
+    width: Spacing.compact,
   },
   brandCopy: {
     flex: 1,
     minWidth: 0,
   },
   brandName: {
-    color: Colors.text,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.black,
+    color: Colors.textOnDark,
+    fontSize: Typography.h4,
+    fontWeight: Typography.fontWeight.bold,
+    letterSpacing: Typography.letterSpacing.tight,
   },
   brandSubtitle: {
-    color: Colors.textMuted,
-    fontSize: 10,
-    marginTop: 1,
+    color: Colors.textOnDark,
+    fontSize: Typography.caption,
+    marginTop: Spacing.micro,
   },
   collapseButton: {
     alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.lg,
+    borderColor: Colors.borderStrong,
+    borderRadius: Radius.control,
     borderWidth: 1,
     flexShrink: 0,
     height: ControlHeight.minimumTouch,
@@ -415,83 +395,57 @@ const styles = StyleSheet.create({
   },
   navigationScroll: {
     flex: 1,
-    marginTop: Spacing.three,
+    marginTop: Spacing.section,
   },
   navigationContent: {
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.section,
   },
   navigationGroup: {
-    gap: Spacing.xs,
-  },
-  adminSection: {
-    marginTop: Spacing.screen,
-  },
-  sectionTitleRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-  },
-  sectionTitle: {
-    color: Colors.textSubtle,
-    flex: 1,
-    fontSize: 10,
-    fontWeight: Typography.fontWeight.extraBold,
-    letterSpacing: 0.7,
-    textTransform: "uppercase",
-  },
-  collapsedDivider: {
-    backgroundColor: Colors.borderNeutral,
-    height: 1,
-    marginBottom: Spacing.xl,
-    marginHorizontal: Spacing.md,
+    gap: Spacing.compact,
   },
   sidebarFooter: {
-    gap: Spacing.xs,
-    paddingTop: Spacing.md,
+    gap: Spacing.compact,
+    paddingTop: Spacing.control,
   },
   footerDivider: {
-    backgroundColor: Colors.borderNeutral,
+    backgroundColor: Colors.borderStrong,
     height: 1,
-    marginBottom: Spacing.md,
-    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.control,
+    marginHorizontal: Spacing.control,
   },
   languageSelector: {
-    backgroundColor: Colors.surfaceMuted,
-    borderColor: Colors.borderNeutral,
-    borderRadius: Radius.lg,
+    borderColor: Colors.borderStrong,
+    borderRadius: Radius.control,
     borderWidth: 1,
     flexDirection: "row",
-    gap: Spacing.xs,
-    marginBottom: Spacing.md,
-    padding: Spacing.xs,
+    gap: Spacing.compact,
+    marginBottom: Spacing.control,
+    padding: Spacing.compact,
   },
   languageButton: {
     alignItems: "center",
-    borderRadius: Radius.md,
+    borderRadius: Radius.control,
     flex: 1,
     justifyContent: "center",
     minHeight: ControlHeight.minimumTouch,
   },
   languageButtonActive: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
+    backgroundColor: Colors.shellElevated,
+    borderColor: Colors.goldPrimary,
     borderWidth: 1,
   },
   languageText: {
-    color: Colors.textMuted,
-    fontSize: 10,
-    fontWeight: Typography.fontWeight.extraBold,
+    color: Colors.textOnDark,
+    fontSize: Typography.caption,
+    fontWeight: Typography.fontWeight.semibold,
   },
   languageTextActive: {
-    color: Colors.brandDeep,
+    color: Colors.goldPrimary,
   },
-  controlHover: {
-    backgroundColor: Colors.surfaceInteractive,
-    borderColor: Colors.borderStrong,
+  inverseControlHover: {
+    backgroundColor: Colors.shellSurface,
   },
-  controlPressed: {
-    backgroundColor: Colors.selection,
+  inverseControlPressed: {
+    backgroundColor: Colors.shellElevated,
   },
 });

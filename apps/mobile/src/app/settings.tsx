@@ -1,9 +1,15 @@
 import RequireAuth from "@/components/RequireAuth";
-import { PageContainer, PageHeader, RabAICard } from "@/components/ui";
+import {
+  ListingRow,
+  PageContainer,
+  PageHeader,
+  Section,
+  StatusBadge,
+} from "@/components/ui";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { languages, type LanguageCode } from "@/i18n/translations";
-import { Colors, Radius, Spacing, Typography } from "@/theme";
-import { StyleSheet, Text, View } from "react-native";
+import { Spacing } from "@/theme";
+import { StyleSheet, View } from "react-native";
 
 type SettingsCopy = {
   current: string;
@@ -53,19 +59,9 @@ function SettingsContent() {
   const copy = copyByLanguage[language];
 
   return (
-    <PageContainer
-      contentStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      maxWidth="content"
-      scroll
-    >
-      <PageHeader
-        description={copy.subtitle}
-        eyebrow="RabAI"
-        title={copy.title}
-      />
-
-      <RabAICard
+    <PageContainer contentStyle={styles.content} maxWidth="content" scroll>
+      <PageHeader description={copy.subtitle} title={copy.title} />
+      <Section
         description={copy.languageDescription}
         title={copy.languageTitle}
       >
@@ -74,38 +70,29 @@ function SettingsContent() {
             const selected = item.code === language;
 
             return (
-              <RabAICard
-                accessibilityLabel={item.label}
+              <ListingRow
+                accessibilityHint={copy.languageDescription}
+                accessibilityLabel={`${item.label}, ${
+                  selected ? copy.current : item.code.toUpperCase()
+                }`}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: selected }}
-                interactive
+                actions={
+                  selected ? (
+                    <StatusBadge label={copy.current} status="active" />
+                  ) : undefined
+                }
+                compact
                 key={item.code}
                 onPress={() => setLanguage(item.code)}
-                padding="sm"
                 selected={selected}
-                style={styles.languageOption}
-                variant="filled"
-              >
-                <View style={styles.languageRow}>
-                  <View
-                    accessibilityElementsHidden
-                    style={[styles.radio, selected && styles.radioSelected]}
-                  >
-                    {selected ? <View style={styles.radioDot} /> : null}
-                  </View>
-                  <View style={styles.languageCopy}>
-                    <Text style={styles.languageName}>{item.label}</Text>
-                    <Text style={styles.languageMeta}>
-                      {item.code.toUpperCase()}
-                      {selected ? ` · ${copy.current}` : ""}
-                    </Text>
-                  </View>
-                </View>
-              </RabAICard>
+                subtitle={item.code.toUpperCase()}
+                title={item.label}
+              />
             );
           })}
         </View>
-      </RabAICard>
+      </Section>
     </PageContainer>
   );
 }
@@ -115,47 +102,6 @@ const styles = StyleSheet.create({
     gap: Spacing.section,
   },
   languageList: {
-    gap: Spacing.control,
-  },
-  languageOption: {
-    minHeight: 64,
-  },
-  languageRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: Spacing.inline,
     minWidth: 0,
-  },
-  radio: {
-    alignItems: "center",
-    borderColor: Colors.placeholder,
-    borderRadius: Radius.pill,
-    borderWidth: 2,
-    height: 20,
-    justifyContent: "center",
-    width: 20,
-  },
-  radioSelected: {
-    borderColor: Colors.primary,
-  },
-  radioDot: {
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.pill,
-    height: 10,
-    width: 10,
-  },
-  languageCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  languageName: {
-    color: Colors.textPrimary,
-    fontSize: Typography.body,
-    fontWeight: Typography.fontWeight.bold,
-  },
-  languageMeta: {
-    color: Colors.textSecondary,
-    fontSize: Typography.small,
-    marginTop: Spacing.compact,
   },
 });
