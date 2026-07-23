@@ -257,11 +257,11 @@ function CourseParticipantsContent() {
         : "credentials.participants.actionSuccess"));
       await loadParticipants();
     } catch (nextError) {
-      const friendlyError = nextError instanceof Error
+      const friendlyError = actionKind === "retry"
+        ? t("credentials.participants.retryError")
+        : nextError instanceof Error
         ? nextError.message
-        : t(actionKind === "retry"
-          ? "credentials.participants.retryError"
-          : "credentials.participants.actionError");
+        : t("credentials.participants.actionError");
 
       if (actionKind === "retry") {
         setPendingAction(null);
