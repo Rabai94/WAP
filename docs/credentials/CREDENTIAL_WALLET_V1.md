@@ -92,6 +92,13 @@ required notice is stored at
 function-local `deno.json`; both are MIT-licensed. The renderer dependencies
 and font bytes remain Edge-only and are not added to the Expo application.
 
+The certificate is A4 landscape with a predominantly white/ivory surface,
+near-black text and a restrained matte-gold frame/accent. RabAI is represented
+by a text wordmark because no approved logo asset is present in this scope.
+The layout does not invent academy logos, signatures, seals, accreditations or
+ratings. Detail values use a two-column grid; credential numbers are measured
+and fitted in both header and footer without ellipsis.
+
 Input text is normalized to Unicode NFC. Bidirectional formatting controls and
 disallowed C0/C1 controls are removed, and line/tab separators become spaces.
 The renderer checks every static and snapshot code point against both embedded
@@ -120,6 +127,10 @@ before normalization:
 | Skill count | 250 |
 | Verification URL | 4,096 |
 
+The 250-skill value is a renderer abuse-safety ceiling. The production
+`set_course_skills` workflow limits a course to 50 skills, and the PDF tests
+exercise that full production maximum.
+
 These are safety ceilings, not a promise that every possible string at the
 ceiling fits the certificate. Identity fields that still cannot fit at 9pt or
 larger fail explicitly; they are never clipped or silently reduced. Completion
@@ -132,6 +143,24 @@ the PDF is an issuance snapshot, not proof that the credential remains valid.
 No approved official RabAI logo asset exists in this scope, so the certificate
 uses a text wordmark and does not fabricate or approximate a logo.
 
+### Deterministic input boundary
+
+The renderer consumes immutable `issued_credentials` values for credential
+number, participant, course, issuer, dates, duration, expiry and verification
+token. Skill snapshot rows are append-only and are ordered by `skill_slug` and
+`skill_id`. The completion date comes from the referenced append-only
+`course_completions` row. No current timestamp, random UUID or unordered query
+is used while rendering or retrying.
+
+The absolute verification URL also depends on the deployment setting
+`CREDENTIAL_VERIFICATION_BASE_URL`; the token itself is immutable, but the base
+URL is not stored on the credential row. Treat this setting as an invariant for
+all `pending` and `failed` documents created by the same renderer version. A
+change between a partial upload and retry can intentionally fail closed with a
+Storage hash mismatch. Complete or reconcile outstanding attempts before a
+base-URL rotation. Adding a per-credential URL snapshot would require an
+explicit future schema/lifecycle change and is outside Faza 3.
+
 ## Determinism and compatibility limits
 
 Deterministic metadata, pinned renderer versions, pinned font bytes, stable
@@ -142,13 +171,33 @@ Romanian/German Latin Extended text, long fields, pagination, all skills and
 controlled unsupported-glyph failure.
 
 The Deno 2.5.4 test run pins the ten-skill Unicode fixture at SHA-256
-`a8aa727d3132c9bf74d5d329530e09ee574f724bf3793e8b21ab237bdac95862`.
-A separate 50-skill, long-token and long-URL smoke fixture produced five pages
-and the same SHA-256
-`b38c593181e54dc0fc3bc27008e209f069a2c033a5b2ec4d83d6d77a2208d147`
-in two independent processes. PDF.js 5.6.205 extracted the Unicode text and
-validated text bounds on every page; Microsoft Edge rendered the multipage
-document with its built-in PDF viewer.
+`86e9c1db34618276560cd5d37926d3d669e159dc46f6f7bb4e7a9cb4590194a8`.
+A separate 50-skill, long-token and long-URL smoke fixture produced five pages,
+51,703 bytes and SHA-256
+`37102bb627237f9b4d50e6fe58da9883137b88e3f3a5271bb1c3accaf3dbb4dd`
+byte-for-byte in two independent processes. PDF.js 5.6.205 extracted Unicode,
+validated text bounds and footer geometry on every page. All five pages were
+also rendered offline through PDF.js and canvas and visually inspected for
+clipping, overlap, missing glyphs and layout defects.
+
+The eight renderer tests cover the exact Romanian/German/French/Spanish
+fixture `ȘșȚțĂăÂâÎîÄäÖöÜüßéçñ`, `François Dupont`, a 120-character legal name,
+1/10/50 skills, a long unbroken skill, long and exactly-two-line URLs,
+expiry/no-expiry, sanitization, embedded font/ToUnicode, complete extraction,
+page identity and byte determinism. Run them from the repository root with:
+
+```text
+deno fmt --check supabase/functions/_shared/pdf.ts supabase/functions/_shared/pdf_legacy_v1.ts supabase/functions/_shared/pdf_test.ts scripts/credential-pdf-smoke.ts supabase/functions/generate-course-credential/index.ts
+deno check --no-remote --frozen --config supabase/functions/generate-course-credential/deno.json supabase/functions/_shared/pdf_test.ts scripts/credential-pdf-smoke.ts supabase/functions/generate-course-credential/index.ts
+deno test --no-remote --frozen --config supabase/functions/generate-course-credential/deno.json --allow-read --allow-env --allow-ffi --allow-sys supabase/functions/_shared/pdf_test.ts
+```
+
+The final local mobile validation passed `npm.cmd run lint` and
+`npm.cmd run typecheck`. The online `npx.cmd expo install --check` reported
+seven pre-existing patch-level compatibility updates (`expo`,
+`expo-constants`, `expo-linking`, `expo-router`, `expo-splash-screen`,
+`expo-web-browser` and `react-native-screens`). Faza 3 does not modify the
+mobile package manifest or install the PDF stack in Expo.
 
 Byte identity is scoped to the tested Deno, pinned `pdf-lib`/`fontkit`, and
 pinned font-asset versions; any dependency, runtime or font upgrade requires
